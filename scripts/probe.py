@@ -1,9 +1,9 @@
-"""Phase 0 one-shot probe: record fixtures (step 6) and measure EURES volume (step 8).
+"""Phase 0 one-shot probe: record private responses and measure EURES volume.
 
 Network access ONLY under --live. Everything else in this repo runs offline against
-tests/fixtures/. See AGENTS.md.
+synthetic sample data.
 
-    uv run python scripts/probe.py --live     # record fixtures + measure (network)
+    uv run python scripts/probe.py --live     # record private responses + measure (network)
     uv run python scripts/probe.py --sample   # rebuild sample parquet (offline)
 """
 
@@ -18,7 +18,7 @@ from typing import Any
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXTURES = ROOT / "tests" / "fixtures"
+RAW_PROBES = ROOT / "data" / "raw" / "probe"
 SAMPLE = ROOT / "data" / "sample" / "postings_sample.parquet"
 
 EURES = "https://europa.eu/eures/api/jv-searchengine/public"
@@ -83,14 +83,15 @@ def eures_search(
 
 
 def _write(name: str, obj: Any) -> None:
-    path = FIXTURES / name
+    RAW_PROBES.mkdir(parents=True, exist_ok=True)
+    path = RAW_PROBES / name
     path.write_text(json.dumps(obj, indent=1, ensure_ascii=False), encoding="utf-8")
     print(f"  wrote {path.relative_to(ROOT)}  ({path.stat().st_size / 1024:.0f} KiB)")
 
 
 def record() -> None:
-    """Step 6: record the fixtures that are both the test basis and the quota firewall."""
-    print("recording fixtures")
+    """Record private source responses outside git."""
+    print("recording private responses")
     _write("eures_search.json", eures_search(rpp=3, occupations=ICT_URIS))
     _write("jobtech_search.json", _req(f"{JOBTECH}/search?q=utvecklare&limit=2"))
     _write("jobtech_historical.json", _req(f"{JOBTECH_HIST}/search?q=utvecklare&limit=2"))
@@ -145,59 +146,26 @@ def measure() -> None:
 
 
 def build_sample() -> None:
-    """Step 7: sample parquet so dbt and the dashboard build offline in any worktree.
-
-    Shaped like RAW LANDING (source-native column names, nested structs intact) so
-    stg_postings.sql does real mapping work rather than a passthrough. Built from the
-    recorded Swedish fixture, so the shape is measured rather than invented.
-
-    application_contacts is dropped here, not later: it carries PII and CC0 does not
-    waive GDPR. So are employer.phone_number/email and application_details, which are
-    the non-obvious PII carriers in this schema. This projection is an ALLOWLIST on
-    purpose -- a SELECT * sample would publish contact data (plan R5).
-    """
+    """Build a synthetic, PII-free sample for offline dbt checks."""
     import duckdb
 
-    src = FIXTURES / "jobtech_search.json"
     SAMPLE.parent.mkdir(parents=True, exist_ok=True)
     duckdb.execute(
         """
         COPY (
-          SELECT h.id,
-                 h.headline,
-                 h.webpage_url,
-                 h.source_type,
-                 h.description.text                        AS description_text,
-                 h.employer.name                            AS employer_name,
-                 h.employer.organization_number             AS employer_org_number,
-                 h.workplace_address.country_code           AS country_code,
-                 h.workplace_address.region_code            AS region_code,
-                 h.workplace_address.municipality_code      AS municipality_code,
-                 h.workplace_address.city                   AS city,
-                 h.workplace_address.postcode               AS postcode,
-                 h.occupation.concept_id                    AS occupation_concept_id,
-                 h.occupation.label                         AS occupation_label,
-                 h.occupation_group.concept_id              AS occupation_group_concept_id,
-                 h.occupation_group.label                   AS occupation_group_label,
-                 h.occupation_field.label                   AS occupation_field_label,
-                 h.employment_type.label                    AS employment_type_label,
-                 h.working_hours_type.label                 AS working_hours_type_label,
-                 h.duration.label                           AS duration_label,
-                 h.salary_type.label                        AS salary_type_label,
-                 h.number_of_vacancies,
-                 h.experience_required,
-                 h.must_have,                -- authority answer key for extraction eval
-                 h.nice_to_have,
-                 h.publication_date,
-                 h.last_publication_date,
-                 h.application_deadline,
-                 h.removed,
-                 CAST(h.removed_date AS VARCHAR)            AS removed_date,
-                 h.timestamp
-          FROM read_json_auto($1) AS j, UNNEST(j.hits) AS t(h)
-        ) TO $2 (FORMAT parquet, COMPRESSION zstd)
+          SELECT 'synthetic-001'::VARCHAR AS id,
+                 'SE'::VARCHAR AS country_code,
+                 TIMESTAMP '2026-08-01 08:00:00' AS publication_date,
+                 TIMESTAMP '2026-08-02 09:00:00' AS last_publication_date,
+                 CAST(NULL AS VARCHAR) AS removed_date,
+                 1785747600000::BIGINT AS timestamp
+          UNION ALL
+          SELECT 'synthetic-002', 'SE', TIMESTAMP '2026-08-03 08:00:00',
+                 TIMESTAMP '2026-08-04 09:00:00', '2026-08-10 10:00:00',
+                 1785920400000::BIGINT
+        ) TO $1 (FORMAT parquet, COMPRESSION zstd)
         """,
-        [str(src), str(SAMPLE)],
+        [str(SAMPLE)],
     )
     row = duckdb.execute("SELECT count(*) FROM read_parquet($1)", [str(SAMPLE)]).fetchone()
     print(

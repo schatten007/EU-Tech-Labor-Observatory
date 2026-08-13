@@ -22,9 +22,6 @@ select
     last_publication_date                           as last_modified,
     try_cast(removed_date as timestamp)             as removed_at,
 
-    headline                                        as title,
-    employer_name                                   as employer,
-
     -- Sweden publishes its own municipality/region codes, not NUTS. Deriving NUTS
     -- is a mapping step, not a rename: left null until the crosswalk lands.
     cast(null as varchar)                           as nuts_code,
@@ -32,10 +29,6 @@ select
 
     -- Likewise: JobTech uses its own taxonomy concept ids, not ESCO URIs.
     cast(null as varchar)                           as esco_occupation_uri,
-    'sv'                                            as lang,
-
-    -- Free text is republishable for Sweden ONLY (CC0). Any other source must have
-    -- this column physically absent from release artifacts. See docs/PROVENANCE.md.
-    description_text                                as text
+    'sv'                                            as lang
 
 from {{ source('sample', 'postings_sample') }}

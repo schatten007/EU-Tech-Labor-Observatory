@@ -1,6 +1,6 @@
-# make check is THE gate. It must stay fully offline: fixtures in tests/fixtures/ are
-# simultaneously the test basis and the API-quota firewall. If this target ever touches
-# the network, an agent will route around it and the whole verification story collapses.
+# make check is THE gate. It must stay fully offline: synthetic rows are the test basis
+# and the API-quota firewall. If this target ever touches the network, an agent will
+# route around it and the whole verification story collapses.
 # Never edit this target to make it pass.
 
 export DBT_PROFILES_DIR := transform
@@ -24,9 +24,9 @@ dbt:
 	$(DBT) parse --project-dir transform
 	$(DBT) build --project-dir transform
 
-# Offline: rebuilds the committed sample from the committed fixtures.
+# Offline: rebuilds the committed sample from synthetic rows.
 sample:
-	uv run python scripts/probe.py --sample
+	uv run --offline python scripts/probe.py --sample
 
 # NOT part of check. Hits live APIs. Main checkout only, never a worktree.
 probe:

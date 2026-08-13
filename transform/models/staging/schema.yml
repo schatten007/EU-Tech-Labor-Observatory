@@ -28,7 +28,7 @@ models:
       - name: source_id
         data_type: varchar
         data_tests: [not_null]
-        description: Native id in the source system. Longitudinal join key.
+        description: HMAC-pseudonymized native id. Stable longitudinal join key.
       - name: observed_at
         data_type: timestamp
         data_tests: [not_null]
@@ -44,10 +44,6 @@ models:
         description: >
           Source-reported closure. Populated by Sweden only. This is the ground truth
           that calibrates inferred closure; null elsewhere means unknown, NOT still open.
-      - name: title
-        data_type: varchar
-      - name: employer
-        data_type: varchar
       - name: nuts_code
         data_type: varchar
         description: NUTS 2024. Null until the source's own codes are crosswalked.
@@ -59,8 +55,3 @@ models:
         description: ESCO occupation URI. Pre-coded by EURES; derived for other sources.
       - name: lang
         data_type: varchar
-      - name: text
-        data_type: varchar
-        description: >
-          Free text. Populated for Sweden (CC0) only. MUST remain null/absent for
-          EURES and BA in every release artifact.
