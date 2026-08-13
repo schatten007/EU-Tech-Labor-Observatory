@@ -7,9 +7,9 @@ than expanding the active increment.
 | --- | --- | --- | --- | --- |
 | 1 | 2026-08-13 | Complete | Review the Phase 0 scaffold and establish a passing offline baseline. | `make check` passed |
 | P1 | 2026-08-13 | Complete | Isolate raw responses and add the minimum PII sanitization boundary. | `make sample && make check` passed |
-| 2 | Unscheduled | Planned | Add the smallest raw observation collector against ignored private responses. | Offline collector check |
-| 3 | Unscheduled | Planned | Point staging at collected observations while preserving its contract. | `make check` |
-| 4 | Unscheduled | Planned | Derive posting presence and closure events. | One survival-logic check |
+| 2 | 2026-08-13 | Complete | Add the smallest raw observation collector against ignored private responses. | Offline collector check passed |
+| 3 | 2026-08-13 | Complete | Point staging at collected observations while preserving its contract. | `make sample && make check` passed |
+| 4 | 2026-08-13 | Complete | Derive posting presence and closure events. | `make sample && make check` passed |
 | 5 | Unscheduled | Planned | Publish one minimal labour-demand view. | Offline site build |
 
 ## Session Notes
@@ -44,4 +44,39 @@ than expanding the active increment.
 - Deliberate boundary: skill extraction from private text must happen before sanitizing;
   only normalized skill URIs cross into analytical data.
 - Final result: `make sample && make check` passed with two Python tests and six dbt
+  resources passing.
+
+### 2026-08-13 - Increment 2
+
+- Added the offline JobTech collector for recorded raw responses.
+- Normalized source dates, country, language, vacancy count, and observation time.
+- Applied the existing sanitizer before writing NDJSON, so native IDs and private fields
+  never leave the collector boundary.
+- Final result: `make check` passed with three Python tests and six dbt resources
+  passing.
+
+### 2026-08-13 - Increment 3
+
+- Replaced the source-native Parquet sample with sanitized observation NDJSON generated
+  through the same normalization and privacy boundary as collected responses.
+- Pointed staging at `OBSERVATIONS_PATH`, with the committed synthetic sample as its
+  offline default.
+- Preserved the ten-column staging contract and observation grain; staging now only
+  selects and casts collector fields.
+- Standardized script commands on `python -m scripts...` so package imports work without
+  path manipulation.
+- Final result: `make sample && make check` passed with three Python tests and six dbt
+  resources passing.
+
+### 2026-08-13 - Increment 4
+
+- Added one event view: each observation becomes a presence event and each posting may
+  produce one closure event.
+- Preferred source-reported `removed_at`; otherwise inferred closure at the first later
+  complete source sweep where the posting is absent.
+- Expanded the synthetic sample to cover persistence, reported closure, and inferred
+  closure, with one exact-set survival test.
+- Deliberate ceiling: each `(source, observed_at)` is a complete, consistently scoped
+  sweep. Partial or partitioned collection needs a scope key before feeding this model.
+- Final result: `make sample && make check` passed with three Python tests and eight dbt
   resources passing.

@@ -1,22 +1,20 @@
 version: 2
 
 sources:
-  - name: sample
+  - name: observations
     description: >
-      Committed offline sample shaped like raw landing. Exists so dbt, tests and the
-      dashboard build with no network and no warehouse in any worktree. Phase 1 adds
-      the real raw partitions alongside this.
+      Sanitized collector output. OBSERVATIONS_PATH may select an ignored private
+      NDJSON collection; the committed synthetic sample keeps checks offline.
     meta:
-      external_location: "read_parquet('data/sample/{name}.parquet')"
+      external_location: "read_json_auto('{{ env_var('OBSERVATIONS_PATH', 'data/sample/postings_sample.ndjson') }}', format='newline_delimited')"
     tables:
-      - name: postings_sample
+      - name: postings
 
 models:
   - name: stg_postings
     description: >
-      Source-agnostic posting observation. The Phase-0 staging contract every other
-      model depends on. Changing a column here requires a SCHEMA_VERSION bump and an
-      explicit callout (AGENTS.md).
+      Source-agnostic posting observation. This contract is unchanged from Phase 0;
+      staging now reads sanitized collector output rather than source-native sample data.
     config:
       contract:
         enforced: true

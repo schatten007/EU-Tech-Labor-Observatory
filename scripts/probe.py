@@ -3,8 +3,8 @@
 Network access ONLY under --live. Everything else in this repo runs offline against
 synthetic sample data.
 
-    uv run python scripts/probe.py --live     # record private responses + measure (network)
-    uv run python scripts/probe.py --sample   # rebuild sample parquet (offline)
+    uv run python -m scripts.probe --live     # record private responses + measure (network)
+    uv run python -m scripts.probe --sample   # rebuild sample observations (offline)
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW_PROBES = ROOT / "data" / "raw" / "probe"
-SAMPLE = ROOT / "data" / "sample" / "postings_sample.parquet"
+SAMPLE = ROOT / "data" / "sample" / "postings_sample.ndjson"
 
 EURES = "https://europa.eu/eures/api/jv-searchengine/public"
 JOBTECH = "https://jobsearch.api.jobtechdev.se"
@@ -146,38 +146,67 @@ def measure() -> None:
 
 
 def build_sample() -> None:
-    """Build a synthetic, PII-free sample for offline dbt checks."""
-    import duckdb
+    """Build synthetic observations with the collector's PII-free landing shape."""
+    from scripts.collect import normalize_jobtech_hit
+    from scripts.sanitize import sanitize_record
 
     SAMPLE.parent.mkdir(parents=True, exist_ok=True)
-    duckdb.execute(
-        """
-        COPY (
-          SELECT 'synthetic-001'::VARCHAR AS id,
-                 'SE'::VARCHAR AS country_code,
-                 TIMESTAMP '2026-08-01 08:00:00' AS publication_date,
-                 TIMESTAMP '2026-08-02 09:00:00' AS last_publication_date,
-                 CAST(NULL AS VARCHAR) AS removed_date,
-                 1785747600000::BIGINT AS timestamp
-          UNION ALL
-          SELECT 'synthetic-002', 'SE', TIMESTAMP '2026-08-03 08:00:00',
-                 TIMESTAMP '2026-08-04 09:00:00', '2026-08-10 10:00:00',
-                 1785920400000::BIGINT
-        ) TO $1 (FORMAT parquet, COMPRESSION zstd)
-        """,
-        [str(SAMPLE)],
+    observations: tuple[tuple[str, dict[str, Any]], ...] = (
+        (
+            "2026-08-05T09:00:00Z",
+            {
+                "id": "synthetic-001",
+                "publication_date": "2026-08-01T08:00:00Z",
+                "last_publication_date": "2026-08-02T09:00:00Z",
+                "country_code": "SE",
+                "number_of_vacancies": 1,
+            },
+        ),
+        (
+            "2026-08-05T09:00:00Z",
+            {
+                "id": "synthetic-002",
+                "publication_date": "2026-08-03T08:00:00Z",
+                "last_publication_date": "2026-08-04T09:00:00Z",
+                "removed_date": "2026-08-10T10:00:00Z",
+                "country_code": "SE",
+                "number_of_vacancies": 1,
+            },
+        ),
+        (
+            "2026-08-05T09:00:00Z",
+            {
+                "id": "synthetic-003",
+                "publication_date": "2026-08-04T08:00:00Z",
+                "last_publication_date": "2026-08-04T09:00:00Z",
+                "country_code": "SE",
+                "number_of_vacancies": 1,
+            },
+        ),
+        (
+            "2026-08-06T09:00:00Z",
+            {
+                "id": "synthetic-001",
+                "publication_date": "2026-08-01T08:00:00Z",
+                "last_publication_date": "2026-08-02T09:00:00Z",
+                "country_code": "SE",
+                "number_of_vacancies": 1,
+            },
+        ),
     )
-    row = duckdb.execute("SELECT count(*) FROM read_parquet($1)", [str(SAMPLE)]).fetchone()
-    print(
-        f"wrote {SAMPLE.relative_to(ROOT)} "
-        f"({SAMPLE.stat().st_size} bytes, {row[0] if row else 0} rows)"
-    )
+    key = b"offline-synthetic-sample-key-32b"
+    rows = [
+        sanitize_record(normalize_jobtech_hit(hit, observed_at), key)
+        for observed_at, hit in observations
+    ]
+    SAMPLE.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+    print(f"wrote {SAMPLE.relative_to(ROOT)} ({SAMPLE.stat().st_size} bytes, {len(rows)} rows)")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--live", action="store_true", help="hit the network: record + measure")
-    ap.add_argument("--sample", action="store_true", help="rebuild sample parquet (offline)")
+    ap.add_argument("--sample", action="store_true", help="rebuild sample observations (offline)")
     args = ap.parse_args()
     if not (args.live or args.sample):
         ap.print_help()

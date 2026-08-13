@@ -1,9 +1,11 @@
+import json
 import sys
+from pathlib import Path
 from typing import Never
 
 from pytest import MonkeyPatch
 
-from scripts import probe, sanitize
+from scripts import collect, probe, sanitize
 
 
 def fail_network(*args: object, **kwargs: object) -> Never:
@@ -37,3 +39,39 @@ def test_sanitize_record_keeps_analysis_without_identifiers() -> None:
     assert safe == sanitize.sanitize_record(row, key)
     assert safe["source_id"] != row["source_id"]
     assert safe.keys() == {"source", "source_id", "observed_at", "country", "skill_uris"}
+
+
+def test_collect_jobtech_writes_sanitized_observations(tmp_path: Path) -> None:
+    source = tmp_path / "jobtech.json"
+    target = tmp_path / "observations.ndjson"
+    source.write_text(
+        json.dumps(
+            {
+                "hits": [
+                    {
+                        "id": "native-42",
+                        "headline": "Private title",
+                        "description": {"text": "Private description"},
+                        "employer": {"name": "Private employer"},
+                        "country_code": "SE",
+                        "publication_date": "2026-08-13T12:00:00Z",
+                        "number_of_vacancies": 2,
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert collect.collect_jobtech(source, target, "2026-08-13T13:00:00Z", b"k" * 32) == 1
+    row = json.loads(target.read_text(encoding="utf-8"))
+
+    assert row["source"] == "jobtech"
+    assert row["observed_at"] == "2026-08-13T13:00:00Z"
+    assert row["number_of_vacancies"] == 2
+    assert len(row["source_id"]) == 64
+    assert row["nuts_code"] is None
+    assert row["esco_occupation_uri"] is None
+    assert "headline" not in row
+    assert "employer" not in row
+    assert "description" not in row

@@ -26,11 +26,11 @@ dbt:
 
 # Offline: rebuilds the committed sample from synthetic rows.
 sample:
-	uv run --offline python scripts/probe.py --sample
+	uv run --offline python -m scripts.probe --sample
 
 # NOT part of check. Hits live APIs. Main checkout only, never a worktree.
 probe:
-	uv run python scripts/probe.py --live
+	uv run python -m scripts.probe --live
 
 clean:
 	$(DBT) clean
