@@ -1,0 +1,2831 @@
+{
+ "numberRecords": 67926,
+ "jvs": [
+  {
+   "title": "Senior Fullstack Engineer",
+   "description": "<p><strong>Location:</strong> Oslo, Norway<br><strong>Work Arrangement:</strong> On-site (0% remote)<br><strong>Assignment Period:</strong> 1 September 2026 – 30 June 2027<br><strong>Extension:</strong> Possible<br><strong>Application Deadline:</strong> 16 August 2026</p><p></p><strong>Assignment Description</strong><p>We are looking for a Senior Fullstack Engineer to join the development of a next-generation Savings &amp; Investment platform with the ambition of becoming Norway’s leading investment platform.</p><p>You will work in a cross-functional product team, contributing across the full technology stack, from modern frontend applications and user experience to backend services and domain development. The role also includes contributing to the adoption of AI within engineering.</p><p></p><strong>Key Responsibilities</strong><ul><li><p>Develop modern, user-friendly investment solutions.</p></li><li><p>Build frontend applications and Backend-for-Frontend (BFF) APIs.</p></li><li><p>Collaborate closely with Product, Design, and Engineering teams.</p></li><li><p>Take ownership of solutions from concept through production.</p></li><li><p>Contribute to AI adoption and engineering best practices.</p></li><li><p>Make technical decisions and contribute to engineering standards.</p></li></ul><p></p><strong>Requirements</strong><strong>Must Have</strong><ul><li><p>Minimum 7 years of relevant experience as a Fullstack Engineer.</p></li><li><p>Strong experience with React and TypeScript.</p></li><li><p>Experience developing RESTful BFF APIs.</p></li><li><p>Strong experience with Kotlin or Java.</p></li><li><p>Strong experience with .NET.</p></li><li><p>Experience with microservice integration.</p></li><li><p>Experience designing APIs and contracts using OpenAPI/Swagger.</p></li><li><p>Experience with OAuth2/JWT authentication and authorization.</p></li><li><p>Experience with monorepos and micro-frontends.</p></li><li><p>Experience developing reusable components and design systems.</p></li><li><p>Knowledge of accessibility and WCAG.</p></li><li><p>Experience with automated testing and frontend performance optimization.</p></li><li><p>Experience with frontend bundlers such as Vite, Webpack, Nx, or Turborepo.</p></li><li><p>Practical experience with LLMs, AI-assisted development, or AI integration.</p></li><li><p>Experience guiding or supporting AI adoption in engineering.</p></li><li><p>Experience with AWS.</p></li><li><p>Professional proficiency in Norwegian and English, both written and spoken.</p></li></ul><p></p><strong>Good to Have</strong><ul><li><p>Experience with Maven or Gradle.</p></li><li><p>Experience with GitLab/GitHub CI/CD.</p></li><li><p>Experience with pnpm workspaces.</p></li><li><p>Experience with feature flags, A/B testing, and progressive rollout.</p></li><li><p>Experience mentoring developers and contributing to engineering standards.</p></li></ul><p></p><strong>About Sperton</strong><p>Sperton is a global recruitment and consulting company with offices across Europe, Asia, and the Americas. We help organizations find and engage top talent through flexible recruitment, consulting, and global mobility solutions.</p><p><b>Om arbeidsgiveren:</b></p>null",
+   "id": "ZDVhNzQxYzEtODhjMi00OGNiLWE1YmUtZjZhYjE2OTEzMzYxIDI2MQ",
+   "creationDate": 1786518387334,
+   "lastModificationDate": 1786522790330,
+   "numberOfPosts": 1,
+   "locationMap": {
+    "NO": [
+     "NO081"
+    ]
+   },
+   "euresFlag": false,
+   "jobCategoriesCodes": [
+    "http://data.europa.eu/esco/isco/C2512",
+    "http://data.europa.eu/esco/occupation/f2b15a0e-e65a-438a-affb-29b9d50b77d1"
+   ],
+   "positionScheduleCodes": [
+    "fulltime"
+   ],
+   "positionOfferingCode": "directhire",
+   "employer": {
+    "name": "SPERTON GLOBAL AS",
+    "legalID": null,
+    "organisationSizeCode": null,
+    "organisationOwnershipTypeCode": null,
+    "website": null,
+    "sectorCodes": [],
+    "description": null
+   },
+   "availableLanguages": [
+    "no"
+   ],
+   "score": null,
+   "translationType": "FIRST_LANGUAGE",
+   "translations": {
+    "no": {
+     "title": "Senior Fullstack Engineer",
+     "description": "<p><strong>Location:</strong> Oslo, Norway<br><strong>Work Arrangement:</strong> On-site (0% remote)<br><strong>Assignment Period:</strong> 1 September 2026 – 30 June 2027<br><strong>Extension:</strong> Possible<br><strong>Application Deadline:</strong> 16 August 2026</p><p></p><strong>Assignment Description</strong><p>We are looking for a Senior Fullstack Engineer to join the development of a next-generation Savings &amp; Investment platform with the ambition of becoming Norway’s leading investment platform.</p><p>You will work in a cross-functional product team, contributing across the full technology stack, from modern frontend applications and user experience to backend services and domain development. The role also includes contributing to the adoption of AI within engineering.</p><p></p><strong>Key Responsibilities</strong><ul><li><p>Develop modern, user-friendly investment solutions.</p></li><li><p>Build frontend applications and Backend-for-Frontend (BFF) APIs.</p></li><li><p>Collaborate closely with Product, Design, and Engineering teams.</p></li><li><p>Take ownership of solutions from concept through production.</p></li><li><p>Contribute to AI adoption and engineering best practices.</p></li><li><p>Make technical decisions and contribute to engineering standards.</p></li></ul><p></p><strong>Requirements</strong><strong>Must Have</strong><ul><li><p>Minimum 7 years of relevant experience as a Fullstack Engineer.</p></li><li><p>Strong experience with React and TypeScript.</p></li><li><p>Experience developing RESTful BFF APIs.</p></li><li><p>Strong experience with Kotlin or Java.</p></li><li><p>Strong experience with .NET.</p></li><li><p>Experience with microservice integration.</p></li><li><p>Experience designing APIs and contracts using OpenAPI/Swagger.</p></li><li><p>Experience with OAuth2/JWT authentication and authorization.</p></li><li><p>Experience with monorepos and micro-frontends.</p></li><li><p>Experience developing reusable components and design systems.</p></li><li><p>Knowledge of accessibility and WCAG.</p></li><li><p>Experience with automated testing and frontend performance optimization.</p></li><li><p>Experience with frontend bundlers such as Vite, Webpack, Nx, or Turborepo.</p></li><li><p>Practical experience with LLMs, AI-assisted development, or AI integration.</p></li><li><p>Experience guiding or supporting AI adoption in engineering.</p></li><li><p>Experience with AWS.</p></li><li><p>Professional proficiency in Norwegian and English, both written and spoken.</p></li></ul><p></p><strong>Good to Have</strong><ul><li><p>Experience with Maven or Gradle.</p></li><li><p>Experience with GitLab/GitHub CI/CD.</p></li><li><p>Experience with pnpm workspaces.</p></li><li><p>Experience with feature flags, A/B testing, and progressive rollout.</p></li><li><p>Experience mentoring developers and contributing to engineering standards.</p></li></ul><p></p><strong>About Sperton</strong><p>Sperton is a global recruitment and consulting company with offices across Europe, Asia, and the Americas. We help organizations find and engage top talent through flexible recruitment, consulting, and global mobility solutions.</p><p><b>Om arbeidsgiveren:</b></p>null"
+    }
+   }
+  },
+  {
+   "title": "Quality Engineer (Test Automation)",
+   "description": "<p>Zin in \n<em>niet zomaar</em> een job maar wel om 'echt' zinvol werk aan te gaan met mensen? Dat kan… bij DELA! Hoe wij dat doen? Wel, … op onze manier, \n<strong>de DELA-manier</strong>. Al meer dan 80 jaar \n<strong>luisteren </strong>wij, zorgen we voor \n<strong>raad en daad</strong> &amp; geven wij die \n<strong>warme professionele houvast</strong>.</p> \n<p>Of het nu gaat over een uitvaartverzekering, een repatriëring, nabestaandenzorg of de uitvaart zelf, \n<strong>mensen ontzorgen in één van de moeilijkste momenten van hun leven</strong>. Dat is wat onze job \n<strong>zinvol </strong>maakt en ons de energie geeft om er altijd te staan als \n<strong>één team</strong>.</p> \n<p>Ter uitbreiding van \n<strong>het team IT Insurance in Antwerpen</strong>, zoeken we een Quality Engineer Specialist.</p> \n<p><strong>Jouw uitdaging </strong><br>Als Quality Engineer Specialist neem jij de lead in het bewaken en verbeteren van kwaliteit over teams en systemen heen. Je kijkt niet alleen naar wat er getest moet worden, maar vooral naar hoe we het slimmer, efficiënter en toekomstgericht kunnen aanpakken.</p> \n<p><strong>Wat je doet als Quality Engineer Specialist</strong> \n<strong>bij DELA</strong><br>Elke werkdag bij DELA draait om betekenisvol contact. In deze rol komt het erop aan om:</p> \n<ul> \n<li>Teststrategie en -aanpak te bepalen voor complexe trajecten en deze af te stemmen over meerdere teams</li> \n<li>Testactiviteiten te coördineren en uit te voeren binnen en over scrumteams, inclusief integraties</li> \n<li>Actief bij te dragen aan testautomatisatie: kaders bepalen, tooling optimaliseren en best practices introduceren</li> \n<li>Kwaliteitsrisico's te analyseren en structurele verbeteracties op te zetten</li> \n<li>Developers, testers en business te begeleiden in testaanpak en kwaliteitsdenken</li> \n<li>Testresultaten en risico's helder te vertalen naar stakeholders en mee te sturen op releasebeslissingen</li> \n<li>Actief bij te dragen aan de testgilde.</li> </ul>\n<p><strong>Wie jij bent (en wat jij meebrengt)</strong><br>Volgende troeven zoeken we in jou:</p> \n<ul> \n<li>Sterke ervaring in software testing, inclusief complexere testtrajecten</li> \n<li>Ervaring met testautomatisatie (opzetten, toepassen, verbeteren of beheren van frameworks)</li> \n<li>Kennis van testmethodieken (ISTQB, TMAP) en ervaring met testtools (bv. Jira, TestRail, Testersuite, Xray)</li> \n<li>Ervaring in een Agile/Scrum omgeving en samenwerking met verschillende stakeholders</li> \n<li>Inzicht in API's, datastructuren en (basis)kennis van SQL</li> \n<li>Aantoonbare ervaring met software- en projectmanagementmethodieken, inclusief het opzetten van een passende testaanpak</li> \n<li>Je analyseert snel, denkt in oplossingen en ziet waar processen beter kunnen</li> \n<li>Je communiceert helder en neemt mensen mee in jouw verhaal — van developer tot business</li> \n<li>Je coacht collega's en werkt graag samen in multidisciplinaire teams</li> \n<li>Je voelt je thuis in een dynamische omgeving waar nog niet alles vastligt en je zelf richting geeft</li> \n<li>Je werkt volgens ons IT-DNA: vakmanschap, oplossingsgericht, discipline en teamwork.</li> </ul>",
+   "id": "N2ExNGYzMmQtOGM5Zi00YzQxLTg2Y2ItZjk4NzM1NDMwODAyIDM",
+   "creationDate": 1784006335354,
+   "lastModificationDate": 1786522585899,
+   "numberOfPosts": 1,
+   "locationMap": {
+    "BE": [
+     "BE211"
+    ]
+   },
+   "euresFlag": false,
+   "jobCategoriesCodes": [
+    "http://data.europa.eu/esco/occupation/106f79e4-6264-45f1-9e7a-297435cd684b"
+   ],
+   "positionScheduleCodes": [
+    "fulltime"
+   ],
+   "positionOfferingCode": "directhire",
+   "employer": {
+    "name": "DELA HOLDING BELGIUM NV",
+    "legalID": null,
+    "organisationSizeCode": null,
+    "organisationOwnershipTypeCode": null,
+    "website": null,
+    "sectorCodes": [],
+    "description": null
+   },
+   "availableLanguages": [
+    "nl"
+   ],
+   "score": null,
+   "translationType": "FIRST_LANGUAGE",
+   "translations": {
+    "nl": {
+     "title": "Quality Engineer (Test Automation)",
+     "description": "<p>Zin in \n<em>niet zomaar</em> een job maar wel om 'echt' zinvol werk aan te gaan met mensen? Dat kan… bij DELA! Hoe wij dat doen? Wel, … op onze manier, \n<strong>de DELA-manier</strong>. Al meer dan 80 jaar \n<strong>luisteren </strong>wij, zorgen we voor \n<strong>raad en daad</strong> &amp; geven wij die \n<strong>warme professionele houvast</strong>.</p> \n<p>Of het nu gaat over een uitvaartverzekering, een repatriëring, nabestaandenzorg of de uitvaart zelf, \n<strong>mensen ontzorgen in één van de moeilijkste momenten van hun leven</strong>. Dat is wat onze job \n<strong>zinvol </strong>maakt en ons de energie geeft om er altijd te staan als \n<strong>één team</strong>.</p> \n<p>Ter uitbreiding van \n<strong>het team IT Insurance in Antwerpen</strong>, zoeken we een Quality Engineer Specialist.</p> \n<p><strong>Jouw uitdaging </strong><br>Als Quality Engineer Specialist neem jij de lead in het bewaken en verbeteren van kwaliteit over teams en systemen heen. Je kijkt niet alleen naar wat er getest moet worden, maar vooral naar hoe we het slimmer, efficiënter en toekomstgericht kunnen aanpakken.</p> \n<p><strong>Wat je doet als Quality Engineer Specialist</strong> \n<strong>bij DELA</strong><br>Elke werkdag bij DELA draait om betekenisvol contact. In deze rol komt het erop aan om:</p> \n<ul> \n<li>Teststrategie en -aanpak te bepalen voor complexe trajecten en deze af te stemmen over meerdere teams</li> \n<li>Testactiviteiten te coördineren en uit te voeren binnen en over scrumteams, inclusief integraties</li> \n<li>Actief bij te dragen aan testautomatisatie: kaders bepalen, tooling optimaliseren en best practices introduceren</li> \n<li>Kwaliteitsrisico's te analyseren en structurele verbeteracties op te zetten</li> \n<li>Developers, testers en business te begeleiden in testaanpak en kwaliteitsdenken</li> \n<li>Testresultaten en risico's helder te vertalen naar stakeholders en mee te sturen op releasebeslissingen</li> \n<li>Actief bij te dragen aan de testgilde.</li> </ul>\n<p><strong>Wie jij bent (en wat jij meebrengt)</strong><br>Volgende troeven zoeken we in jou:</p> \n<ul> \n<li>Sterke ervaring in software testing, inclusief complexere testtrajecten</li> \n<li>Ervaring met testautomatisatie (opzetten, toepassen, verbeteren of beheren van frameworks)</li> \n<li>Kennis van testmethodieken (ISTQB, TMAP) en ervaring met testtools (bv. Jira, TestRail, Testersuite, Xray)</li> \n<li>Ervaring in een Agile/Scrum omgeving en samenwerking met verschillende stakeholders</li> \n<li>Inzicht in API's, datastructuren en (basis)kennis van SQL</li> \n<li>Aantoonbare ervaring met software- en projectmanagementmethodieken, inclusief het opzetten van een passende testaanpak</li> \n<li>Je analyseert snel, denkt in oplossingen en ziet waar processen beter kunnen</li> \n<li>Je communiceert helder en neemt mensen mee in jouw verhaal — van developer tot business</li> \n<li>Je coacht collega's en werkt graag samen in multidisciplinaire teams</li> \n<li>Je voelt je thuis in een dynamische omgeving waar nog niet alles vastligt en je zelf richting geeft</li> \n<li>Je werkt volgens ons IT-DNA: vakmanschap, oplossingsgericht, discipline en teamwork.</li> </ul>"
+    }
+   }
+  },
+  {
+   "title": "Klantendienstmedewerker | Waardetransport | NL/FR | Zaventem",
+   "description": "Wij zijn op zoek naar een klantendienstmedewerker voor een bedrijf in Zaventem. \n<br>\n<br>Jouw taken:\n<br> \n<ul>\n <li>Je beantwoordt inkomende telefoongesprekken, e-mails en chatberichten. </li>\n <li>Je registreert de vraag en je zet zoveel mogelijk informatie in het computersysteem. </li>\n <li>Je draagt bij aan een goede klantenservice. </li>\n <li>Je werkt samen met andere departementen om complexe problemen aan te pakken.<br><br><br><br> </li>\n</ul>\nJouw profiel:\n<br> \n<ul>\n <li>Je hebt een zeer goede kennis van het Nederlands en het Frans. Kennis van het Engels is een pluspunt. </li>\n <li>Je bent klantvriendelijk. </li>\n <li>Je kan vlot werken met de computer. </li>\n <li>Je kan snel schakelen tussen verschillende taken. </li>\n <li>Je kan discreet omgaan met informatie. </li>\n <li>Ervaring binnen waardetransport of bewakingssector is een groot pluspunt! </li>\n <li>Ervaring binnen customer service is mooi meegenomen. </li>\n</ul>",
+   "id": "NDE1OTM4ODctMjBmOC00ODk4LWJhM2EtZTliOGFhYjk1YmYwIDM",
+   "creationDate": 1786428922263,
+   "lastModificationDate": 1786522582637,
+   "numberOfPosts": 1,
+   "locationMap": {
+    "BE": [
+     "BE241"
+    ]
+   },
+   "euresFlag": false,
+   "jobCategoriesCodes": [
+    "http://data.europa.eu/esco/occupation/b7b75eb6-34bc-462d-b412-eed393cc1397",
+    "http://data.europa.eu/esco/occupation/aaeec9a7-dc57-4485-890c-86b3eef735f9",
+    "http://data.europa.eu/esco/occupation/0ededdc2-050a-4ec3-8e70-6295105fcd19"
+   ],
+   "positionScheduleCodes": [
+    "fulltime"
+   ],
+   "positionOfferingCode": "temporarytohire",
+   "employer": {
+    "name": "ADECCO PERSONNEL SERVICES NV",
+    "legalID": null,
+    "organisationSizeCode": null,
+    "organisationOwnershipTypeCode": null,
+    "website": null,
+    "sectorCodes": [],
+    "description": null
+   },
+   "availableLanguages": [
+    "nl"
+   ],
+   "score": null,
+   "translationType": "FIRST_LANGUAGE",
+   "translations": {
+    "nl": {
+     "title": "Klantendienstmedewerker | Waardetransport | NL/FR | Zaventem",
+     "description": "Wij zijn op zoek naar een klantendienstmedewerker voor een bedrijf in Zaventem. \n<br>\n<br>Jouw taken:\n<br> \n<ul>\n <li>Je beantwoordt inkomende telefoongesprekken, e-mails en chatberichten. </li>\n <li>Je registreert de vraag en je zet zoveel mogelijk informatie in het computersysteem. </li>\n <li>Je draagt bij aan een goede klantenservice. </li>\n <li>Je werkt samen met andere departementen om complexe problemen aan te pakken.<br><br><br><br> </li>\n</ul>\nJouw profiel:\n<br> \n<ul>\n <li>Je hebt een zeer goede kennis van het Nederlands en het Frans. Kennis van het Engels is een pluspunt. </li>\n <li>Je bent klantvriendelijk. </li>\n <li>Je kan vlot werken met de computer. </li>\n <li>Je kan snel schakelen tussen verschillende taken. </li>\n <li>Je kan discreet omgaan met informatie. </li>\n <li>Ervaring binnen waardetransport of bewakingssector is een groot pluspunt! </li>\n <li>Ervaring binnen customer service is mooi meegenomen. </li>\n</ul>"
+    }
+   }
+  }
+ ],
+ "facets": {
+  "LANGUAGE_SKILLS": {
+   "facetEntriesList": [
+    {
+     "code": "no",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "de",
+     "count": 3240,
+     "childrenList": []
+    },
+    {
+     "code": "fi",
+     "count": 1,
+     "childrenList": []
+    },
+    {
+     "code": "pt",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "NS",
+     "count": 57910,
+     "childrenList": []
+    },
+    {
+     "code": "bg",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "lt",
+     "count": 2,
+     "childrenList": []
+    },
+    {
+     "code": "lv",
+     "count": 103,
+     "childrenList": []
+    },
+    {
+     "code": "hr",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "fr",
+     "count": 1550,
+     "childrenList": []
+    },
+    {
+     "code": "hu",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "sk",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "sl",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "ga",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "sv",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "mt",
+     "count": 2,
+     "childrenList": []
+    },
+    {
+     "code": "el",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "en",
+     "count": 4866,
+     "childrenList": []
+    },
+    {
+     "code": "is",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "it",
+     "count": 13,
+     "childrenList": []
+    },
+    {
+     "code": "es",
+     "count": 18,
+     "childrenList": []
+    },
+    {
+     "code": "et",
+     "count": 13,
+     "childrenList": []
+    },
+    {
+     "code": "cs",
+     "count": 11,
+     "childrenList": []
+    },
+    {
+     "code": "pl",
+     "count": 24,
+     "childrenList": []
+    },
+    {
+     "code": "ro",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "da",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "nl",
+     "count": 4959,
+     "childrenList": []
+    }
+   ]
+  },
+  "REQUIRED_EXPERIENCE": {
+   "facetEntriesList": [
+    {
+     "code": "more_than_5_years",
+     "count": 3435,
+     "childrenList": []
+    },
+    {
+     "code": "NS",
+     "count": 49530,
+     "childrenList": []
+    },
+    {
+     "code": "between_2_and_5_years",
+     "count": 5999,
+     "childrenList": []
+    },
+    {
+     "code": "between_1_and_2_years",
+     "count": 4169,
+     "childrenList": []
+    },
+    {
+     "code": "none_required",
+     "count": 2804,
+     "childrenList": []
+    },
+    {
+     "code": "up_to_1_year",
+     "count": 1989,
+     "childrenList": []
+    }
+   ]
+  },
+  "POSITION_LOCATION": {
+   "facetEntriesList": [
+    {
+     "code": "de",
+     "count": 24320,
+     "childrenList": [
+      {
+       "code": "deb",
+       "count": 947,
+       "childrenList": []
+      },
+      {
+       "code": "dea",
+       "count": 5295,
+       "childrenList": []
+      },
+      {
+       "code": "ded",
+       "count": 1684,
+       "childrenList": []
+      },
+      {
+       "code": "dec",
+       "count": 299,
+       "childrenList": []
+      },
+      {
+       "code": "def",
+       "count": 657,
+       "childrenList": []
+      },
+      {
+       "code": "dee",
+       "count": 355,
+       "childrenList": []
+      },
+      {
+       "code": "de-NS",
+       "count": 420,
+       "childrenList": []
+      },
+      {
+       "code": "deg",
+       "count": 623,
+       "childrenList": []
+      },
+      {
+       "code": "de2",
+       "count": 5236,
+       "childrenList": []
+      },
+      {
+       "code": "de1",
+       "count": 5228,
+       "childrenList": []
+      },
+      {
+       "code": "de4",
+       "count": 357,
+       "childrenList": []
+      },
+      {
+       "code": "de3",
+       "count": 2129,
+       "childrenList": []
+      },
+      {
+       "code": "de6",
+       "count": 1672,
+       "childrenList": []
+      },
+      {
+       "code": "de5",
+       "count": 582,
+       "childrenList": []
+      },
+      {
+       "code": "de8",
+       "count": 350,
+       "childrenList": []
+      },
+      {
+       "code": "de7",
+       "count": 2747,
+       "childrenList": []
+      },
+      {
+       "code": "de9",
+       "count": 2135,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "no",
+     "count": 608,
+     "childrenList": [
+      {
+       "code": "no0b",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "no02",
+       "count": 23,
+       "childrenList": []
+      },
+      {
+       "code": "no0a",
+       "count": 95,
+       "childrenList": []
+      },
+      {
+       "code": "no06",
+       "count": 47,
+       "childrenList": []
+      },
+      {
+       "code": "no-NS",
+       "count": 5,
+       "childrenList": []
+      },
+      {
+       "code": "no09",
+       "count": 30,
+       "childrenList": []
+      },
+      {
+       "code": "no08",
+       "count": 391,
+       "childrenList": []
+      },
+      {
+       "code": "no07",
+       "count": 40,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "be",
+     "count": 4860,
+     "childrenList": [
+      {
+       "code": "be3",
+       "count": 126,
+       "childrenList": []
+      },
+      {
+       "code": "be-NS",
+       "count": 37,
+       "childrenList": []
+      },
+      {
+       "code": "be2",
+       "count": 3975,
+       "childrenList": []
+      },
+      {
+       "code": "be1",
+       "count": 722,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "fi",
+     "count": 156,
+     "childrenList": [
+      {
+       "code": "fi198",
+       "count": 11,
+       "childrenList": []
+      },
+      {
+       "code": "fi1dc",
+       "count": 6,
+       "childrenList": []
+      },
+      {
+       "code": "fi1db",
+       "count": 6,
+       "childrenList": []
+      },
+      {
+       "code": "fi200",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "fi199",
+       "count": 7,
+       "childrenList": []
+      },
+      {
+       "code": "fi-NS",
+       "count": 99,
+       "childrenList": []
+      },
+      {
+       "code": "fi1da",
+       "count": 7,
+       "childrenList": []
+      },
+      {
+       "code": "fi196",
+       "count": 8,
+       "childrenList": []
+      },
+      {
+       "code": "fi1c6",
+       "count": 9,
+       "childrenList": []
+      },
+      {
+       "code": "fi1d7",
+       "count": 6,
+       "childrenList": []
+      },
+      {
+       "code": "fi1c5",
+       "count": 8,
+       "childrenList": []
+      },
+      {
+       "code": "fi1d9",
+       "count": 11,
+       "childrenList": []
+      },
+      {
+       "code": "fi1d8",
+       "count": 6,
+       "childrenList": []
+      },
+      {
+       "code": "fi1c7",
+       "count": 10,
+       "childrenList": []
+      },
+      {
+       "code": "fi1c2",
+       "count": 8,
+       "childrenList": []
+      },
+      {
+       "code": "fi1b1",
+       "count": 58,
+       "childrenList": []
+      },
+      {
+       "code": "fi1c1",
+       "count": 8,
+       "childrenList": []
+      },
+      {
+       "code": "fi1d5",
+       "count": 6,
+       "childrenList": []
+      },
+      {
+       "code": "fi19b",
+       "count": 12,
+       "childrenList": []
+      },
+      {
+       "code": "fi19a",
+       "count": 10,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "pt",
+     "count": 13,
+     "childrenList": [
+      {
+       "code": "pt1a",
+       "count": 2,
+       "childrenList": []
+      },
+      {
+       "code": "pt11",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "pt1b",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "pt1c",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "pt1d",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "pt30",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "pt-NS",
+       "count": 4,
+       "childrenList": []
+      },
+      {
+       "code": "pt20",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "pt19",
+       "count": 2,
+       "childrenList": []
+      },
+      {
+       "code": "pt15",
+       "count": 2,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "bg",
+     "count": 4,
+     "childrenList": [
+      {
+       "code": "bg-NS",
+       "count": 3,
+       "childrenList": []
+      },
+      {
+       "code": "bg34",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "bg32",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "bg33",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "bg41",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "bg42",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "bg31",
+       "count": 1,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "NS",
+     "count": 5,
+     "childrenList": []
+    },
+    {
+     "code": "dk",
+     "count": 22,
+     "childrenList": [
+      {
+       "code": "dk05",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "dk04",
+       "count": 4,
+       "childrenList": []
+      },
+      {
+       "code": "dk03",
+       "count": 8,
+       "childrenList": []
+      },
+      {
+       "code": "dk-NS",
+       "count": 7,
+       "childrenList": []
+      },
+      {
+       "code": "dk02",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "dk01",
+       "count": 3,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "lt",
+     "count": 30,
+     "childrenList": [
+      {
+       "code": "lt021",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "lt-NS",
+       "count": 30,
+       "childrenList": []
+      },
+      {
+       "code": "lt029",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "lt028",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "lt027",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "lt026",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "lt025",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "lt024",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "lt023",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "lt022",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "lt011",
+       "count": 0,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "lu",
+     "count": 388,
+     "childrenList": [
+      {
+       "code": "lu-NS",
+       "count": 381,
+       "childrenList": []
+      },
+      {
+       "code": "lu0",
+       "count": 7,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "hr",
+     "count": 89,
+     "childrenList": [
+      {
+       "code": "hr028",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr026",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr037",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr-NS",
+       "count": 89,
+       "childrenList": []
+      },
+      {
+       "code": "hr027",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr024",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr035",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr036",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr025",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr033",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr022",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr023",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr034",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr064",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr031",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr021",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr065",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr032",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr062",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr063",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr050",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hr061",
+       "count": 0,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "lv",
+     "count": 103,
+     "childrenList": [
+      {
+       "code": "lv00b",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "lv00c",
+       "count": 6,
+       "childrenList": []
+      },
+      {
+       "code": "lv005",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "lv-NS",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "lv009",
+       "count": 4,
+       "childrenList": []
+      },
+      {
+       "code": "lv00a",
+       "count": 91,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "fr",
+     "count": 9918,
+     "childrenList": [
+      {
+       "code": "frk1",
+       "count": 121,
+       "childrenList": []
+      },
+      {
+       "code": "frk2",
+       "count": 1194,
+       "childrenList": []
+      },
+      {
+       "code": "fri1",
+       "count": 435,
+       "childrenList": []
+      },
+      {
+       "code": "fri2",
+       "count": 54,
+       "childrenList": []
+      },
+      {
+       "code": "frg0",
+       "count": 620,
+       "childrenList": []
+      },
+      {
+       "code": "fr-NS",
+       "count": 228,
+       "childrenList": []
+      },
+      {
+       "code": "fri3",
+       "count": 183,
+       "childrenList": []
+      },
+      {
+       "code": "fre1",
+       "count": 357,
+       "childrenList": []
+      },
+      {
+       "code": "fre2",
+       "count": 89,
+       "childrenList": []
+      },
+      {
+       "code": "frc1",
+       "count": 128,
+       "childrenList": []
+      },
+      {
+       "code": "frc2",
+       "count": 143,
+       "childrenList": []
+      },
+      {
+       "code": "fry1",
+       "count": 21,
+       "childrenList": []
+      },
+      {
+       "code": "fry2",
+       "count": 31,
+       "childrenList": []
+      },
+      {
+       "code": "fry3",
+       "count": 27,
+       "childrenList": []
+      },
+      {
+       "code": "fry4",
+       "count": 47,
+       "childrenList": []
+      },
+      {
+       "code": "fry5",
+       "count": 6,
+       "childrenList": []
+      },
+      {
+       "code": "fr10",
+       "count": 3023,
+       "childrenList": []
+      },
+      {
+       "code": "frm0",
+       "count": 7,
+       "childrenList": []
+      },
+      {
+       "code": "frl0",
+       "count": 686,
+       "childrenList": []
+      },
+      {
+       "code": "frj1",
+       "count": 203,
+       "childrenList": []
+      },
+      {
+       "code": "frj2",
+       "count": 683,
+       "childrenList": []
+      },
+      {
+       "code": "frh0",
+       "count": 517,
+       "childrenList": []
+      },
+      {
+       "code": "frf1",
+       "count": 258,
+       "childrenList": []
+      },
+      {
+       "code": "frf2",
+       "count": 157,
+       "childrenList": []
+      },
+      {
+       "code": "frf3",
+       "count": 151,
+       "childrenList": []
+      },
+      {
+       "code": "frd1",
+       "count": 110,
+       "childrenList": []
+      },
+      {
+       "code": "frd2",
+       "count": 146,
+       "childrenList": []
+      },
+      {
+       "code": "frb0",
+       "count": 293,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "hu",
+     "count": 14,
+     "childrenList": [
+      {
+       "code": "hu-NS",
+       "count": 14,
+       "childrenList": []
+      },
+      {
+       "code": "hu31",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hu11",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hu33",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hu22",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hu32",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hu21",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hu12",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "hu23",
+       "count": 0,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "se",
+     "count": 11359,
+     "childrenList": [
+      {
+       "code": "se313",
+       "count": 142,
+       "childrenList": []
+      },
+      {
+       "code": "se214",
+       "count": 12,
+       "childrenList": []
+      },
+      {
+       "code": "se312",
+       "count": 111,
+       "childrenList": []
+      },
+      {
+       "code": "se224",
+       "count": 1036,
+       "childrenList": []
+      },
+      {
+       "code": "se213",
+       "count": 89,
+       "childrenList": []
+      },
+      {
+       "code": "se125",
+       "count": 188,
+       "childrenList": []
+      },
+      {
+       "code": "se322",
+       "count": 51,
+       "childrenList": []
+      },
+      {
+       "code": "se311",
+       "count": 64,
+       "childrenList": []
+      },
+      {
+       "code": "se212",
+       "count": 99,
+       "childrenList": []
+      },
+      {
+       "code": "se124",
+       "count": 123,
+       "childrenList": []
+      },
+      {
+       "code": "se332",
+       "count": 152,
+       "childrenList": []
+      },
+      {
+       "code": "se321",
+       "count": 142,
+       "childrenList": []
+      },
+      {
+       "code": "se211",
+       "count": 226,
+       "childrenList": []
+      },
+      {
+       "code": "se123",
+       "count": 707,
+       "childrenList": []
+      },
+      {
+       "code": "se-NS",
+       "count": 1702,
+       "childrenList": []
+      },
+      {
+       "code": "se331",
+       "count": 130,
+       "childrenList": []
+      },
+      {
+       "code": "se232",
+       "count": 1604,
+       "childrenList": []
+      },
+      {
+       "code": "se221",
+       "count": 93,
+       "childrenList": []
+      },
+      {
+       "code": "se122",
+       "count": 114,
+       "childrenList": []
+      },
+      {
+       "code": "se231",
+       "count": 103,
+       "childrenList": []
+      },
+      {
+       "code": "se121",
+       "count": 264,
+       "childrenList": []
+      },
+      {
+       "code": "se110",
+       "count": 4207,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "si",
+     "count": 19,
+     "childrenList": [
+      {
+       "code": "si-NS",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "si041",
+       "count": 9,
+       "childrenList": []
+      },
+      {
+       "code": "si036",
+       "count": 2,
+       "childrenList": []
+      },
+      {
+       "code": "si035",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "si038",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "si037",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "si043",
+       "count": 2,
+       "childrenList": []
+      },
+      {
+       "code": "si032",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "si031",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "si042",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "si034",
+       "count": 2,
+       "childrenList": []
+      },
+      {
+       "code": "si033",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "si044",
+       "count": 3,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "sk",
+     "count": 249,
+     "childrenList": [
+      {
+       "code": "sk-NS",
+       "count": 4,
+       "childrenList": []
+      },
+      {
+       "code": "sk04",
+       "count": 13,
+       "childrenList": []
+      },
+      {
+       "code": "sk01",
+       "count": 209,
+       "childrenList": []
+      },
+      {
+       "code": "sk03",
+       "count": 11,
+       "childrenList": []
+      },
+      {
+       "code": "sk02",
+       "count": 12,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "ie",
+     "count": 24,
+     "childrenList": [
+      {
+       "code": "ie053",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "ie042",
+       "count": 2,
+       "childrenList": []
+      },
+      {
+       "code": "ie-NS",
+       "count": 5,
+       "childrenList": []
+      },
+      {
+       "code": "ie051",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "ie062",
+       "count": 3,
+       "childrenList": []
+      },
+      {
+       "code": "ie063",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "ie052",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "ie041",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "ie061",
+       "count": 11,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "ee",
+     "count": 22,
+     "childrenList": [
+      {
+       "code": "ee009",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "ee008",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "ee-NS",
+       "count": 22,
+       "childrenList": []
+      },
+      {
+       "code": "ee004",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "ee00a",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "ee001",
+       "count": 0,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "ch",
+     "count": 955,
+     "childrenList": [
+      {
+       "code": "ch07",
+       "count": 5,
+       "childrenList": []
+      },
+      {
+       "code": "ch05",
+       "count": 78,
+       "childrenList": []
+      },
+      {
+       "code": "ch06",
+       "count": 114,
+       "childrenList": []
+      },
+      {
+       "code": "ch-NS",
+       "count": 30,
+       "childrenList": []
+      },
+      {
+       "code": "ch03",
+       "count": 111,
+       "childrenList": []
+      },
+      {
+       "code": "ch04",
+       "count": 252,
+       "childrenList": []
+      },
+      {
+       "code": "ch01",
+       "count": 118,
+       "childrenList": []
+      },
+      {
+       "code": "ch02",
+       "count": 248,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "el",
+     "count": 3,
+     "childrenList": [
+      {
+       "code": "el-NS",
+       "count": 2,
+       "childrenList": []
+      },
+      {
+       "code": "el54",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "el65",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "el43",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "el64",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "el53",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "el42",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "el52",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "el63",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "el41",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "el30",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "el62",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "el51",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "el61",
+       "count": 0,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "mt",
+     "count": 36,
+     "childrenList": [
+      {
+       "code": "mt-NS",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "mt002",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "mt001",
+       "count": 36,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "is",
+     "count": 0,
+     "childrenList": [
+      {
+       "code": "is002",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "is-NS",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "is001",
+       "count": 0,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "it",
+     "count": 279,
+     "childrenList": [
+      {
+       "code": "iti1",
+       "count": 20,
+       "childrenList": []
+      },
+      {
+       "code": "iti3",
+       "count": 13,
+       "childrenList": []
+      },
+      {
+       "code": "ith2",
+       "count": 3,
+       "childrenList": []
+      },
+      {
+       "code": "itg1",
+       "count": 3,
+       "childrenList": []
+      },
+      {
+       "code": "iti2",
+       "count": 7,
+       "childrenList": []
+      },
+      {
+       "code": "ith1",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "it-NS",
+       "count": 3,
+       "childrenList": []
+      },
+      {
+       "code": "ith4",
+       "count": 4,
+       "childrenList": []
+      },
+      {
+       "code": "itf2",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "iti4",
+       "count": 49,
+       "childrenList": []
+      },
+      {
+       "code": "ith3",
+       "count": 22,
+       "childrenList": []
+      },
+      {
+       "code": "itg2",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "itf1",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "itf4",
+       "count": 8,
+       "childrenList": []
+      },
+      {
+       "code": "itc1",
+       "count": 25,
+       "childrenList": []
+      },
+      {
+       "code": "ith5",
+       "count": 48,
+       "childrenList": []
+      },
+      {
+       "code": "itf3",
+       "count": 6,
+       "childrenList": []
+      },
+      {
+       "code": "itf6",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "itc3",
+       "count": 8,
+       "childrenList": []
+      },
+      {
+       "code": "itf5",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "itc2",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "itc4",
+       "count": 60,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "es",
+     "count": 516,
+     "childrenList": [
+      {
+       "code": "es23",
+       "count": 5,
+       "childrenList": []
+      },
+      {
+       "code": "es12",
+       "count": 8,
+       "childrenList": []
+      },
+      {
+       "code": "es22",
+       "count": 5,
+       "childrenList": []
+      },
+      {
+       "code": "es11",
+       "count": 10,
+       "childrenList": []
+      },
+      {
+       "code": "es43",
+       "count": 4,
+       "childrenList": []
+      },
+      {
+       "code": "es21",
+       "count": 19,
+       "childrenList": []
+      },
+      {
+       "code": "es64",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "es53",
+       "count": 3,
+       "childrenList": []
+      },
+      {
+       "code": "es42",
+       "count": 20,
+       "childrenList": []
+      },
+      {
+       "code": "es63",
+       "count": 3,
+       "childrenList": []
+      },
+      {
+       "code": "es52",
+       "count": 36,
+       "childrenList": []
+      },
+      {
+       "code": "es41",
+       "count": 27,
+       "childrenList": []
+      },
+      {
+       "code": "es30",
+       "count": 87,
+       "childrenList": []
+      },
+      {
+       "code": "es62",
+       "count": 13,
+       "childrenList": []
+      },
+      {
+       "code": "es51",
+       "count": 183,
+       "childrenList": []
+      },
+      {
+       "code": "es-NS",
+       "count": 22,
+       "childrenList": []
+      },
+      {
+       "code": "es61",
+       "count": 36,
+       "childrenList": []
+      },
+      {
+       "code": "es70",
+       "count": 19,
+       "childrenList": []
+      },
+      {
+       "code": "es24",
+       "count": 13,
+       "childrenList": []
+      },
+      {
+       "code": "es13",
+       "count": 2,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "at",
+     "count": 1967,
+     "childrenList": [
+      {
+       "code": "at-NS",
+       "count": 15,
+       "childrenList": []
+      },
+      {
+       "code": "at13",
+       "count": 522,
+       "childrenList": []
+      },
+      {
+       "code": "at34",
+       "count": 88,
+       "childrenList": []
+      },
+      {
+       "code": "at12",
+       "count": 131,
+       "childrenList": []
+      },
+      {
+       "code": "at31",
+       "count": 594,
+       "childrenList": []
+      },
+      {
+       "code": "at33",
+       "count": 104,
+       "childrenList": []
+      },
+      {
+       "code": "at22",
+       "count": 296,
+       "childrenList": []
+      },
+      {
+       "code": "at11",
+       "count": 11,
+       "childrenList": []
+      },
+      {
+       "code": "at32",
+       "count": 116,
+       "childrenList": []
+      },
+      {
+       "code": "at21",
+       "count": 94,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "cy",
+     "count": 14,
+     "childrenList": [
+      {
+       "code": "cy-NS",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "cy0",
+       "count": 13,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "cz",
+     "count": 879,
+     "childrenList": [
+      {
+       "code": "cz-NS",
+       "count": 20,
+       "childrenList": []
+      },
+      {
+       "code": "cz032",
+       "count": 18,
+       "childrenList": []
+      },
+      {
+       "code": "cz010",
+       "count": 545,
+       "childrenList": []
+      },
+      {
+       "code": "cz071",
+       "count": 16,
+       "childrenList": []
+      },
+      {
+       "code": "cz080",
+       "count": 25,
+       "childrenList": []
+      },
+      {
+       "code": "cz064",
+       "count": 127,
+       "childrenList": []
+      },
+      {
+       "code": "cz053",
+       "count": 24,
+       "childrenList": []
+      },
+      {
+       "code": "cz042",
+       "count": 10,
+       "childrenList": []
+      },
+      {
+       "code": "cz031",
+       "count": 18,
+       "childrenList": []
+      },
+      {
+       "code": "cz020",
+       "count": 23,
+       "childrenList": []
+      },
+      {
+       "code": "cz063",
+       "count": 17,
+       "childrenList": []
+      },
+      {
+       "code": "cz052",
+       "count": 7,
+       "childrenList": []
+      },
+      {
+       "code": "cz041",
+       "count": 8,
+       "childrenList": []
+      },
+      {
+       "code": "cz051",
+       "count": 9,
+       "childrenList": []
+      },
+      {
+       "code": "cz072",
+       "count": 12,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "pl",
+     "count": 107,
+     "childrenList": [
+      {
+       "code": "pl91",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "pl92",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "pl81",
+       "count": 7,
+       "childrenList": []
+      },
+      {
+       "code": "pl71",
+       "count": 2,
+       "childrenList": []
+      },
+      {
+       "code": "pl82",
+       "count": 8,
+       "childrenList": []
+      },
+      {
+       "code": "pl72",
+       "count": 7,
+       "childrenList": []
+      },
+      {
+       "code": "pl61",
+       "count": 7,
+       "childrenList": []
+      },
+      {
+       "code": "pl-NS",
+       "count": 16,
+       "childrenList": []
+      },
+      {
+       "code": "pl22",
+       "count": 6,
+       "childrenList": []
+      },
+      {
+       "code": "pl84",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "pl62",
+       "count": 4,
+       "childrenList": []
+      },
+      {
+       "code": "pl51",
+       "count": 5,
+       "childrenList": []
+      },
+      {
+       "code": "pl63",
+       "count": 16,
+       "childrenList": []
+      },
+      {
+       "code": "pl52",
+       "count": 1,
+       "childrenList": []
+      },
+      {
+       "code": "pl41",
+       "count": 8,
+       "childrenList": []
+      },
+      {
+       "code": "pl42",
+       "count": 7,
+       "childrenList": []
+      },
+      {
+       "code": "pl43",
+       "count": 3,
+       "childrenList": []
+      },
+      {
+       "code": "pl21",
+       "count": 9,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "li",
+     "count": 0,
+     "childrenList": [
+      {
+       "code": "li0",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "li-NS",
+       "count": 0,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "ro",
+     "count": 100,
+     "childrenList": [
+      {
+       "code": "ro-NS",
+       "count": 4,
+       "childrenList": []
+      },
+      {
+       "code": "ro22",
+       "count": 6,
+       "childrenList": []
+      },
+      {
+       "code": "ro11",
+       "count": 18,
+       "childrenList": []
+      },
+      {
+       "code": "ro32",
+       "count": 38,
+       "childrenList": []
+      },
+      {
+       "code": "ro21",
+       "count": 7,
+       "childrenList": []
+      },
+      {
+       "code": "ro12",
+       "count": 20,
+       "childrenList": []
+      },
+      {
+       "code": "ro42",
+       "count": 4,
+       "childrenList": []
+      },
+      {
+       "code": "ro31",
+       "count": 2,
+       "childrenList": []
+      },
+      {
+       "code": "ro41",
+       "count": 1,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "nl",
+     "count": 10902,
+     "childrenList": [
+      {
+       "code": "nl-NS",
+       "count": 113,
+       "childrenList": []
+      },
+      {
+       "code": "nl41",
+       "count": 1646,
+       "childrenList": []
+      },
+      {
+       "code": "nl34",
+       "count": 93,
+       "childrenList": []
+      },
+      {
+       "code": "nl23",
+       "count": 195,
+       "childrenList": []
+      },
+      {
+       "code": "nl12",
+       "count": 102,
+       "childrenList": []
+      },
+      {
+       "code": "nl22",
+       "count": 1126,
+       "childrenList": []
+      },
+      {
+       "code": "nl11",
+       "count": 191,
+       "childrenList": []
+      },
+      {
+       "code": "nl32",
+       "count": 2282,
+       "childrenList": []
+      },
+      {
+       "code": "nl21",
+       "count": 688,
+       "childrenList": []
+      },
+      {
+       "code": "nl42",
+       "count": 385,
+       "childrenList": []
+      },
+      {
+       "code": "nl36",
+       "count": 2459,
+       "childrenList": []
+      },
+      {
+       "code": "nl13",
+       "count": 142,
+       "childrenList": []
+      },
+      {
+       "code": "nl35",
+       "count": 1480,
+       "childrenList": []
+      }
+     ]
+    }
+   ]
+  },
+  "NACE_CODE": {
+   "facetEntriesList": [
+    {
+     "code": "a",
+     "count": 11,
+     "childrenList": []
+    },
+    {
+     "code": "b",
+     "count": 15,
+     "childrenList": []
+    },
+    {
+     "code": "c",
+     "count": 3081,
+     "childrenList": []
+    },
+    {
+     "code": "d",
+     "count": 294,
+     "childrenList": []
+    },
+    {
+     "code": "e",
+     "count": 94,
+     "childrenList": []
+    },
+    {
+     "code": "NS",
+     "count": 37234,
+     "childrenList": []
+    },
+    {
+     "code": "f",
+     "count": 523,
+     "childrenList": []
+    },
+    {
+     "code": "g",
+     "count": 1693,
+     "childrenList": []
+    },
+    {
+     "code": "h",
+     "count": 317,
+     "childrenList": []
+    },
+    {
+     "code": "i",
+     "count": 98,
+     "childrenList": []
+    },
+    {
+     "code": "j",
+     "count": 874,
+     "childrenList": []
+    },
+    {
+     "code": "k",
+     "count": 5666,
+     "childrenList": []
+    },
+    {
+     "code": "l",
+     "count": 871,
+     "childrenList": []
+    },
+    {
+     "code": "m",
+     "count": 206,
+     "childrenList": []
+    },
+    {
+     "code": "n",
+     "count": 5142,
+     "childrenList": []
+    },
+    {
+     "code": "o",
+     "count": 12491,
+     "childrenList": []
+    },
+    {
+     "code": "p",
+     "count": 851,
+     "childrenList": []
+    },
+    {
+     "code": "q",
+     "count": 1008,
+     "childrenList": []
+    },
+    {
+     "code": "r",
+     "count": 427,
+     "childrenList": []
+    },
+    {
+     "code": "s",
+     "count": 159,
+     "childrenList": []
+    },
+    {
+     "code": "t",
+     "count": 246,
+     "childrenList": []
+    },
+    {
+     "code": "u",
+     "count": 56,
+     "childrenList": []
+    },
+    {
+     "code": "v",
+     "count": 3,
+     "childrenList": []
+    }
+   ]
+  },
+  "CONNECTION_POINT_ID": {
+   "facetEntriesList": [
+    {
+     "code": "10",
+     "count": 1,
+     "childrenList": []
+    },
+    {
+     "code": "11",
+     "count": 258,
+     "childrenList": []
+    },
+    {
+     "code": "12",
+     "count": 106,
+     "childrenList": []
+    },
+    {
+     "code": "13",
+     "count": 96,
+     "childrenList": []
+    },
+    {
+     "code": "14",
+     "count": 19,
+     "childrenList": []
+    },
+    {
+     "code": "16",
+     "count": 13,
+     "childrenList": []
+    },
+    {
+     "code": "17",
+     "count": 276,
+     "childrenList": []
+    },
+    {
+     "code": "18",
+     "count": 23,
+     "childrenList": []
+    },
+    {
+     "code": "19",
+     "count": 89,
+     "childrenList": []
+    },
+    {
+     "code": "261",
+     "count": 603,
+     "childrenList": []
+    },
+    {
+     "code": "141",
+     "count": 8,
+     "childrenList": []
+    },
+    {
+     "code": "121",
+     "count": 11389,
+     "childrenList": []
+    },
+    {
+     "code": "1",
+     "count": 24409,
+     "childrenList": []
+    },
+    {
+     "code": "221",
+     "count": 30,
+     "childrenList": []
+    },
+    {
+     "code": "441",
+     "count": 9,
+     "childrenList": []
+    },
+    {
+     "code": "2",
+     "count": 44,
+     "childrenList": []
+    },
+    {
+     "code": "101",
+     "count": 37,
+     "childrenList": []
+    },
+    {
+     "code": "3",
+     "count": 4803,
+     "childrenList": []
+    },
+    {
+     "code": "102",
+     "count": 507,
+     "childrenList": []
+    },
+    {
+     "code": "401",
+     "count": 103,
+     "childrenList": []
+    },
+    {
+     "code": "5",
+     "count": 12,
+     "childrenList": []
+    },
+    {
+     "code": "6",
+     "count": 878,
+     "childrenList": []
+    },
+    {
+     "code": "7",
+     "count": 9,
+     "childrenList": []
+    },
+    {
+     "code": "8",
+     "count": 16,
+     "childrenList": []
+    },
+    {
+     "code": "9",
+     "count": 10039,
+     "childrenList": []
+    },
+    {
+     "code": "81",
+     "count": 157,
+     "childrenList": []
+    },
+    {
+     "code": "901",
+     "count": 8,
+     "childrenList": []
+    },
+    {
+     "code": "61",
+     "count": 934,
+     "childrenList": []
+    },
+    {
+     "code": "41",
+     "count": 245,
+     "childrenList": []
+    },
+    {
+     "code": "42",
+     "count": 10894,
+     "childrenList": []
+    },
+    {
+     "code": "43",
+     "count": 1911,
+     "childrenList": []
+    }
+   ]
+  },
+  "EURES_FLAG": {
+   "facetEntriesList": [
+    {
+     "code": "WITHOUT",
+     "count": 65702,
+     "childrenList": []
+    },
+    {
+     "code": "WITH",
+     "count": 2224,
+     "childrenList": []
+    }
+   ]
+  },
+  "POSITION_SCHEDULE": {
+   "facetEntriesList": [
+    {
+     "code": "parttime",
+     "count": 9447,
+     "childrenList": []
+    },
+    {
+     "code": "flextime",
+     "count": 10202,
+     "childrenList": []
+    },
+    {
+     "code": "NS",
+     "count": 8152,
+     "childrenList": []
+    },
+    {
+     "code": "fulltime",
+     "count": 55877,
+     "childrenList": []
+    }
+   ]
+  },
+  "POSITION_OFFERING": {
+   "facetEntriesList": [
+    {
+     "code": "recruitmentreserve",
+     "count": 2,
+     "childrenList": []
+    },
+    {
+     "code": "temporary",
+     "count": 12482,
+     "childrenList": []
+    },
+    {
+     "code": "seasonal",
+     "count": 60,
+     "childrenList": []
+    },
+    {
+     "code": "NS",
+     "count": 7738,
+     "childrenList": []
+    },
+    {
+     "code": "contract",
+     "count": 574,
+     "childrenList": []
+    },
+    {
+     "code": "temporarytohire",
+     "count": 1110,
+     "childrenList": []
+    },
+    {
+     "code": "contracttohire",
+     "count": 2046,
+     "childrenList": []
+    },
+    {
+     "code": "selfemployed",
+     "count": 433,
+     "childrenList": []
+    },
+    {
+     "code": "volunteer",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "apprenticeship",
+     "count": 430,
+     "childrenList": []
+    },
+    {
+     "code": "oncall",
+     "count": 320,
+     "childrenList": []
+    },
+    {
+     "code": "directhire",
+     "count": 42688,
+     "childrenList": []
+    },
+    {
+     "code": "internship",
+     "count": 43,
+     "childrenList": []
+    }
+   ]
+  },
+  "EDUCATION_AND_QUALIFICATION_LEVEL": {
+   "facetEntriesList": [
+    {
+     "code": "doctoral",
+     "count": 253,
+     "childrenList": [
+      {
+       "code": "eqf_8",
+       "count": 201,
+       "childrenList": []
+      },
+      {
+       "code": "isced_8",
+       "count": 52,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "NS",
+     "count": 41129,
+     "childrenList": []
+    },
+    {
+     "code": "bachelor",
+     "count": 13083,
+     "childrenList": [
+      {
+       "code": "isced_6",
+       "count": 12987,
+       "childrenList": []
+      },
+      {
+       "code": "eqf_6",
+       "count": 96,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "tertiary",
+     "count": 553,
+     "childrenList": [
+      {
+       "code": "isced_5",
+       "count": 545,
+       "childrenList": []
+      },
+      {
+       "code": "eqf_5",
+       "count": 8,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "medium",
+     "count": 5042,
+     "childrenList": [
+      {
+       "code": "isced_3",
+       "count": 3794,
+       "childrenList": []
+      },
+      {
+       "code": "isced_4",
+       "count": 440,
+       "childrenList": []
+      },
+      {
+       "code": "eqf_4",
+       "count": 808,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "basic",
+     "count": 6275,
+     "childrenList": [
+      {
+       "code": "isced_1",
+       "count": 185,
+       "childrenList": []
+      },
+      {
+       "code": "isced_2",
+       "count": 143,
+       "childrenList": []
+      },
+      {
+       "code": "isced_0",
+       "count": 5325,
+       "childrenList": []
+      },
+      {
+       "code": "eqf_1",
+       "count": 80,
+       "childrenList": []
+      },
+      {
+       "code": "eqf_2",
+       "count": 0,
+       "childrenList": []
+      },
+      {
+       "code": "eqf_3",
+       "count": 542,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "not_classified",
+     "count": 0,
+     "childrenList": [
+      {
+       "code": "isced_9",
+       "count": 0,
+       "childrenList": []
+      }
+     ]
+    },
+    {
+     "code": "master",
+     "count": 1591,
+     "childrenList": [
+      {
+       "code": "eqf_7",
+       "count": 256,
+       "childrenList": []
+      },
+      {
+       "code": "isced_7",
+       "count": 1335,
+       "childrenList": []
+      }
+     ]
+    }
+   ]
+  },
+  "EXTRA_BENEFIT": {
+   "facetEntriesList": [
+    {
+     "code": "11",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "12",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "13",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "14",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "15",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "NS",
+     "count": 67796,
+     "childrenList": []
+    },
+    {
+     "code": "1",
+     "count": 5,
+     "childrenList": []
+    },
+    {
+     "code": "2",
+     "count": 43,
+     "childrenList": []
+    },
+    {
+     "code": "3",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "4",
+     "count": 90,
+     "childrenList": []
+    },
+    {
+     "code": "5",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "6",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "7",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "8",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "9",
+     "count": 0,
+     "childrenList": []
+    },
+    {
+     "code": "10",
+     "count": 0,
+     "childrenList": []
+    }
+   ]
+  }
+ }
+}

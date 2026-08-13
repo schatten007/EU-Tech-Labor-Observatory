@@ -1,0 +1,64 @@
+# ── Data: the irreplaceable asset lives outside git ──────────────────────────
+# Never commit anything under data/ except data/sample/ (see AGENTS.md).
+data/*
+!data/sample/
+!data/sample/**
+
+# ── Warehouses / local state ─────────────────────────────────────────────────
+*.duckdb
+*.duckdb.wal
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Secrets ──────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+.dlt/secrets.toml
+secrets.toml
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# ── dbt ──────────────────────────────────────────────────────────────────────
+transform/target/
+transform/dbt_packages/
+transform/logs/
+transform/.user.yml
+
+# ── dlt ──────────────────────────────────────────────────────────────────────
+.dlt/pipelines/
+load/
+
+# ── Evidence.dev / node ──────────────────────────────────────────────────────
+node_modules/
+site/.evidence/template/
+site/.evidence-queries/
+site/build/
+
+# ── Models / caches too large for git ────────────────────────────────────────
+.cache/
+models_cache/
+*.onnx
+*.safetensors
+
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json

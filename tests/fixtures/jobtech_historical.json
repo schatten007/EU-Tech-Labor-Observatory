@@ -1,0 +1,271 @@
+{
+ "total": {
+  "value": 161559
+ },
+ "positions": 215365,
+ "query_time_in_millis": 17,
+ "result_time_in_millis": 38,
+ "stats": [],
+ "freetext_concepts": {
+  "skill": [],
+  "occupation": [
+   "systemutvecklare"
+  ],
+  "location": [],
+  "skill_must": [],
+  "occupation_must": [],
+  "location_must": [],
+  "skill_must_not": [],
+  "occupation_must_not": [],
+  "location_must_not": []
+ },
+ "hits": [
+  {
+   "relevance": 1.0,
+   "id": "08264d2f22cf55556143a24a999fb4eb49e7b507",
+   "external_id": null,
+   "original_id": "30881041",
+   "label": "[]",
+   "webpage_url": "https://arbetsformedlingen.se/platsbanken/annonser/08264d2f22cf55556143a24a999fb4eb49e7b507",
+   "logo_url": null,
+   "headline": "Utvecklare",
+   "application_deadline": "2026-05-02T23:59:59",
+   "number_of_vacancies": 1,
+   "description": {
+    "text": "Visions medlemmar leder, utvecklar och administrerar välfärden och jobbar i kommuner, regioner, privata företag eller kyrkan. Du skapar kontakt, bygger förtroende och engagerar både nya medlemmar och fler förtroendevalda. Du drivs av att påverka, inspirera och få människor att ta steget in i fackligt engagemang. Då har vi ett intressant uppdrag ledigt! Vision satsar nu på att växa genom fler medlemmar, fler förtroendevalda och starkare närvaro på arbetsplatserna. Huvudsakliga arbetsuppgifter:\nStödja avdelningar och klubbar utifrån en framtagen metodik med målet att öka rekrytering av nya förtroendevalda och medlemmar. Initiera och delta i medlems- och ombudsvärvande aktiviteter med fokus på arbetsplatsbesök. Stötta nya förtroendevalda inom privata avtalsområdet i deras arbete med lokal ökad organisering. Vi söker dig som har:\nGod erfarenhet av utvecklings-, värvnings- och organiseringsarbete. Erfarenhet av fackligt arbete, antingen som anställd eller förtroendevald. God förmåga att arbeta självständigt och bygga långsiktiga relationer. God pedagogisk förmåga och personlig mognad. Förutsättningar för att jobba i en arbetsvardag som innebär mycket resor över vårt geografiska ansvarsområde (Västra Götaland och Halland)\nKänner till och står bakom Visions värderingar. Tjänsten är en avtalad visstidsanställning i till och med 30 december 2027. Du kommer att utgå från vårt center i Göteborg i våra lokaler som  har fokus på god arbetsmiljö och flexibilitet. Vi erbjuder också möjligheten att arbeta på distans till viss del om verksamheten tillåter. Tjänsten innebär krav på körkort och tillgång till bil. Tillträde efter överenskommelse - skicka in din ansökan så snart som möjligt dock senast 2 maj 2026. Intervjuer kan komma att påbörjas innan ansökningstidens slut. Du ansöker genom att klicka på knappen ansök nedan.",
+    "text_formatted": null,
+    "company_information": null,
+    "needs": null,
+    "requirements": null,
+    "conditions": null
+   },
+   "employment_type": {
+    "concept_id": "PFZr_Syz_cUq",
+    "label": "Vanlig anställning",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "salary_type": {
+    "concept_id": "oG8G_9cW_nRf",
+    "label": "Fast månads- vecko- eller timlön",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "salary_description": null,
+   "duration": {
+    "concept_id": "qQUd_4qe_NDT",
+    "label": "6 månader eller längre",
+    "legacy_ams_taxonomy_id": "2"
+   },
+   "working_hours_type": {
+    "concept_id": "6YE1_gAC_R2G",
+    "label": "Heltid",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "scope_of_work": {
+    "min": 100,
+    "max": 100
+   },
+   "access": null,
+   "employer": {
+    "phone_number": null,
+    "email": null,
+    "url": "https://vision.se/",
+    "organization_number": "8020018019",
+    "name": "Vision",
+    "workplace": "Vision"
+   },
+   "application_details": {
+    "information": null,
+    "reference": null,
+    "email": null,
+    "via_af": false,
+    "url": null,
+    "other": null
+   },
+   "experience_required": true,
+   "access_to_own_car": false,
+   "driving_license_required": true,
+   "driving_license": null,
+   "occupation": {
+    "concept_id": "3vry_gaE_yfQ",
+    "label": "Organisationsutvecklare",
+    "legacy_ams_taxonomy_id": "6302"
+   },
+   "occupation_group": {
+    "concept_id": "Qo7p_wjf_gtv",
+    "label": "Lednings- och organisationsutvecklare",
+    "legacy_ams_taxonomy_id": "2421"
+   },
+   "occupation_field": {
+    "concept_id": "X82t_awd_Qyc",
+    "label": "Administration, ekonomi, juridik",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "workplace_address": {
+    "municipality": "Göteborg",
+    "municipality_code": "1480",
+    "municipality_concept_id": "PVZL_BQT_XtL",
+    "region": "Västra Götalands län",
+    "region_code": "14",
+    "region_concept_id": "zdoY_6u5_Krt",
+    "country": "Sverige",
+    "country_code": "199",
+    "country_concept_id": "i46j_HmG_v64",
+    "street_address": "Box 7825",
+    "postcode": "10397",
+    "city": "Stockholm",
+    "coordinates": [
+     11.97456,
+     57.70887
+    ]
+   },
+   "must_have": {
+    "skills": [],
+    "languages": [],
+    "work_experiences": [],
+    "education": [],
+    "education_level": []
+   },
+   "nice_to_have": {
+    "skills": [],
+    "languages": [],
+    "work_experiences": [],
+    "education": [],
+    "education_level": []
+   },
+   "application_contacts": [],
+   "publication_date": "2026-04-09T13:42:57",
+   "last_publication_date": "2026-05-02T23:59:59",
+   "removed": true,
+   "removed_date": "2026-07-09T09:36:12",
+   "source_type": "VIA_JOBPOSTING",
+   "timestamp": 1775734977553
+  },
+  {
+   "relevance": 1.0,
+   "id": "8a8e40b0258593d79970dd6bd0aa509b52c6a1a1",
+   "external_id": "46-202100-5448-912469",
+   "original_id": "30802452",
+   "label": "[]",
+   "webpage_url": "https://arbetsformedlingen.se/platsbanken/annonser/8a8e40b0258593d79970dd6bd0aa509b52c6a1a1",
+   "logo_url": "https://arbetsformedlingen.se/rest/employer-logo-api/api/v1/organisation/2021005448/logotyper/logo.png",
+   "headline": "Utvecklare",
+   "application_deadline": "2026-04-16T23:59:59",
+   "number_of_vacancies": 1,
+   "description": {
+    "text": "Vill du jobba med teknik i framkant, samtidigt som du bidrar till samhällsnyttan? Hos oss får du intressanta arbetsuppgifter i samhällets hjärta, kombinerat med utvecklingsmöjligheter och balans mellan arbete och fritid. Var med och gör samhället möjligt! Om jobbet\n\nSkatteverket har höga ambitioner att bidra till den digitala transformationen som sker i Sverige. Vi har ett långsiktigt uppdrag och satsar på hållbara, framtidssäkra lösningar med minimerad teknisk skuld. Du arbetar med utveckling i ett av våra tvärfunktionella utvecklingsteam. Teamet organiserar själv sitt arbete, jobbar tillsammans mot ett gemensamt mål och ansvarar för sina leveranser. Tillsammans med dina kollegor har du roligt på jobbet samtidigt som du bidrar till samhällsnytta. Skatteverkets IT-avdelning är en av Sveriges största med drygt 1600 medarbetare som ansvarar för utveckling, drift och förvaltning av Skatteverkets IT-landskap.Vi kan därför erbjuda dig utvecklingsmöjligheter både på djupet och på bredden. Vi erbjuder bland annat flexibel arbetstid och möjlighet att jobba delvis hemifrån. Du får en friskvårdstimme i veckan och friskvårdsbidrag. Vi erbjuder mycket goda semestervillkor samt goda tjänstepensionsvillkor och förmåner för dig som är förälder. Skatteverkets it-avdelning arbetar aktivt för att främja en inkluderande arbetsplats som präglas av jämställdhet och mångfald där alla medarbetare får lika möjligheter att bidra och utvecklas. Läs mer på https://skatteverket.se/omoss/jobbahososs/jobbamedithososs.4.13948c0e18e810bfa0c55ba.html\n\nDu tillhör it-avdelningen, med placering i Östersund där ca. 140 trevliga och kompetenta kollegor väntar på att få samarbeta med dig. Om dig\n\nFör att göra ett bra jobb och trivas hos oss på Skatteverket behöver du vara lyhörd, tänka nytt och ta ansvar. I arbetet är gott omdöme och förståelse för rättssäkerhet och säkerhet viktigt. Du ska också leva upp till vår https://skatteverket.se/medarbetarpolicy. I det här jobbet ska du:\n\n - ha god samarbetsförmåga, vara hjälpsam och ha ett gott bemötande\n - ha förmågan och viljan att lära dig nya saker, vara flexibel och öppen för förändringar\n - ha god problemlösningsförmåga, se mönster och kunna göra avgränsningar\n - vara målfokuserad och bidra till att syftet med verksamheten uppnås\n - agera medvetet och professionellt utifrån en god självinsikt\n - uttrycka dig väl i tal och skrift på svenska. Du ska även ha:\n\n - relevant högskoleexamen inom it om minst 120 akademiska högskolepoäng varav minst 30 högskolepoäng programmering\n - flerårig aktuell och relevant arbetslivserfarenhet som systemutvecklare inom programmering \n\n \n\nBra att veta\n\nAnställningen är tillsvidare och kan inledas med provanställning i sex månader. En anställning hos oss kan innebära placering i säkerhetsklass. En säkerhetsprövning med registerkontroll enligt säkerhetsskyddslagen (2018:585) kan därför komma att genomföras före beslut om anställning. För en del av våra arbetsuppgifter i säkerhetsklass krävs svenskt medborgarskap. På https://skatteverket.se/jobb kan du exempelvis läsa om vår samhällsbärande roll, fördelarna med att jobba hos oss och hur det går till när du söker våra jobb. När du ansöker bifogar du ditt cv. Vi använder inte personligt brev i våra rekryteringar och du ska därför inte bifoga det i din ansökan. Välkommen med din ansökan! Skatteverket har en samhällsbärande roll. Vårt arbete berör alla privatpersoner och företag och genom vårt uppdrag bidrar vi till ett väl fungerande samhälle. Vår utveckling är kunddriven och vi samverkar med andra för att skapa effektiva lösningar. Tillsammans gör vi samhället möjligt.",
+    "text_formatted": null,
+    "company_information": null,
+    "needs": null,
+    "requirements": null,
+    "conditions": "100%. Tillträde: Enligt överenskommelse\r\nTillsvidareanställning"
+   },
+   "employment_type": {
+    "concept_id": "PFZr_Syz_cUq",
+    "label": "Vanlig anställning",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "salary_type": {
+    "concept_id": "oG8G_9cW_nRf",
+    "label": "Fast månads- vecko- eller timlön",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "salary_description": "Individuell lönesättning",
+   "duration": {
+    "concept_id": "a7uU_j21_mkL",
+    "label": "Tills vidare",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "working_hours_type": {
+    "concept_id": "6YE1_gAC_R2G",
+    "label": "Heltid",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "scope_of_work": {
+    "min": 100,
+    "max": 100
+   },
+   "access": null,
+   "employer": {
+    "phone_number": null,
+    "email": null,
+    "url": null,
+    "organization_number": "2021005448",
+    "name": "Skatteverket",
+    "workplace": "Skatteverket"
+   },
+   "application_details": {
+    "information": null,
+    "reference": null,
+    "email": null,
+    "via_af": false,
+    "url": null,
+    "other": null
+   },
+   "experience_required": true,
+   "access_to_own_car": false,
+   "driving_license_required": false,
+   "driving_license": null,
+   "occupation": {
+    "concept_id": "fg7B_yov_smw",
+    "label": "Systemutvecklare/Programmerare",
+    "legacy_ams_taxonomy_id": "2419"
+   },
+   "occupation_group": {
+    "concept_id": "DJh5_yyF_hEM",
+    "label": "Mjukvaru- och systemutvecklare m.fl.",
+    "legacy_ams_taxonomy_id": "2512"
+   },
+   "occupation_field": {
+    "concept_id": "apaJ_2ja_LuF",
+    "label": "Data/IT",
+    "legacy_ams_taxonomy_id": "3"
+   },
+   "workplace_address": {
+    "municipality": "Östersund",
+    "municipality_code": "2380",
+    "municipality_concept_id": "Vt7P_856_WZS",
+    "region": "Jämtlands län",
+    "region_code": "23",
+    "region_concept_id": "65Ms_7r1_RTG",
+    "country": "Sverige",
+    "country_code": "199",
+    "country_concept_id": "i46j_HmG_v64",
+    "street_address": null,
+    "postcode": null,
+    "city": null,
+    "coordinates": [
+     14.636068,
+     63.17668
+    ]
+   },
+   "must_have": {
+    "skills": [],
+    "languages": [],
+    "work_experiences": [
+     {
+      "weight": 10,
+      "concept_id": "fg7B_yov_smw",
+      "label": "Systemutvecklare/Programmerare",
+      "legacy_ams_taxonomy_id": "2419"
+     }
+    ],
+    "education": [],
+    "education_level": []
+   },
+   "nice_to_have": {
+    "skills": [],
+    "languages": [],
+    "work_experiences": [],
+    "education": [],
+    "education_level": []
+   },
+   "application_contacts": [],
+   "publication_date": "2026-03-26T09:18:45",
+   "last_publication_date": "2026-04-16T23:59:59",
+   "removed": true,
+   "removed_date": "2026-07-16T00:36:26",
+   "source_type": "VIA_PLATSBANKEN_DXA",
+   "timestamp": 1774513125715
+  }
+ ]
+}

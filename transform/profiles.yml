@@ -1,0 +1,10 @@
+observatory:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      # Per-worktree database. .kilo/setup-script.ps1 sets DUCKDB_PATH so four
+      # parallel agents cannot corrupt one file or deadlock on its lock.
+      path: "{{ env_var('DUCKDB_PATH', 'data/dev.duckdb') }}"
+      threads: 4
+      extensions: []

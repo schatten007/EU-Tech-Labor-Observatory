@@ -1,0 +1,66 @@
+version: 2
+
+sources:
+  - name: sample
+    description: >
+      Committed offline sample shaped like raw landing. Exists so dbt, tests and the
+      dashboard build with no network and no warehouse in any worktree. Phase 1 adds
+      the real raw partitions alongside this.
+    meta:
+      external_location: "read_parquet('data/sample/{name}.parquet')"
+    tables:
+      - name: postings_sample
+
+models:
+  - name: stg_postings
+    description: >
+      Source-agnostic posting observation. The Phase-0 staging contract every other
+      model depends on. Changing a column here requires a SCHEMA_VERSION bump and an
+      explicit callout (AGENTS.md).
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: source
+        data_type: varchar
+        data_tests: [not_null]
+        description: Source system key. Determines what may be published (PROVENANCE.md).
+      - name: source_id
+        data_type: varchar
+        data_tests: [not_null]
+        description: Native id in the source system. Longitudinal join key.
+      - name: observed_at
+        data_type: timestamp
+        data_tests: [not_null]
+        description: When WE saw this record. Never derived from source dates.
+      - name: first_published
+        data_type: timestamp
+        description: Source-reported first publication.
+      - name: last_modified
+        data_type: timestamp
+        description: Source-reported last modification.
+      - name: removed_at
+        data_type: timestamp
+        description: >
+          Source-reported closure. Populated by Sweden only. This is the ground truth
+          that calibrates inferred closure; null elsewhere means unknown, NOT still open.
+      - name: title
+        data_type: varchar
+      - name: employer
+        data_type: varchar
+      - name: nuts_code
+        data_type: varchar
+        description: NUTS 2024. Null until the source's own codes are crosswalked.
+      - name: country
+        data_type: varchar
+        data_tests: [not_null]
+      - name: esco_occupation_uri
+        data_type: varchar
+        description: ESCO occupation URI. Pre-coded by EURES; derived for other sources.
+      - name: lang
+        data_type: varchar
+      - name: text
+        data_type: varchar
+        description: >
+          Free text. Populated for Sweden (CC0) only. MUST remain null/absent for
+          EURES and BA in every release artifact.
