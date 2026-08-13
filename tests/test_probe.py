@@ -3,9 +3,10 @@ import sys
 from pathlib import Path
 from typing import Never
 
+import duckdb
 from pytest import MonkeyPatch
 
-from scripts import collect, probe, sanitize
+from scripts import collect, probe, publish, sanitize
 
 
 def fail_network(*args: object, **kwargs: object) -> Never:
@@ -75,3 +76,23 @@ def test_collect_jobtech_writes_sanitized_observations(tmp_path: Path) -> None:
     assert "headline" not in row
     assert "employer" not in row
     assert "description" not in row
+
+
+def test_publish_builds_aggregate_page(tmp_path: Path) -> None:
+    database = tmp_path / "site.duckdb"
+    target = tmp_path / "index.html"
+    connection = duckdb.connect(str(database))
+    connection.execute(
+        """
+        create table labour_demand_latest as
+        select 'jobtech'::varchar as source, 'SE'::varchar as country,
+               timestamp '2026-08-06 09:00:00' as observed_at, 1::bigint as active_postings
+        """
+    )
+    connection.close()
+
+    assert publish.build_site(database, target) == 1
+    page = target.read_text(encoding="utf-8")
+    assert "EU Tech Labour Observatory" in page
+    assert "jobtech" in page
+    assert "native-42" not in page

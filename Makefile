@@ -6,7 +6,7 @@
 export DBT_PROFILES_DIR := transform
 DBT := uv run --offline dbt
 
-.PHONY: check lint types test dbt sample probe clean
+.PHONY: check lint types test dbt sample site probe clean
 
 check: lint types test dbt
 
@@ -27,6 +27,10 @@ dbt:
 # Offline: rebuilds the committed sample from synthetic rows.
 sample:
 	uv run --offline python -m scripts.probe --sample
+
+# Offline: builds one static aggregate page from the local DuckDB models.
+site: dbt
+	uv run --offline python -m scripts.publish
 
 # NOT part of check. Hits live APIs. Main checkout only, never a worktree.
 probe:

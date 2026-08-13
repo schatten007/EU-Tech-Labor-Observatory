@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: labour_demand_latest
+    description: >
+      Latest observed active posting count by source and country. This is an observation
+      count, not a vacancy estimate, and each timestamp identifies a complete source sweep.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: source
+        data_type: varchar
+      - name: country
+        data_type: varchar
+      - name: observed_at
+        data_type: timestamp
+      - name: active_postings
+        data_type: bigint

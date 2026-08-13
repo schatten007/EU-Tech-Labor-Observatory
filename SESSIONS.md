@@ -10,7 +10,7 @@ than expanding the active increment.
 | 2 | 2026-08-13 | Complete | Add the smallest raw observation collector against ignored private responses. | Offline collector check passed |
 | 3 | 2026-08-13 | Complete | Point staging at collected observations while preserving its contract. | `make sample && make check` passed |
 | 4 | 2026-08-13 | Complete | Derive posting presence and closure events. | `make sample && make check` passed |
-| 5 | Unscheduled | Planned | Publish one minimal labour-demand view. | Offline site build |
+| 5 | 2026-08-13 | Complete | Publish one minimal labour-demand view. | `make site` passed |
 
 ## Session Notes
 
@@ -79,4 +79,17 @@ than expanding the active increment.
 - Deliberate ceiling: each `(source, observed_at)` is a complete, consistently scoped
   sweep. Partial or partitioned collection needs a scope key before feeding this model.
 - Final result: `make sample && make check` passed with three Python tests and eight dbt
+  resources passing.
+
+### 2026-08-13 - Increment 5
+
+- Added one aggregate model: active postings by source and country at each source's
+  latest complete sweep.
+- Added a self-contained static HTML publisher using Python, DuckDB, and the standard
+  library; no frontend framework, runtime JavaScript, external assets, or new dependency.
+- Published only counts, source, country, and observation time. Native IDs and private
+  posting text do not enter the aggregate or page.
+- Added one offline publisher test and checked the built page at desktop and mobile
+  widths with no page overflow, text overlap, or external requests.
+- Final result: `make check && make site` passed with four Python tests and nine dbt
   resources passing.
