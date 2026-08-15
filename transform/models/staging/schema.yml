@@ -1,55 +1,53 @@
 version: 2
 
 sources:
-  - name: observations
-    description: >
-      Sanitized collector output. OBSERVATIONS_PATH may select an ignored private
-      NDJSON collection; the committed synthetic sample keeps checks offline.
+  - name: manifests
+    description: Sweep metadata; only complete and internally consistent sweeps are eligible downstream.
     meta:
-      external_location: "read_json_auto('{{ env_var('OBSERVATIONS_PATH', 'data/sample/postings_sample.ndjson') }}', format='newline_delimited')"
+      external_location: "read_json_auto('{{ env_var('MANIFESTS_PATH', 'data/sample/sweeps_sample.ndjson') }}', format='auto')"
     tables:
-      - name: postings
+      - name: sweeps
 
 models:
-  - name: stg_postings
-    description: >
-      Source-agnostic posting observation. This contract is unchanged from Phase 0;
-      staging now reads sanitized collector output rather than source-native sample data.
+  - name: stg_collection_manifests
+    description: Valid complete collection sweeps, including successful zero-row sweeps.
     config:
       contract:
         enforced: true
     columns:
-      - name: source
-        data_type: varchar
-        data_tests: [not_null]
-        description: Source system key. Determines what may be published (PROVENANCE.md).
-      - name: source_id
-        data_type: varchar
-        data_tests: [not_null]
-        description: HMAC-pseudonymized native id. Stable longitudinal join key.
-      - name: observed_at
-        data_type: timestamp
-        data_tests: [not_null]
-        description: When WE saw this record. Never derived from source dates.
-      - name: first_published
-        data_type: timestamp
-        description: Source-reported first publication.
-      - name: last_modified
-        data_type: timestamp
-        description: Source-reported last modification.
-      - name: removed_at
-        data_type: timestamp
-        description: >
-          Source-reported closure. Populated by Sweden only. This is the ground truth
-          that calibrates inferred closure; null elsewhere means unknown, NOT still open.
-      - name: nuts_code
-        data_type: varchar
-        description: NUTS 2024. Null until the source's own codes are crosswalked.
-      - name: country
-        data_type: varchar
-        data_tests: [not_null]
-      - name: esco_occupation_uri
-        data_type: varchar
-        description: ESCO occupation URI. Pre-coded by EURES; derived for other sources.
-      - name: lang
-        data_type: varchar
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_hash, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_json, data_type: varchar, data_tests: [not_null]}
+      - {name: partition_id, data_type: varchar, data_tests: [not_null]}
+      - {name: sweep_id, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: observed_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: started_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: completed_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: status, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [complete]}}]}
+      - {name: expected_pages, data_type: integer, data_tests: [not_null]}
+      - {name: completed_pages, data_type: integer, data_tests: [not_null]}
+      - {name: expected_rows, data_type: bigint, data_tests: [not_null]}
+      - {name: row_count, data_type: bigint, data_tests: [not_null]}
+      - {name: hmac_key_version, data_type: varchar, data_tests: [not_null]}
+
+  - name: stg_postings
+    description: Privacy-safe posting observations admitted only through a complete matching sweep.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: source_id, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: sweep_id, data_type: varchar, data_tests: [not_null]}
+      - {name: hmac_key_version, data_type: varchar, data_tests: [not_null]}
+      - {name: observed_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: first_published, data_type: timestamp}
+      - {name: last_modified, data_type: timestamp}
+      - {name: removed_at, data_type: timestamp}
+      - {name: nuts_code, data_type: varchar}
+      - {name: country, data_type: varchar, data_tests: [not_null]}
+      - {name: esco_occupation_uri, data_type: varchar}
+      - {name: lang, data_type: varchar}

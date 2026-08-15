@@ -55,6 +55,7 @@ models_cache/
 *.safetensors
 
 # ── OS / editor ──────────────────────────────────────────────────────────────
+.kilo/
 .DS_Store
 Thumbs.db
 desktop.ini
@@ -62,3 +63,7 @@ desktop.ini
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# ── Local planning documents ─────────────────────────────────────────────────
+FUNCTIONALITY_ROADMAP.md
+USER_MANUAL.md

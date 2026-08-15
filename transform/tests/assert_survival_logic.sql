@@ -3,8 +3,7 @@
 
 with expected as (
     select
-        source,
-        source_id,
+        source, scope_id, hmac_key_version, source_id, sweep_id,
         timestamp '2026-08-10 10:00:00' as event_at,
         'closure'::varchar as event_type,
         'source_reported'::varchar as event_basis
@@ -14,8 +13,7 @@ with expected as (
     union all
 
     select
-        source,
-        source_id,
+        source, scope_id, hmac_key_version, source_id, '20260806T090000Z-synthetic' as sweep_id,
         timestamp '2026-08-06 09:00:00' as event_at,
         'closure'::varchar as event_type,
         'inferred_absence'::varchar as event_basis
@@ -24,7 +22,7 @@ with expected as (
 ),
 
 actual as (
-    select source, source_id, event_at, event_type, event_basis
+    select source, scope_id, hmac_key_version, source_id, sweep_id, event_at, event_type, event_basis
     from {{ ref('posting_events') }}
     where event_type = 'closure'
 )

@@ -20,6 +20,7 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parents[1]
 RAW_PROBES = ROOT / "data" / "raw" / "probe"
 SAMPLE = ROOT / "data" / "sample" / "postings_sample.ndjson"
+SAMPLE_MANIFESTS = ROOT / "data" / "sample" / "sweeps_sample.ndjson"
 
 EURES = "https://europa.eu/eures/api/jv-searchengine/public"
 JOBTECH = "https://jobsearch.api.jobtechdev.se"
@@ -147,10 +148,15 @@ def measure() -> None:
 
 def build_sample() -> None:
     """Build synthetic observations with the collector's PII-free landing shape."""
-    from scripts.collect import normalize_jobtech_hit
+    from scripts.collect import _key_version, collection_scope, normalize_jobtech_hit
     from scripts.sanitize import sanitize_record
 
     SAMPLE.parent.mkdir(parents=True, exist_ok=True)
+    scope_id, scope_hash, scope_json = collection_scope()
+    sweeps = {
+        "2026-08-05T09:00:00Z": "20260805T090000Z-synthetic",
+        "2026-08-06T09:00:00Z": "20260806T090000Z-synthetic",
+    }
     observations: tuple[tuple[str, dict[str, Any]], ...] = (
         (
             "2026-08-05T09:00:00Z",
@@ -195,12 +201,122 @@ def build_sample() -> None:
         ),
     )
     key = b"offline-synthetic-sample-key-32b"
+    rotated_key = b"offline-rotated-sample-key-at-least-32b"
     rows = [
-        sanitize_record(normalize_jobtech_hit(hit, observed_at), key)
+        sanitize_record(
+            normalize_jobtech_hit(
+                hit,
+                observed_at,
+                scope_id=scope_id,
+                sweep_id=sweeps[observed_at],
+            ),
+            key,
+        )
         for observed_at, hit in observations
     ]
+    rows.append(
+        sanitize_record(
+            normalize_jobtech_hit(
+                {"id": "synthetic-partial", "country_code": "SE"},
+                "2026-08-07T09:00:00Z",
+                scope_id=scope_id,
+                sweep_id="20260807T090000Z-failed",
+            ),
+            key,
+        )
+    )
+    rows.append(
+        sanitize_record(
+            normalize_jobtech_hit(
+                {"id": "synthetic-001", "country_code": "SE"},
+                "2026-08-08T09:00:00Z",
+                scope_id=scope_id,
+                sweep_id="20260808T090000Z-rotated",
+            ),
+            rotated_key,
+        )
+    )
     SAMPLE.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+    manifests = [
+        {
+            "schema_version": 1,
+            "collector_version": "0.1.0",
+            "source": "jobtech",
+            "scope_id": scope_id,
+            "scope_hash": scope_hash,
+            "scope_json": scope_json,
+            "partition_id": f"sample/{sweep_id}",
+            "sweep_id": sweep_id,
+            "run_id": f"sample-run-{index}",
+            "observed_at": observed_at,
+            "started_at": observed_at,
+            "completed_at": observed_at,
+            "status": "complete",
+            "page_size": 100,
+            "expected_pages": 1,
+            "completed_pages": 1,
+            "expected_rows": row_count,
+            "row_count": row_count,
+            "hmac_key_version": _key_version(key),
+        }
+        for index, (observed_at, sweep_id, row_count) in enumerate(
+            (
+                ("2026-08-05T09:00:00Z", sweeps["2026-08-05T09:00:00Z"], 3),
+                ("2026-08-06T09:00:00Z", sweeps["2026-08-06T09:00:00Z"], 1),
+            ),
+            start=1,
+        )
+    ]
+    # A later failed run proves incomplete sweeps are not eligible downstream.
+    manifests.append(
+        {
+            **manifests[-1],
+            "partition_id": "sample/20260807T090000Z-failed",
+            "sweep_id": "20260807T090000Z-failed",
+            "run_id": "sample-run-failed",
+            "observed_at": "2026-08-07T09:00:00Z",
+            "started_at": "2026-08-07T09:00:00Z",
+            "completed_at": None,
+            "status": "failed",
+            "expected_rows": 10,
+            "row_count": 0,
+        }
+    )
+    manifests.append(
+        {
+            **manifests[0],
+            "partition_id": "sample/20260808T090000Z-rotated",
+            "sweep_id": "20260808T090000Z-rotated",
+            "run_id": "sample-run-rotated",
+            "observed_at": "2026-08-08T09:00:00Z",
+            "started_at": "2026-08-08T09:00:00Z",
+            "completed_at": "2026-08-08T09:00:00Z",
+            "expected_rows": 1,
+            "row_count": 1,
+            "hmac_key_version": "rotated-v2",
+        }
+    )
+    manifests.append(
+        {
+            **manifests[0],
+            "scope_id": "jobtech-empty-scope",
+            "scope_hash": "0" * 64,
+            "scope_json": '{"query":"no-results"}',
+            "partition_id": "sample/20260806T100000Z-empty",
+            "sweep_id": "20260806T100000Z-empty",
+            "run_id": "sample-run-empty",
+            "observed_at": "2026-08-06T10:00:00Z",
+            "started_at": "2026-08-06T10:00:00Z",
+            "completed_at": "2026-08-06T10:00:00Z",
+            "expected_rows": 0,
+            "row_count": 0,
+        }
+    )
+    SAMPLE_MANIFESTS.write_text(
+        "".join(json.dumps(manifest) + "\n" for manifest in manifests), encoding="utf-8"
+    )
     print(f"wrote {SAMPLE.relative_to(ROOT)} ({SAMPLE.stat().st_size} bytes, {len(rows)} rows)")
+    print(f"wrote {SAMPLE_MANIFESTS.relative_to(ROOT)} ({len(manifests)} sweeps)")
 
 
 def main() -> int:

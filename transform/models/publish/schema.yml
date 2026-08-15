@@ -1,19 +1,39 @@
 version: 2
 
 models:
-  - name: labour_demand_latest
-    description: >
-      Latest observed active posting count by source and country. This is an observation
-      count, not a vacancy estimate, and each timestamp identifies a complete source sweep.
+  - name: latest_complete_sweeps
+    description: Latest valid complete sweep per source and scope, including zero-row sweeps.
     config:
       contract:
         enforced: true
     columns:
-      - name: source
-        data_type: varchar
-      - name: country
-        data_type: varchar
-      - name: observed_at
-        data_type: timestamp
-      - name: active_postings
-        data_type: bigint
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: partition_id, data_type: varchar, data_tests: [not_null]}
+      - {name: sweep_id, data_type: varchar, data_tests: [not_null]}
+      - {name: run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: observed_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: started_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: completed_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: status, data_type: varchar, data_tests: [not_null]}
+      - {name: row_count, data_type: bigint, data_tests: [not_null]}
+      - {name: hmac_key_version, data_type: varchar, data_tests: [not_null]}
+
+  - name: labour_demand_latest
+    description: Posting counts and full collection provenance for the latest complete sweep.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: partition_id, data_type: varchar, data_tests: [not_null]}
+      - {name: sweep_id, data_type: varchar, data_tests: [not_null]}
+      - {name: run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: country, data_type: varchar}
+      - {name: observed_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: started_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: completed_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: status, data_type: varchar, data_tests: [not_null]}
+      - {name: hmac_key_version, data_type: varchar, data_tests: [not_null]}
+      - {name: active_postings, data_type: bigint, data_tests: [not_null]}

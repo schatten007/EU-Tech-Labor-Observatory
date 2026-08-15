@@ -16,6 +16,8 @@ from typing import Any
 
 SAFE_FIELDS = (
     "source",
+    "scope_id",
+    "sweep_id",
     "observed_at",
     "first_published",
     "last_modified",

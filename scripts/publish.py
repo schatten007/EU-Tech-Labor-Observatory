@@ -17,7 +17,7 @@ TARGET = ROOT / "site" / "build" / "index.html"
 
 
 def build_site(database: Path, target: Path) -> int:
-    rows: list[tuple[str, str, datetime, int]] = (
+    rows: list[tuple[str, str | None, datetime, int]] = (
         duckdb.connect(str(database), read_only=True)
         .execute(
             """
@@ -29,11 +29,11 @@ def build_site(database: Path, target: Path) -> int:
         .fetchall()
     )
     total = sum(row[3] for row in rows)
-    maximum = max((row[3] for row in rows), default=1)
+    maximum = max((row[3] for row in rows), default=0) or 1
     table_rows = "".join(
         f"""
         <tr>
-          <td><strong>{escape(country)}</strong></td>
+          <td><strong>{escape(country or "No postings")}</strong></td>
           <td>{escape(source)}</td>
           <td><time datetime="{observed_at.isoformat()}">{observed_at:%Y-%m-%d %H:%M} UTC</time></td>
           <td class="count">{count:,}</td>

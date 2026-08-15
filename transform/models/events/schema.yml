@@ -2,23 +2,16 @@ version: 2
 
 models:
   - name: posting_events
-    description: >
-      Presence and closure event log. Source-reported removal wins; otherwise closure is
-      inferred at the first later complete source snapshot where a posting is absent.
-      Each (source, observed_at) must therefore represent a complete source sweep.
+    description: Presence and closure events; inferred absence uses a later complete same-scope sweep.
     config:
       contract:
         enforced: true
     columns:
-      - name: source
-        data_type: varchar
-      - name: source_id
-        data_type: varchar
-      - name: event_at
-        data_type: timestamp
-      - name: event_type
-        data_type: varchar
-        description: presence or closure.
-      - name: event_basis
-        data_type: varchar
-        description: observed, source_reported, or inferred_absence.
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: hmac_key_version, data_type: varchar, data_tests: [not_null]}
+      - {name: source_id, data_type: varchar, data_tests: [not_null]}
+      - {name: sweep_id, data_type: varchar, data_tests: [not_null]}
+      - {name: event_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: event_type, data_type: varchar, data_tests: [not_null]}
+      - {name: event_basis, data_type: varchar, data_tests: [not_null]}

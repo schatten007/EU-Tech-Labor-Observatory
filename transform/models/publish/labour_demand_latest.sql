@@ -4,19 +4,22 @@
   )
 }}
 
-with latest_sweeps as (
-    select source, max(observed_at) as observed_at
-    from {{ ref('stg_postings') }}
-    group by 1
-)
-
 select
-    postings.source,
+    sweeps.source,
+    sweeps.scope_id,
+    sweeps.partition_id,
+    sweeps.sweep_id,
+    sweeps.run_id,
     postings.country,
-    postings.observed_at,
-    count(*)::bigint as active_postings
-from {{ ref('stg_postings') }} as postings
-inner join latest_sweeps
-    on latest_sweeps.source = postings.source
-    and latest_sweeps.observed_at = postings.observed_at
-group by 1, 2, 3
+    sweeps.observed_at,
+    sweeps.started_at,
+    sweeps.completed_at,
+    sweeps.status,
+    sweeps.hmac_key_version,
+    count(postings.source_id)::bigint as active_postings
+from {{ ref('latest_complete_sweeps') }} as sweeps
+left join {{ ref('stg_postings') }} as postings
+    on postings.source = sweeps.source
+    and postings.scope_id = sweeps.scope_id
+    and postings.sweep_id = sweeps.sweep_id
+group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11

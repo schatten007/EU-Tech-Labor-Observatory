@@ -11,6 +11,7 @@ than expanding the active increment.
 | 3 | 2026-08-13 | Complete | Point staging at collected observations while preserving its contract. | `make sample && make check` passed |
 | 4 | 2026-08-13 | Complete | Derive posting presence and closure events. | `make sample && make check` passed |
 | 5 | 2026-08-13 | Complete | Publish one minimal labour-demand view. | `make site` passed |
+| 6 | 2026-08-15 | Complete | Add reliable, resumable, immutable JobTech query sweeps. | `make sample && make check && make site` passed |
 
 ## Session Notes
 
@@ -93,3 +94,16 @@ than expanding the active increment.
   widths with no page overflow, text overlap, or external requests.
 - Final result: `make check && make site` passed with four Python tests and nine dbt
   resources passing.
+
+### 2026-08-15 - Iteration 6
+
+- Added serial JobTech pagination with a canonical query scope, bounded transient retries,
+  `Retry-After` support, durable page checkpoints, and resumable collection state.
+- Added immutable timestamped partitions, atomic publication, content hashes, run locks,
+  exact-rerun idempotency, and explicit complete/failed sweep manifests.
+- Added source/scope/sweep provenance to privacy-safe observations and publishable demand
+  aggregates without allowing native identifiers or private source fields through.
+- Gated staging, latest demand, and inferred closures on complete same-scope manifests;
+  failed, partial, orphaned, and zero-row sweeps now have explicit tested behavior.
+- Kept live collection opt-in through `make sweep` and preserved the network-free sample,
+  quality gate, and static-site build.

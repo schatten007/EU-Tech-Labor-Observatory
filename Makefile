@@ -6,7 +6,7 @@
 export DBT_PROFILES_DIR := transform
 DBT := uv run --offline dbt
 
-.PHONY: check lint types test dbt sample site probe clean
+.PHONY: check lint types test dbt sample site probe sweep live-site clean
 
 check: lint types test dbt
 
@@ -35,6 +35,16 @@ site: dbt
 # NOT part of check. Hits live APIs. Main checkout only, never a worktree.
 probe:
 	uv run python -m scripts.probe --live
+
+# NOT part of check. Collects one complete canonical JobTech query sweep.
+sweep:
+	uv run python -m scripts.collect sweep
+
+# Offline preview of final, immutable live partitions only. This does not collect data.
+live-site:
+	if not exist "data\raw\collections\jobtech" (echo Run make sweep before make live-site. & exit /b 1)
+	set "OBSERVATIONS_PATH=data/raw/collections/jobtech/*/*/observations.ndjson" && set "MANIFESTS_PATH=data/raw/collections/jobtech/*/*/manifest.json" && $(DBT) run --project-dir transform
+	set "OBSERVATIONS_PATH=data/raw/collections/jobtech/*/*/observations.ndjson" && set "MANIFESTS_PATH=data/raw/collections/jobtech/*/*/manifest.json" && uv run --offline python -m scripts.publish
 
 clean:
 	$(DBT) clean
