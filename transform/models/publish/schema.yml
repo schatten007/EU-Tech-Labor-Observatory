@@ -18,6 +18,36 @@ models:
       - {name: status, data_type: varchar, data_tests: [not_null]}
       - {name: row_count, data_type: bigint, data_tests: [not_null]}
       - {name: hmac_key_version, data_type: varchar, data_tests: [not_null]}
+      - {name: source_version, data_type: varchar}
+      - {name: licence_reference, data_type: varchar}
+      - {name: access_method, data_type: varchar}
+      - {name: approval_status, data_type: varchar}
+      - {name: expected_country, data_type: varchar}
+      - {name: freshness_threshold_hours, data_type: integer}
+      - {name: coverage_limitations, data_type: varchar}
+
+  - name: source_coverage
+    description: Deterministic source-level coverage and freshness for complete sweeps.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: sweep_id, data_type: varchar, data_tests: [not_null]}
+      - {name: country, data_type: varchar}
+      - {name: observed_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: expected_rows, data_type: bigint, data_tests: [not_null]}
+      - {name: observed_rows, data_type: bigint, data_tests: [not_null]}
+      - {name: source_version, data_type: varchar}
+      - {name: licence_reference, data_type: varchar}
+      - {name: access_method, data_type: varchar}
+      - {name: approval_status, data_type: varchar}
+      - {name: freshness_threshold_hours, data_type: integer}
+      - {name: coverage_limitations, data_type: varchar}
+      - {name: freshness_age_hours, data_type: double}
+      - {name: freshness_status, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [fresh, stale, unknown]}}]}
+      - {name: coverage_status, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [covered, invalid, unknown_metadata]}}]}
 
   - name: labour_demand_latest
     description: Posting counts and full collection provenance for the latest complete sweep.
@@ -36,4 +66,12 @@ models:
       - {name: completed_at, data_type: timestamp, data_tests: [not_null]}
       - {name: status, data_type: varchar, data_tests: [not_null]}
       - {name: hmac_key_version, data_type: varchar, data_tests: [not_null]}
+      - {name: source_version, data_type: varchar, data_tests: [not_null]}
+      - {name: licence_reference, data_type: varchar, data_tests: [not_null]}
+      - {name: access_method, data_type: varchar, data_tests: [not_null]}
+      - {name: approval_status, data_type: varchar, data_tests: [not_null]}
+      - {name: coverage_limitations, data_type: varchar, data_tests: [not_null]}
+      - {name: freshness_age_hours, data_type: double, data_tests: [not_null]}
+      - {name: freshness_status, data_type: varchar, data_tests: [not_null]}
+      - {name: coverage_status, data_type: varchar, data_tests: [not_null]}
       - {name: active_postings, data_type: bigint, data_tests: [not_null]}

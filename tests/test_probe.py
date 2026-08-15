@@ -96,6 +96,18 @@ def test_collect_jobtech_writes_sanitized_observations(tmp_path: Path) -> None:
     assert "description" not in row
 
 
+def test_jobtech_normalizer_requires_explicit_sweden_country() -> None:
+    malformed = hit("missing-country")
+    malformed.pop("country_code")
+
+    try:
+        collect.normalize_jobtech_hit(malformed, "2026-08-15T00:00:00Z")
+    except ValueError as error:
+        assert "country_code SE" in str(error)
+    else:
+        raise AssertionError("missing country must not be inferred as Sweden")
+
+
 def test_collect_jobtech_sweep_paginates_and_publishes_manifest(tmp_path: Path) -> None:
     responses: dict[int, dict[str, Any]] = {
         0: {"total": {"value": 3}, "hits": [hit("one"), hit("two")]},
@@ -124,6 +136,10 @@ def test_collect_jobtech_sweep_paginates_and_publishes_manifest(tmp_path: Path) 
     assert manifest["status"] == "complete"
     assert manifest["expected_pages"] == 2
     assert manifest["row_count"] == 3
+    assert manifest["schema_version"] == 2
+    assert manifest["approval_status"] == "approved"
+    assert manifest["expected_country"] == "SE"
+    assert manifest["licence_reference"] == collect.JOBTECH_LICENCE_REFERENCE
     assert len(urls) == 2
     partition = tmp_path / "collections" / "jobtech" / manifest["scope_id"] / manifest["sweep_id"]
     assert (partition / "observations.ndjson").exists()
@@ -470,6 +486,14 @@ def test_publish_builds_aggregate_page(tmp_path: Path) -> None:
                timestamp '2026-08-06 09:01:00' as completed_at,
                'complete'::varchar as status,
                'v1'::varchar as hmac_key_version,
+               'JobSearch current ads'::varchar as source_version,
+               'https://data.jobtechdev.se/dataservice/jobsearch/'::varchar as licence_reference,
+               'official-public-api'::varchar as access_method,
+               'approved'::varchar as approval_status,
+               'Keyword-scoped'::varchar as coverage_limitations,
+               3.0::double as freshness_age_hours,
+               'fresh'::varchar as freshness_status,
+               'covered'::varchar as coverage_status,
                1::bigint as active_postings
         """
     )
@@ -479,6 +503,8 @@ def test_publish_builds_aggregate_page(tmp_path: Path) -> None:
     page = target.read_text(encoding="utf-8")
     assert "EU Tech Labour Observatory" in page
     assert "jobtech" in page
+    assert "Counts are not summed or deduplicated across sources" in page
+    assert "official-public-api" in page
     assert "native-42" not in page
 
 
@@ -494,16 +520,26 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path) -> None:
                'partition'::varchar as partition_id,
                'sweep'::varchar as sweep_id,
                'run'::varchar as run_id,
-               null::varchar as country,
+               'SE'::varchar as country,
                timestamp '2026-08-06 09:00:00' as observed_at,
                timestamp '2026-08-06 08:59:00' as started_at,
                timestamp '2026-08-06 09:01:00' as completed_at,
                'complete'::varchar as status,
                'v1'::varchar as hmac_key_version,
+               'JobSearch current ads'::varchar as source_version,
+               'https://data.jobtechdev.se/dataservice/jobsearch/'::varchar as licence_reference,
+               'official-public-api'::varchar as access_method,
+               'approved'::varchar as approval_status,
+               'Keyword-scoped'::varchar as coverage_limitations,
+               3.0::double as freshness_age_hours,
+               'fresh'::varchar as freshness_status,
+               'covered'::varchar as coverage_status,
                0::bigint as active_postings
         """
     )
     connection.close()
 
     assert publish.build_site(database, target) == 1
-    assert "No postings" in target.read_text(encoding="utf-8")
+    page = target.read_text(encoding="utf-8")
+    assert "SE" in page
+    assert ">0<" in page

@@ -31,6 +31,13 @@ models:
       - {name: expected_rows, data_type: bigint, data_tests: [not_null]}
       - {name: row_count, data_type: bigint, data_tests: [not_null]}
       - {name: hmac_key_version, data_type: varchar, data_tests: [not_null]}
+      - {name: source_version, data_type: varchar}
+      - {name: licence_reference, data_type: varchar}
+      - {name: access_method, data_type: varchar}
+      - {name: approval_status, data_type: varchar}
+      - {name: expected_country, data_type: varchar}
+      - {name: freshness_threshold_hours, data_type: integer}
+      - {name: coverage_limitations, data_type: varchar}
 
   - name: stg_postings
     description: Privacy-safe posting observations admitted only through a complete matching sweep.
@@ -48,6 +55,6 @@ models:
       - {name: last_modified, data_type: timestamp}
       - {name: removed_at, data_type: timestamp}
       - {name: nuts_code, data_type: varchar}
-      - {name: country, data_type: varchar, data_tests: [not_null]}
+      - {name: country, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [DE, SE]}}]}
       - {name: esco_occupation_uri, data_type: varchar}
       - {name: lang, data_type: varchar}

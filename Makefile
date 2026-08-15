@@ -43,7 +43,8 @@ sweep:
 # Offline preview of final, immutable live partitions only. This does not collect data.
 live-site:
 	if not exist "data\raw\collections\jobtech" (echo Run make sweep before make live-site. & exit /b 1)
-	set "OBSERVATIONS_PATH=data/raw/collections/jobtech/*/*/observations.ndjson" && set "MANIFESTS_PATH=data/raw/collections/jobtech/*/*/manifest.json" && $(DBT) run --project-dir transform
+	if "$(OBSERVATORY_REFERENCE_TIME)"=="" (echo Set OBSERVATORY_REFERENCE_TIME to the current UTC timestamp. & exit /b 1)
+	set "OBSERVATIONS_PATH=data/raw/collections/jobtech/*/*/observations.ndjson" && set "MANIFESTS_PATH=data/raw/collections/jobtech/*/*/manifest.json" && $(DBT) build --project-dir transform
 	set "OBSERVATIONS_PATH=data/raw/collections/jobtech/*/*/observations.ndjson" && set "MANIFESTS_PATH=data/raw/collections/jobtech/*/*/manifest.json" && uv run --offline python -m scripts.publish
 
 clean:

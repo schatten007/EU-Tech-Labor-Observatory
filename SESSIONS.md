@@ -12,6 +12,7 @@ than expanding the active increment.
 | 4 | 2026-08-13 | Complete | Derive posting presence and closure events. | `make sample && make check` passed |
 | 5 | 2026-08-13 | Complete | Publish one minimal labour-demand view. | `make site` passed |
 | 6 | 2026-08-15 | Complete | Add reliable, resumable, immutable JobTech query sweeps. | `make sample && make check && make site` passed |
+| 7 | 2026-08-15 | Complete at feasibility boundary | Review DE/SE sources; add approved-source metadata, coverage, and freshness without unsupported German collection. | `make sample && make check && make site` passed |
 
 ## Session Notes
 
@@ -107,3 +108,17 @@ than expanding the active increment.
   failed, partial, orphaned, and zero-row sweeps now have explicit tested behavior.
 - Kept live collection opt-in through `make sweep` and preserved the network-free sample,
   quality gate, and static-site build.
+
+### 2026-08-15 - Iteration 7
+
+- Approved JobTech JobSearch for the fixed Swedish keyword scope based on its official API
+  and CC0 publication; recorded source version, licence, access method, expected country,
+  freshness threshold, and limitations in every new manifest.
+- Rejected BA Jobsuche because BA terms prohibit automated collection, kept HR-BA-XML
+  exploratory because it requires an agreement and does not document a national read feed,
+  rejected EURES without formal partner access, and classified the official BA statistics
+  API as aggregate-only.
+- Did not implement or simulate German posting collection and did not label the product as
+  Germany-Sweden complete.
+- Added deterministic source coverage/freshness models, strict Swedish country validation,
+  zero-row country coverage, and source-separated publication with no combined total.

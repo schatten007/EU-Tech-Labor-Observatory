@@ -34,6 +34,17 @@ DEFAULT_TIMEOUT_S = 30.0
 DEFAULT_MAX_ATTEMPTS = 4
 DEFAULT_RETRY_DEADLINE_S = 120.0
 DEFAULT_PAUSE_S = 0.5
+COLLECTOR_VERSION = "0.2.0"
+JOBTECH_SOURCE_VERSION = "JobSearch current ads"
+JOBTECH_LICENCE_REFERENCE = "https://data.jobtechdev.se/dataservice/jobsearch/"
+JOBTECH_ACCESS_METHOD = "official-public-api"
+JOBTECH_APPROVAL_STATUS = "approved"
+JOBTECH_EXPECTED_COUNTRY = "SE"
+JOBTECH_FRESHNESS_THRESHOLD_HOURS = 48
+JOBTECH_COVERAGE_LIMITATIONS = (
+    "Keyword-scoped Platsbanken postings; provider-default ordering is not a "
+    "transactional snapshot."
+)
 
 
 class PageTransport(Protocol):
@@ -90,6 +101,9 @@ def _scope(query: str, page_size: int) -> tuple[str, str, str]:
         "endpoint": JOBTECH_SEARCH,
         "params": {"q": query, "limit": page_size},
         "ordering": "provider-default",
+        "country": JOBTECH_EXPECTED_COUNTRY,
+        "language": "sv",
+        "collector_version": COLLECTOR_VERSION,
     }
     scope_json = _canonical_json(scope)
     scope_hash = hashlib.sha256(scope_json.encode()).hexdigest()
@@ -176,6 +190,10 @@ def normalize_jobtech_hit(
     if not isinstance(address, dict):
         address = {}
 
+    country = hit.get("country_code") or address.get("country_code")
+    if country != JOBTECH_EXPECTED_COUNTRY:
+        raise ValueError("JobTech hit must have country_code SE")
+
     record: dict[str, Any] = {
         "source": "jobtech",
         "source_id": source_id,
@@ -184,7 +202,7 @@ def normalize_jobtech_hit(
         "last_modified": hit.get("last_publication_date"),
         "removed_at": hit.get("removed_date"),
         "nuts_code": None,
-        "country": hit.get("country_code") or address.get("country_code") or "SE",
+        "country": country,
         "esco_occupation_uri": None,
         "lang": "sv",
         "skill_uris": [],
@@ -365,6 +383,13 @@ def _manifest_matches(manifest: Mapping[str, Any], expected: Mapping[str, Any]) 
         "observed_at",
         "page_size",
         "hmac_key_version",
+        "source_version",
+        "licence_reference",
+        "access_method",
+        "approval_status",
+        "expected_country",
+        "freshness_threshold_hours",
+        "coverage_limitations",
     )
     for field in fields:
         if manifest.get(field) != expected.get(field):
@@ -452,6 +477,13 @@ def collect_jobtech_sweep(
         "observed_at": observed,
         "page_size": page_size,
         "hmac_key_version": key_version,
+        "source_version": JOBTECH_SOURCE_VERSION,
+        "licence_reference": JOBTECH_LICENCE_REFERENCE,
+        "access_method": JOBTECH_ACCESS_METHOD,
+        "approval_status": JOBTECH_APPROVAL_STATUS,
+        "expected_country": JOBTECH_EXPECTED_COUNTRY,
+        "freshness_threshold_hours": JOBTECH_FRESHNESS_THRESHOLD_HOURS,
+        "coverage_limitations": JOBTECH_COVERAGE_LIMITATIONS,
     }
     if final_manifest.exists():
         existing = cast(dict[str, Any], json.loads(final_manifest.read_text(encoding="utf-8")))
@@ -491,8 +523,8 @@ def collect_jobtech_sweep(
         else:
             manifest = {
                 **expected,
-                "schema_version": 1,
-                "collector_version": "0.1.0",
+                "schema_version": 2,
+                "collector_version": COLLECTOR_VERSION,
                 "partition_id": f"jobtech/{scope_id}/{effective_sweep_id}",
                 "run_id": f"run-{effective_sweep_id}",
                 "started_at": _iso(clock()),

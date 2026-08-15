@@ -15,7 +15,14 @@ select
     completed_at,
     status,
     row_count,
-    hmac_key_version
+    hmac_key_version,
+    source_version,
+    licence_reference,
+    access_method,
+    approval_status,
+    expected_country,
+    freshness_threshold_hours,
+    coverage_limitations
 from {{ ref('stg_collection_manifests') }}
 qualify row_number() over (
     partition by source, scope_id

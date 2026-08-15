@@ -20,8 +20,27 @@ select
     cast(completed_pages as integer) as completed_pages,
     cast(expected_rows as bigint) as expected_rows,
     cast(row_count as bigint) as row_count,
-    cast(hmac_key_version as varchar) as hmac_key_version
-from {{ source('manifests', 'sweeps') }}
+    cast(hmac_key_version as varchar) as hmac_key_version,
+    cast(source_version as varchar) as source_version,
+    cast(licence_reference as varchar) as licence_reference,
+    cast(access_method as varchar) as access_method,
+    cast(approval_status as varchar) as approval_status,
+    cast(expected_country as varchar) as expected_country,
+    cast(freshness_threshold_hours as integer) as freshness_threshold_hours,
+    cast(coverage_limitations as varchar) as coverage_limitations
+from read_json(
+    '{{ env_var('MANIFESTS_PATH', 'data/sample/sweeps_sample.ndjson') }}',
+    format = 'auto',
+    columns = {
+        source: 'varchar', scope_id: 'varchar', scope_hash: 'varchar', scope_json: 'varchar',
+        partition_id: 'varchar', sweep_id: 'varchar', run_id: 'varchar', observed_at: 'varchar',
+        started_at: 'varchar', completed_at: 'varchar', status: 'varchar', expected_pages: 'integer',
+        completed_pages: 'integer', expected_rows: 'bigint', row_count: 'bigint',
+        hmac_key_version: 'varchar', source_version: 'varchar', licence_reference: 'varchar',
+        access_method: 'varchar', approval_status: 'varchar', expected_country: 'varchar',
+        freshness_threshold_hours: 'integer', coverage_limitations: 'varchar'
+    }
+)
 where status = 'complete'
     and completed_at is not null
     and expected_pages = completed_pages

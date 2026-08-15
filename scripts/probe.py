@@ -148,7 +148,19 @@ def measure() -> None:
 
 def build_sample() -> None:
     """Build synthetic observations with the collector's PII-free landing shape."""
-    from scripts.collect import _key_version, collection_scope, normalize_jobtech_hit
+    from scripts.collect import (
+        COLLECTOR_VERSION,
+        JOBTECH_ACCESS_METHOD,
+        JOBTECH_APPROVAL_STATUS,
+        JOBTECH_COVERAGE_LIMITATIONS,
+        JOBTECH_EXPECTED_COUNTRY,
+        JOBTECH_FRESHNESS_THRESHOLD_HOURS,
+        JOBTECH_LICENCE_REFERENCE,
+        JOBTECH_SOURCE_VERSION,
+        _key_version,
+        collection_scope,
+        normalize_jobtech_hit,
+    )
     from scripts.sanitize import sanitize_record
 
     SAMPLE.parent.mkdir(parents=True, exist_ok=True)
@@ -239,8 +251,8 @@ def build_sample() -> None:
     SAMPLE.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     manifests = [
         {
-            "schema_version": 1,
-            "collector_version": "0.1.0",
+            "schema_version": 2,
+            "collector_version": COLLECTOR_VERSION,
             "source": "jobtech",
             "scope_id": scope_id,
             "scope_hash": scope_hash,
@@ -258,6 +270,13 @@ def build_sample() -> None:
             "expected_rows": row_count,
             "row_count": row_count,
             "hmac_key_version": _key_version(key),
+            "source_version": JOBTECH_SOURCE_VERSION,
+            "licence_reference": JOBTECH_LICENCE_REFERENCE,
+            "access_method": JOBTECH_ACCESS_METHOD,
+            "approval_status": JOBTECH_APPROVAL_STATUS,
+            "expected_country": JOBTECH_EXPECTED_COUNTRY,
+            "freshness_threshold_hours": JOBTECH_FRESHNESS_THRESHOLD_HOURS,
+            "coverage_limitations": JOBTECH_COVERAGE_LIMITATIONS,
         }
         for index, (observed_at, sweep_id, row_count) in enumerate(
             (
@@ -310,6 +329,7 @@ def build_sample() -> None:
             "completed_at": "2026-08-06T10:00:00Z",
             "expected_rows": 0,
             "row_count": 0,
+            "freshness_threshold_hours": 500,
         }
     )
     SAMPLE_MANIFESTS.write_text(
