@@ -14,6 +14,7 @@ than expanding the active increment.
 | 6 | 2026-08-15 | Complete | Add reliable, resumable, immutable JobTech query sweeps. | `make sample && make check && make site` passed |
 | 7 | 2026-08-15 | Complete at feasibility boundary | Review DE/SE sources; add approved-source metadata, coverage, and freshness without unsupported German collection. | `make sample && make check && make site` passed |
 | 8 | 2026-08-16 | Complete | Add region, occupation, and skill mappings from real pinned crosswalks with quality reporting. | `make reference && make sample && make check && make site` passed |
+| 9 | 2026-08-17 | Complete | Add historical analytics: openings, active stock, and closures over time (day/week/month); posting survival and closure basis; postings vs advertised vacancies; small-count suppression; coverage and collection frequency. | `make sample && make check && make site` passed |
 
 ## Session Notes
 
@@ -150,3 +151,23 @@ than expanding the active increment.
   mapping models directly instead of hiding missing relations.
 - Added fixture-based enrichment/evaluation tests plus reference-integrity, geography-coverage,
   honesty, and source-id-leak assertions.
+
+### 2026-08-17 - Iteration 9 (historical analytics)
+
+- Built published views over the existing append-only sweep history and event log:
+  `posting_flows` (openings, active stock, and closures at daily/weekly/monthly grain),
+  `posting_survival` with intermediate `events/posting_lifecycle` (per-posting duration,
+  closure basis, right-censoring), and `collection_frequency` (cadence plus comparability
+  limits published beside the metrics).
+- Surfaced `number_of_vacancies` through staging and kept posting counts distinct from
+  advertised vacancy counts; a data test asserts the two diverge.
+- Added `transform/macros/suppress_small_counts.sql` (`small_count_threshold`, k=5) and reused
+  it to mask non-zero cells below the threshold in every historical mart. Zero stays visible.
+- Labelled disappearance as posting duration or inferred removal, never time to hire, and
+  framed trends within-source only (no cross-source or cross-country absolute comparison).
+- Active-posting durations are right-censored lower bounds, surfaced as `any_right_censored`.
+- Extended the offline sample with a persistent active cohort (regenerated via `make sample`)
+  so one cell clears suppression without changing the pinned closure timeline; added 5 singular
+  dbt tests. `make check` passed (dbt PASS=161, 27 pytest).
+- Added root `AGENTS.md` capturing the stable conventions so they are not re-derived each
+  session. Dashboard redesign remains Iteration 10.

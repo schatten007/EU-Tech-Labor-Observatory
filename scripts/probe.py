@@ -224,6 +224,26 @@ def build_sample() -> None:
                 "number_of_vacancies": 1,
             },
         ),
+        # A cohort that persists into the latest complete sweep (no closure), large enough
+        # to clear the small-count suppression threshold and to show advertised vacancy
+        # counts diverging from posting counts. first_published avoids 2026-08-03/-04 so the
+        # survival-logic fixture (which pins the full closure set) is unaffected.
+        *(
+            (
+                "2026-08-06T09:00:00Z",
+                {
+                    "id": f"synthetic-1{index:02d}",
+                    "publication_date": "2026-08-06T08:00:00Z",
+                    "last_publication_date": "2026-08-06T08:30:00Z",
+                    "country_code": "SE",
+                    "workplace_address": {"municipality_code": "0180"},
+                    "occupation": {"concept_id": "CZkP_hCz_KM8"},
+                    "must_have": {"skills": [{"concept_id": "jBKc_5Yx_Y6T"}]},
+                    "number_of_vacancies": vacancies,
+                },
+            )
+            for index, vacancies in enumerate((2, 3, 1, 2, 4), start=1)
+        ),
     )
     key = b"offline-synthetic-sample-key-32b"
     rotated_key = b"offline-rotated-sample-key-at-least-32b"
@@ -301,7 +321,7 @@ def build_sample() -> None:
         for index, (observed_at, sweep_id, row_count) in enumerate(
             (
                 ("2026-08-05T09:00:00Z", sweeps["2026-08-05T09:00:00Z"], 3),
-                ("2026-08-06T09:00:00Z", sweeps["2026-08-06T09:00:00Z"], 1),
+                ("2026-08-06T09:00:00Z", sweeps["2026-08-06T09:00:00Z"], 6),
             ),
             start=1,
         )

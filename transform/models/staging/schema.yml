@@ -74,6 +74,7 @@ models:
       - {name: esco_version, data_type: varchar}
       - {name: skill_mappings, data_type: json}
       - {name: lang, data_type: varchar}
+      - {name: number_of_vacancies, data_type: bigint}
 
   - name: stg_skill_mappings
     description: Privacy-safe ESCO skill outcomes, one row per source skill outcome.

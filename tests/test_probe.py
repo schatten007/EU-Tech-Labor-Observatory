@@ -640,6 +640,39 @@ def test_publish_builds_aggregate_page(tmp_path: Path) -> None:
                2::bigint as outcome_count, 3::hugeint as total_outcomes
         """
     )
+    connection.execute(
+        """
+        create table posting_flows as
+        select 'jobtech-scope'::varchar as scope_id, 'day'::varchar as grain,
+               timestamp '2026-08-06 00:00:00' as bucket_start, true as is_suppressed,
+               5::bigint as openings, cast(null as bigint) as closures,
+               6::bigint as active_postings, 13::bigint as active_vacancies
+        """
+    )
+    connection.execute(
+        """
+        create table posting_survival as
+        select 'jobtech-scope'::varchar as scope_id, 'active'::varchar as lifecycle_status,
+               false as is_suppressed, true as any_right_censored,
+               7::bigint as posting_count, 13::bigint as advertised_vacancies,
+               0.0::double as median_duration_days, 0.0::double as p25_duration_days,
+               1.0::double as p75_duration_days, 1::bigint as max_duration_days
+        union all
+        select 'jobtech-scope', 'inferred_absence', true, false,
+               cast(null as bigint), cast(null as bigint), cast(null as double),
+               cast(null as double), cast(null as double), cast(null as bigint)
+        """
+    )
+    connection.execute(
+        """
+        create table collection_frequency as
+        select 'jobtech-scope'::varchar as scope_id, 3::bigint as complete_sweeps,
+               timestamp '2026-08-05 09:00:00' as first_observed_at,
+               timestamp '2026-08-08 09:00:00' as last_observed_at,
+               36.0::double as median_interval_hours, 48::integer as freshness_threshold_hours,
+               'Keyword-scoped'::varchar as coverage_limitations
+        """
+    )
     connection.close()
 
     assert publish.build_site(database, target) == 1
@@ -653,6 +686,14 @@ def test_publish_builds_aggregate_page(tmp_path: Path) -> None:
     assert "C#" in page
     assert "Sweden only" in page
     assert "No mapped dimension results" not in page
+    # Iteration 9: historical analytics, correct labelling, and suppression.
+    assert "Posting survival by closure basis" in page
+    assert "Advertised vacancies" in page
+    assert "Inferred removal" in page
+    assert "posting duration or inferred removal" in page
+    assert "never as time to hire" in page
+    assert "Time to hire" not in page
+    assert "suppressed" in page
 
 
 def test_publish_handles_zero_only_aggregate(tmp_path: Path) -> None:
@@ -708,6 +749,30 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path) -> None:
             taxonomy_version varchar, outcome_count bigint, total_outcomes hugeint)
         """
     )
+    connection.execute(
+        """
+        create table posting_flows(
+            scope_id varchar, grain varchar, bucket_start timestamp, is_suppressed boolean,
+            openings bigint, closures bigint, active_postings bigint, active_vacancies bigint)
+        """
+    )
+    connection.execute(
+        """
+        create table posting_survival(
+            scope_id varchar, lifecycle_status varchar, is_suppressed boolean,
+            any_right_censored boolean, posting_count bigint, advertised_vacancies bigint,
+            median_duration_days double, p25_duration_days double, p75_duration_days double,
+            max_duration_days bigint)
+        """
+    )
+    connection.execute(
+        """
+        create table collection_frequency(
+            scope_id varchar, complete_sweeps bigint, first_observed_at timestamp,
+            last_observed_at timestamp, median_interval_hours double,
+            freshness_threshold_hours integer, coverage_limitations varchar)
+        """
+    )
     connection.close()
 
     assert publish.build_site(database, target) == 1
@@ -715,3 +780,5 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path) -> None:
     assert "SE" in page
     assert ">0<" in page
     assert "No mapped dimension results" in page
+    assert "No trend results" in page
+    assert "No survival results" in page

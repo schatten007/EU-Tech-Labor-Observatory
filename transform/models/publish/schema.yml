@@ -113,3 +113,52 @@ models:
       - {name: taxonomy_version, data_type: varchar, data_tests: [not_null]}
       - {name: outcome_count, data_type: bigint, data_tests: [not_null]}
       - {name: total_outcomes, data_type: hugeint, data_tests: [not_null]}
+
+  - name: posting_survival
+    description: Posting survival duration and closure-basis breakdown per source and scope, with small-count suppression.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: lifecycle_status, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [active, source_reported, inferred_absence]}}]}
+      - {name: is_suppressed, data_type: boolean, data_tests: [not_null]}
+      - {name: any_right_censored, data_type: boolean, data_tests: [not_null]}
+      - {name: posting_count, data_type: bigint}
+      - {name: advertised_vacancies, data_type: bigint}
+      - {name: median_duration_days, data_type: double}
+      - {name: p25_duration_days, data_type: double}
+      - {name: p75_duration_days, data_type: double}
+      - {name: max_duration_days, data_type: bigint}
+
+  - name: posting_flows
+    description: Posting openings, active stock, and closures over time (day/week/month) per source and scope, with small-count suppression.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: grain, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [day, week, month]}}]}
+      - {name: bucket_start, data_type: timestamp, data_tests: [not_null]}
+      - {name: is_suppressed, data_type: boolean, data_tests: [not_null]}
+      - {name: openings, data_type: bigint}
+      - {name: closures, data_type: bigint}
+      - {name: active_postings, data_type: bigint}
+      - {name: active_vacancies, data_type: bigint}
+
+  - name: collection_frequency
+    description: Collection cadence and comparability metadata per source and scope.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: complete_sweeps, data_type: bigint, data_tests: [not_null]}
+      - {name: first_observed_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: last_observed_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: median_interval_hours, data_type: double}
+      - {name: freshness_threshold_hours, data_type: integer}
+      - {name: coverage_limitations, data_type: varchar}
