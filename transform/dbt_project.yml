@@ -16,3 +16,5 @@ models:
   observatory:
     staging:
       +materialized: view
+    publish:
+      +materialized: view

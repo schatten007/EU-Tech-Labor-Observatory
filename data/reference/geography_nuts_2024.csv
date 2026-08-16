@@ -1,0 +1,22 @@
+source_type,source_code,nuts_code,nuts_label,source_url,source_version
+region,01,SE110,Stockholms län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,03,SE121,Uppsala län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,04,SE122,Södermanlands län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,05,SE123,Östergötlands län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,06,SE211,Jönköpings län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,07,SE212,Kronobergs län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,08,SE213,Kalmar län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,09,SE214,Gotlands län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,10,SE221,Blekinge län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,12,SE224,Skåne län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,13,SE231,Hallands län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,14,SE232,Västra Götalands län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,17,SE311,Värmlands län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,18,SE124,Örebro län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,19,SE125,Västmanlands län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,20,SE312,Dalarnas län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,21,SE313,Gävleborgs län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,22,SE321,Västernorrlands län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,23,SE322,Jämtlands län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,24,SE331,Västerbottens län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30
+region,25,SE332,Norrbottens län,https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql,30

@@ -1,0 +1,5 @@
+source_concept_id,source_label,target_uri,target_label,relation,confidence
+occ-exact,Systemutvecklare,http://data.europa.eu/esco/occupation/fixture-exact,software developer,exact-match,high
+occ-low,IT-tekniker,http://data.europa.eu/esco/occupation/fixture-low,ICT technician,close-match,low
+occ-ambiguous,Utvecklare,http://data.europa.eu/esco/occupation/fixture-a,ICT specialist,close-match,low
+occ-ambiguous,Utvecklare,http://data.europa.eu/esco/occupation/fixture-b,software engineer,close-match,low

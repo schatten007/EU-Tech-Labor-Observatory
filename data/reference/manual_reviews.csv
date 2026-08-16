@@ -1,0 +1,2 @@
+dimension,source_concept_id,target_uri,target_label,relation,status,confidence,reviewer,reviewed_at
+occupation,71Ji_irM_rSJ,http://data.europa.eu/esco/occupation/a7c1d23d-aeca-4bee-9a08-5993ed98b135,IKT-systemutvecklare,manual-review,mapped,high,review-sample,2026-08-15

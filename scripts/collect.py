@@ -23,6 +23,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from scripts.enrich import ReferenceTables, enrich_hit, load_references, reference_provenance
 from scripts.sanitize import key_from_env, sanitize_record
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,7 +35,8 @@ DEFAULT_TIMEOUT_S = 30.0
 DEFAULT_MAX_ATTEMPTS = 4
 DEFAULT_RETRY_DEADLINE_S = 120.0
 DEFAULT_PAUSE_S = 0.5
-COLLECTOR_VERSION = "0.2.0"
+COLLECTOR_VERSION = "0.3.0"
+SCHEMA_VERSION = 3
 JOBTECH_SOURCE_VERSION = "JobSearch current ads"
 JOBTECH_LICENCE_REFERENCE = "https://data.jobtechdev.se/dataservice/jobsearch/"
 JOBTECH_ACCESS_METHOD = "official-public-api"
@@ -181,6 +183,7 @@ def normalize_jobtech_hit(
     *,
     scope_id: str | None = None,
     sweep_id: str | None = None,
+    references: ReferenceTables | None = None,
 ) -> dict[str, Any]:
     source_id = hit.get("id")
     if not isinstance(source_id, str) or not source_id:
@@ -194,6 +197,10 @@ def normalize_jobtech_hit(
     if country != JOBTECH_EXPECTED_COUNTRY:
         raise ValueError("JobTech hit must have country_code SE")
 
+    enrichment = enrich_hit(hit, references)
+    region = enrichment["region"]
+    occupation = enrichment["occupation"]
+    skills = enrichment["skills"]
     record: dict[str, Any] = {
         "source": "jobtech",
         "source_id": source_id,
@@ -201,11 +208,23 @@ def normalize_jobtech_hit(
         "first_published": hit.get("publication_date"),
         "last_modified": hit.get("last_publication_date"),
         "removed_at": hit.get("removed_date"),
-        "nuts_code": None,
+        "nuts_code": region["nuts_code"],
+        "nuts_label": region["nuts_label"],
+        "region_mapping_status": region["status"],
+        "region_mapping_method": region["method"],
+        "nuts_version": region["nuts_version"],
         "country": country,
-        "esco_occupation_uri": None,
+        "esco_occupation_uri": occupation["uri"],
+        "esco_occupation_label": occupation["label"],
+        "occupation_mapping_status": occupation["status"],
+        "occupation_mapping_confidence": occupation["confidence"],
+        "occupation_mapping_method": occupation["method"],
+        "source_language": occupation["source_language"],
+        "jobtech_taxonomy_version": occupation["jobtech_taxonomy_version"],
+        "esco_version": occupation["esco_version"],
         "lang": "sv",
-        "skill_uris": [],
+        "skill_uris": sorted(skill["uri"] for skill in skills if skill["uri"]),
+        "skill_mappings": skills,
         "number_of_vacancies": hit.get("number_of_vacancies"),
     }
     if scope_id is not None:
@@ -232,6 +251,7 @@ def collect_jobtech(
     if not isinstance(hits, list):
         raise ValueError("JobTech response must contain a hits list")
 
+    references = load_references()
     rows: list[bytes] = []
     for hit in hits:
         if not isinstance(hit, dict):
@@ -242,6 +262,7 @@ def collect_jobtech(
                 observed_at,
                 scope_id=scope_id,
                 sweep_id=sweep_id,
+                references=references,
             ),
             key,
         )
@@ -390,6 +411,10 @@ def _manifest_matches(manifest: Mapping[str, Any], expected: Mapping[str, Any]) 
         "expected_country",
         "freshness_threshold_hours",
         "coverage_limitations",
+        "reference_hashes",
+        "nuts_version",
+        "jobtech_taxonomy_version",
+        "esco_version",
     )
     for field in fields:
         if manifest.get(field) != expected.get(field):
@@ -401,7 +426,12 @@ def _page_file(state_dir: Path, index: int, suffix: str) -> Path:
 
 
 def _page_ndjson(
-    hits: list[dict[str, Any]], observed_at: str, scope_id: str, sweep_id: str, key: bytes
+    hits: list[dict[str, Any]],
+    observed_at: str,
+    scope_id: str,
+    sweep_id: str,
+    key: bytes,
+    references: ReferenceTables,
 ) -> tuple[bytes, list[str]]:
     rows: list[bytes] = []
     ids: list[str] = []
@@ -411,7 +441,10 @@ def _page_ndjson(
             raise CollectionError("JobTech hit has no non-empty id")
         ids.append(native_id)
         safe = sanitize_record(
-            normalize_jobtech_hit(hit, observed_at, scope_id=scope_id, sweep_id=sweep_id), key
+            normalize_jobtech_hit(
+                hit, observed_at, scope_id=scope_id, sweep_id=sweep_id, references=references
+            ),
+            key,
         )
         rows.append((json.dumps(safe, ensure_ascii=False) + "\n").encode())
     return b"".join(rows), ids
@@ -457,6 +490,7 @@ def collect_jobtech_sweep(
     if policy.max_attempts < 1 or policy.deadline_s <= 0 or policy.timeout_s <= 0:
         raise ValueError("retry attempts, deadline, and timeout must be positive")
     key_version = _key_version(key)
+    references = load_references()
     _verify_key_identity(root, key, key_version)
     observed = _iso(observed_at or clock())
     scope_id, scope_hash, scope_json = _scope(query, page_size)
@@ -484,6 +518,7 @@ def collect_jobtech_sweep(
         "expected_country": JOBTECH_EXPECTED_COUNTRY,
         "freshness_threshold_hours": JOBTECH_FRESHNESS_THRESHOLD_HOURS,
         "coverage_limitations": JOBTECH_COVERAGE_LIMITATIONS,
+        **reference_provenance(references),
     }
     if final_manifest.exists():
         existing = cast(dict[str, Any], json.loads(final_manifest.read_text(encoding="utf-8")))
@@ -523,7 +558,7 @@ def collect_jobtech_sweep(
         else:
             manifest = {
                 **expected,
-                "schema_version": 2,
+                "schema_version": SCHEMA_VERSION,
                 "collector_version": COLLECTOR_VERSION,
                 "partition_id": f"jobtech/{scope_id}/{effective_sweep_id}",
                 "run_id": f"run-{effective_sweep_id}",
@@ -625,7 +660,9 @@ def collect_jobtech_sweep(
             if offset >= total and hits:
                 raise CollectionError("JobTech returned an unexpected extra page")
             raw_bytes = (json.dumps(payload, sort_keys=True, ensure_ascii=False) + "\n").encode()
-            safe_bytes, native_ids = _page_ndjson(hits, observed, scope_id, effective_sweep_id, key)
+            safe_bytes, native_ids = _page_ndjson(
+                hits, observed, scope_id, effective_sweep_id, key, references
+            )
             if len(set(native_ids)) != len(native_ids) or seen_ids.intersection(native_ids):
                 raise CollectionError("duplicate JobTech id across pages")
             seen_ids.update(native_ids)

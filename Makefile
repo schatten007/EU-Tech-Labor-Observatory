@@ -6,9 +6,9 @@
 export DBT_PROFILES_DIR := transform
 DBT := uv run --offline dbt
 
-.PHONY: check lint types test dbt sample site probe sweep live-site clean
+.PHONY: check lint types test evaluate dbt sample site probe sweep reference live-site clean
 
-check: lint types test dbt
+check: lint types test evaluate dbt
 
 lint:
 	uv run --offline ruff check .
@@ -19,6 +19,9 @@ types:
 
 test:
 	uv run --offline python -m pytest
+
+evaluate:
+	uv run --offline python -m scripts.evaluate
 
 dbt:
 	$(DBT) parse --project-dir transform
@@ -39,6 +42,10 @@ probe:
 # NOT part of check. Collects one complete canonical JobTech query sweep.
 sweep:
 	uv run python -m scripts.collect sweep
+
+# NOT part of check. Rebuilds pinned reference crosswalks from the JobTech Taxonomy API.
+reference:
+	uv run python -m scripts.build_reference
 
 # Offline preview of final, immutable live partitions only. This does not collect data.
 live-site:

@@ -1,0 +1,18 @@
+{
+  "esco_version": "1.2.1",
+  "hashes": {
+    "geography_nuts_2024.csv": "9ec4c3bf91f4e5b2f5eb06405eafe0ab6a94b2c4429d1c44f32c4eed7593607c",
+    "jobtech_occupation_esco_1.2.1.csv": "5f19e66dbdbdd8294f9c1d16b22ac415b46a5670d6d620fe6e826c77cfa56b69",
+    "jobtech_skill_esco_1.2.1.csv": "e65e70aa999f37ff01ca215279d7e8c86e5f67b689389d352e802bed3c65cd2f",
+    "manual_reviews.csv": "f7d72a98a57ad6306c6258763494f9c7dc959c0377d1e1f7c181dc91cb0c6983"
+  },
+  "jobtech_taxonomy_version": "30",
+  "nuts_version": "NUTS-2024",
+  "retrieved_at": "2026-08-16T14:28:59.730125Z",
+  "row_counts": {
+    "geography_nuts_2024.csv": 21,
+    "jobtech_occupation_esco_1.2.1.csv": 3891,
+    "jobtech_skill_esco_1.2.1.csv": 19782
+  },
+  "source_url": "https://taxonomy.api.jobtechdev.se/v1/taxonomy/graphql"
+}

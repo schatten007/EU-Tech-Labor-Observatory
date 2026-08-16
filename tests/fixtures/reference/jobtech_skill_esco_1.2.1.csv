@@ -1,0 +1,4 @@
+source_concept_id,source_label,target_uri,target_label,relation,confidence
+skill-python,Python,http://data.europa.eu/esco/skill/fixture-python,Python,exact-match,high
+skill-sql,SQL,http://data.europa.eu/esco/skill/fixture-sql,SQL,exact-match,high
+skill-cloud,Moln,http://data.europa.eu/esco/skill/fixture-cloud,cloud technologies,close-match,low

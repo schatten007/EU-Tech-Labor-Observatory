@@ -25,6 +25,10 @@ models:
       - {name: expected_country, data_type: varchar}
       - {name: freshness_threshold_hours, data_type: integer}
       - {name: coverage_limitations, data_type: varchar}
+      - {name: reference_hashes, data_type: varchar}
+      - {name: nuts_version, data_type: varchar}
+      - {name: jobtech_taxonomy_version, data_type: varchar}
+      - {name: esco_version, data_type: varchar}
 
   - name: source_coverage
     description: Deterministic source-level coverage and freshness for complete sweeps.
@@ -75,3 +79,37 @@ models:
       - {name: freshness_status, data_type: varchar, data_tests: [not_null]}
       - {name: coverage_status, data_type: varchar, data_tests: [not_null]}
       - {name: active_postings, data_type: bigint, data_tests: [not_null]}
+
+  - name: dimension_demand_latest
+    description: Latest mapped posting counts by NUTS region and ESCO occupation.
+    config: {contract: {enforced: true}}
+    columns: &dimension_columns
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: sweep_id, data_type: varchar, data_tests: [not_null]}
+      - {name: observed_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: dimension, data_type: varchar, data_tests: [not_null]}
+      - {name: value_uri, data_type: varchar, data_tests: [not_null]}
+      - {name: value_label, data_type: varchar, data_tests: [not_null]}
+      - {name: taxonomy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: posting_count, data_type: bigint, data_tests: [not_null]}
+
+  - name: skill_demand_latest
+    description: Latest mapped posting counts by ESCO skill.
+    config: {contract: {enforced: true}}
+    columns: *dimension_columns
+
+  - name: mapping_quality_latest
+    description: Latest mapping outcome counts by dimension and status.
+    config: {contract: {enforced: true}}
+    columns:
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: sweep_id, data_type: varchar, data_tests: [not_null]}
+      - {name: dimension, data_type: varchar, data_tests: [not_null]}
+      - {name: mapping_status, data_type: varchar, data_tests: [not_null]}
+      - {name: mapping_method, data_type: varchar, data_tests: [not_null]}
+      - {name: mapping_confidence, data_type: varchar}
+      - {name: taxonomy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: outcome_count, data_type: bigint, data_tests: [not_null]}
+      - {name: total_outcomes, data_type: hugeint, data_tests: [not_null]}

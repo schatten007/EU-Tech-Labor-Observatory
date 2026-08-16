@@ -1,0 +1,21 @@
+{
+  "esco_version": "1.2.1",
+  "evaluation_basis": "Regression check that the deterministic mapper reproduces the official JobTech->ESCO crosswalk on a reviewed developer-scope sample. It is not an independent accuracy audit; that requires manually labelled live job ads.",
+  "jobtech_taxonomy_version": "30",
+  "occupation": {
+    "false_negatives": 0,
+    "false_positives": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "true_positives": 2
+  },
+  "review_date": "2026-08-15",
+  "sample_size": 3,
+  "skill": {
+    "false_negatives": 1,
+    "false_positives": 0,
+    "precision": 1.0,
+    "recall": 0.75,
+    "true_positives": 3
+  }
+}

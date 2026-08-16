@@ -1,4 +1,5 @@
 import json
+import re
 import sys
 from datetime import UTC, datetime
 from email.message import Message
@@ -9,7 +10,7 @@ from urllib.error import HTTPError
 import duckdb
 from pytest import MonkeyPatch
 
-from scripts import collect, probe, publish, sanitize
+from scripts import collect, enrich, evaluate, probe, publish, sanitize
 
 KEY = b"test-only-key-with-at-least-32-bytes"
 
@@ -108,6 +109,112 @@ def test_jobtech_normalizer_requires_explicit_sweden_country() -> None:
         raise AssertionError("missing country must not be inferred as Sweden")
 
 
+FIXTURE_REFERENCE = Path(__file__).parent / "fixtures" / "reference"
+FIXTURE_REVIEW = FIXTURE_REFERENCE / "review_sample.ndjson"
+
+
+def test_enrichment_keeps_mapping_states_distinct() -> None:
+    refs = enrich.load_references(FIXTURE_REFERENCE)
+    mapped = enrich.enrich_hit(
+        {
+            "workplace_address": {"municipality_code": "0180"},
+            "occupation": {"concept_id": "occ-exact"},
+            "must_have": {"skills": [{"concept_id": "skill-python"}]},
+        },
+        refs,
+    )
+    manual = enrich.enrich_hit({"occupation": {"concept_id": "occ-manual"}}, refs)
+    unresolved = enrich.enrich_hit(
+        {
+            "workplace_address": {"region_code": "99"},
+            "occupation": {"concept_id": "occ-ambiguous"},
+            "must_have": {"skills": [{"concept_id": "skill-cloud"}]},
+            "nice_to_have": {"skills": [{"concept_id": "skill-unknown"}]},
+        },
+        refs,
+    )
+    absent = enrich.enrich_hit({}, refs)
+
+    assert mapped["region"]["status"] == "mapped"
+    assert mapped["region"]["nuts_code"] == "SE110"
+    assert mapped["region"]["method"] == "municipality_prefix_crosswalk"
+    assert mapped["occupation"]["status"] == "mapped"
+    assert mapped["skills"][0]["status"] == "mapped"
+    assert manual["occupation"]["status"] == "mapped"
+    assert manual["occupation"]["method"] == "manual_review"
+    assert unresolved["region"]["status"] == "unmapped"
+    assert unresolved["occupation"]["status"] == "ambiguous"
+    assert {skill["status"] for skill in unresolved["skills"]} == {"low_confidence", "unmapped"}
+    assert absent["region"]["status"] == "not_present"
+    assert absent["occupation"]["status"] == "not_present"
+    assert absent["skills"][0]["status"] == "not_present"
+
+
+def test_municipality_prefix_resolves_full_swedish_coverage() -> None:
+    refs = enrich.load_references(FIXTURE_REFERENCE)
+    goteborg = enrich.enrich_hit({"workplace_address": {"municipality_code": "1480"}}, refs)
+    assert goteborg["region"]["nuts_code"] == "SE232"
+    assert goteborg["region"]["method"] == "municipality_prefix_crosswalk"
+
+
+def test_mapping_evaluation_is_deterministic() -> None:
+    refs = enrich.load_references(FIXTURE_REFERENCE)
+    report = evaluate.evaluate(sample=FIXTURE_REVIEW, references=refs)
+
+    assert report["sample_size"] == 3
+    assert report["occupation"]["precision"] == 1.0
+    assert report["occupation"]["recall"] == 1.0
+    assert report["skill"]["precision"] == 1.0
+    assert report["skill"]["recall"] == 0.75
+    assert "JobTech->ESCO" in report["evaluation_basis"]
+
+
+def test_committed_reference_has_no_placeholder_uris() -> None:
+    import csv as _csv
+
+    reference = Path("data/reference")
+    placeholders = {
+        "occ-exact",
+        "occ-manual",
+        "occ-ambiguous",
+        "occ-low",
+        "skill-python",
+        "skill-manual",
+        "skill-cloud",
+        "skill-unknown",
+    }
+    for name in ("jobtech_occupation_esco_1.2.1.csv", "jobtech_skill_esco_1.2.1.csv"):
+        with (reference / name).open(encoding="utf-8") as handle:
+            rows = list(_csv.DictReader(handle))
+        assert rows
+        for row in rows:
+            assert row["target_uri"].startswith("http://data.europa.eu/esco/"), row["target_uri"]
+            assert row["source_concept_id"] not in placeholders
+            assert row["target_uri"].rsplit("/", 1)[-1] not in placeholders
+
+
+def test_geography_reference_covers_all_swedish_lan() -> None:
+    import csv as _csv
+
+    with (Path("data/reference") / "geography_nuts_2024.csv").open(encoding="utf-8") as handle:
+        rows = [row for row in _csv.DictReader(handle) if row["source_type"] == "region"]
+    assert len(rows) == 21
+    assert all(re.fullmatch(r"SE\d{3}", row["nuts_code"]) for row in rows)
+
+
+def test_real_evaluation_is_honest_and_nontrivial() -> None:
+    report = evaluate.evaluate()
+    assert "JobTech->ESCO" in report["evaluation_basis"]
+    assert report["sample_size"] == 3
+    assert report["skill"]["recall"] is not None and report["skill"]["recall"] < 1.0
+
+
+def test_sample_does_not_leak_source_concept_ids() -> None:
+    sample = Path("data/sample/postings_sample.ndjson").read_text(encoding="utf-8")
+    for concept_id in ("CZkP_hCz_KM8", "71Ji_irM_rSJ", "3vry_gaE_yfQ", "jBKc_5Yx_Y6T"):
+        assert concept_id not in sample
+
+
 def test_collect_jobtech_sweep_paginates_and_publishes_manifest(tmp_path: Path) -> None:
     responses: dict[int, dict[str, Any]] = {
         0: {"total": {"value": 3}, "hits": [hit("one"), hit("two")]},
@@ -136,7 +243,7 @@ def test_collect_jobtech_sweep_paginates_and_publishes_manifest(tmp_path: Path) 
     assert manifest["status"] == "complete"
     assert manifest["expected_pages"] == 2
     assert manifest["row_count"] == 3
-    assert manifest["schema_version"] == 2
+    assert manifest["schema_version"] == 3
     assert manifest["approval_status"] == "approved"
     assert manifest["expected_country"] == "SE"
     assert manifest["licence_reference"] == collect.JOBTECH_LICENCE_REFERENCE
@@ -497,6 +604,42 @@ def test_publish_builds_aggregate_page(tmp_path: Path) -> None:
                1::bigint as active_postings
         """
     )
+    connection.execute(
+        """
+        create table dimension_demand_latest as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'sweep-one'::varchar as sweep_id, timestamp '2026-08-06 09:00:00' as observed_at,
+               'region'::varchar as dimension, 'SE110'::varchar as value_uri,
+               'Stockholms län'::varchar as value_label, 'NUTS-2024'::varchar as taxonomy_version,
+               2::bigint as posting_count
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', timestamp '2026-08-06 09:00:00',
+               'occupation', 'http://data.europa.eu/esco/occupation/bd272aee',
+               'IKT-programutvecklare', '1.2.1', 1::bigint
+        """
+    )
+    connection.execute(
+        """
+        create table skill_demand_latest as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'sweep-one'::varchar as sweep_id, timestamp '2026-08-06 09:00:00' as observed_at,
+               'skill'::varchar as dimension,
+               'http://data.europa.eu/esco/skill/4c016b68'::varchar as value_uri,
+               'C#'::varchar as value_label, '1.2.1'::varchar as taxonomy_version,
+               1::bigint as posting_count
+        """
+    )
+    connection.execute(
+        """
+        create table mapping_quality_latest as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'sweep-one'::varchar as sweep_id, 'region'::varchar as dimension,
+               'mapped'::varchar as mapping_status, 'region_crosswalk'::varchar as mapping_method,
+               cast(null as varchar) as mapping_confidence,
+               'NUTS-2024'::varchar as taxonomy_version,
+               2::bigint as outcome_count, 3::hugeint as total_outcomes
+        """
+    )
     connection.close()
 
     assert publish.build_site(database, target) == 1
@@ -506,6 +649,10 @@ def test_publish_builds_aggregate_page(tmp_path: Path) -> None:
     assert "Counts are not summed or deduplicated across sources" in page
     assert "official-public-api" in page
     assert "native-42" not in page
+    assert "Stockholms län" in page
+    assert "C#" in page
+    assert "Sweden only" in page
+    assert "No mapped dimension results" not in page
 
 
 def test_publish_handles_zero_only_aggregate(tmp_path: Path) -> None:
@@ -537,9 +684,34 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path) -> None:
                0::bigint as active_postings
         """
     )
+    connection.execute(
+        """
+        create table dimension_demand_latest(
+            source varchar, scope_id varchar, sweep_id varchar, observed_at timestamp,
+            dimension varchar, value_uri varchar, value_label varchar, taxonomy_version varchar,
+            posting_count bigint)
+        """
+    )
+    connection.execute(
+        """
+        create table skill_demand_latest(
+            source varchar, scope_id varchar, sweep_id varchar, observed_at timestamp,
+            dimension varchar, value_uri varchar, value_label varchar, taxonomy_version varchar,
+            posting_count bigint)
+        """
+    )
+    connection.execute(
+        """
+        create table mapping_quality_latest(
+            source varchar, scope_id varchar, sweep_id varchar, dimension varchar,
+            mapping_status varchar, mapping_method varchar, mapping_confidence varchar,
+            taxonomy_version varchar, outcome_count bigint, total_outcomes hugeint)
+        """
+    )
     connection.close()
 
     assert publish.build_site(database, target) == 1
     page = target.read_text(encoding="utf-8")
     assert "SE" in page
     assert ">0<" in page
+    assert "No mapped dimension results" in page

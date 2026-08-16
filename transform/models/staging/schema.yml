@@ -38,6 +38,10 @@ models:
       - {name: expected_country, data_type: varchar}
       - {name: freshness_threshold_hours, data_type: integer}
       - {name: coverage_limitations, data_type: varchar}
+      - {name: reference_hashes, data_type: varchar}
+      - {name: nuts_version, data_type: varchar}
+      - {name: jobtech_taxonomy_version, data_type: varchar}
+      - {name: esco_version, data_type: varchar}
 
   - name: stg_postings
     description: Privacy-safe posting observations admitted only through a complete matching sweep.
@@ -55,6 +59,39 @@ models:
       - {name: last_modified, data_type: timestamp}
       - {name: removed_at, data_type: timestamp}
       - {name: nuts_code, data_type: varchar}
+      - {name: nuts_label, data_type: varchar}
+      - {name: region_mapping_status, data_type: varchar}
+      - {name: region_mapping_method, data_type: varchar}
+      - {name: nuts_version, data_type: varchar}
       - {name: country, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [DE, SE]}}]}
       - {name: esco_occupation_uri, data_type: varchar}
+      - {name: esco_occupation_label, data_type: varchar}
+      - {name: occupation_mapping_status, data_type: varchar}
+      - {name: occupation_mapping_confidence, data_type: varchar}
+      - {name: occupation_mapping_method, data_type: varchar}
+      - {name: source_language, data_type: varchar}
+      - {name: jobtech_taxonomy_version, data_type: varchar}
+      - {name: esco_version, data_type: varchar}
+      - {name: skill_mappings, data_type: json}
       - {name: lang, data_type: varchar}
+
+  - name: stg_skill_mappings
+    description: Privacy-safe ESCO skill outcomes, one row per source skill outcome.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: source_id, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: sweep_id, data_type: varchar, data_tests: [not_null]}
+      - {name: hmac_key_version, data_type: varchar, data_tests: [not_null]}
+      - {name: observed_at, data_type: timestamp, data_tests: [not_null]}
+      - {name: skill_ordinal, data_type: integer, data_tests: [not_null]}
+      - {name: esco_skill_uri, data_type: varchar}
+      - {name: esco_skill_label, data_type: varchar}
+      - {name: mapping_status, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [mapped, ambiguous, low_confidence, unmapped, not_present]}}]}
+      - {name: mapping_confidence, data_type: varchar}
+      - {name: mapping_method, data_type: varchar, data_tests: [not_null]}
+      - {name: jobtech_taxonomy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: esco_version, data_type: varchar, data_tests: [not_null]}

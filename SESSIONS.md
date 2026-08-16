@@ -13,6 +13,7 @@ than expanding the active increment.
 | 5 | 2026-08-13 | Complete | Publish one minimal labour-demand view. | `make site` passed |
 | 6 | 2026-08-15 | Complete | Add reliable, resumable, immutable JobTech query sweeps. | `make sample && make check && make site` passed |
 | 7 | 2026-08-15 | Complete at feasibility boundary | Review DE/SE sources; add approved-source metadata, coverage, and freshness without unsupported German collection. | `make sample && make check && make site` passed |
+| 8 | 2026-08-16 | Complete | Add region, occupation, and skill mappings from real pinned crosswalks with quality reporting. | `make reference && make sample && make check && make site` passed |
 
 ## Session Notes
 
@@ -122,3 +123,30 @@ than expanding the active increment.
   Germany-Sweden complete.
 - Added deterministic source coverage/freshness models, strict Swedish country validation,
   zero-row country coverage, and source-separated publication with no combined total.
+
+### 2026-08-15 - Iteration 8
+
+- Added deterministic pre-privacy enrichment from structured JobTech geography, occupation,
+  and skill fields using pinned local reference tables and manual-review decisions.
+- Added NUTS 2024 region, ESCO 1.2.1 occupation, and ESCO 1.2.1 skill demand views, plus
+  separate quality outcomes for mapped, ambiguous, low-confidence, unmapped, and not-present
+  values.
+- Added a privacy-safe labelled review sample and deterministic precision/recall report.
+- Kept Germany, text classification, trends, deduplication, and dashboard redesign out of
+  scope.
+
+### 2026-08-16 - Iteration 8 (reference hardening)
+
+- Added `scripts/build_reference.py` (`make reference`, opt-in network) that regenerates the
+  pinned crosswalks from the JobTech Taxonomy v30 GraphQL API, which returns ESCO 1.2.1 URIs
+  directly. Committed the real output: 21 Swedish län to NUTS 2024, 3891 occupation mappings,
+  19782 skill mappings, plus `reference_manifest.json` provenance.
+- Replaced every placeholder ESCO URI with real taxonomy data; municipalities resolve to NUTS
+  via their län-code prefix, giving complete Sweden coverage from 21 authored region rows.
+- Repointed the synthetic sample at real developer-scope concept ids and made the latest
+  main-scope sweep mapped, so the published page shows real region, occupation, and skill demand.
+- Reframed the offline precision/recall report as a regression check against the official
+  JobTech to ESCO crosswalk, not an independent accuracy audit, and made the publisher query the
+  mapping models directly instead of hiding missing relations.
+- Added fixture-based enrichment/evaluation tests plus reference-integrity, geography-coverage,
+  honesty, and source-id-leak assertions.

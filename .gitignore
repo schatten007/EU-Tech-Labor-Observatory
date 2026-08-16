@@ -3,6 +3,8 @@
 data/*
 !data/sample/
 !data/sample/**
+!data/reference/
+!data/reference/**
 
 # ── Warehouses / local state ─────────────────────────────────────────────────
 *.duckdb

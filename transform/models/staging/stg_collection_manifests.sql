@@ -28,6 +28,10 @@ select
     cast(expected_country as varchar) as expected_country,
     cast(freshness_threshold_hours as integer) as freshness_threshold_hours,
     cast(coverage_limitations as varchar) as coverage_limitations
+    , cast(reference_hashes as varchar) as reference_hashes
+    , cast(nuts_version as varchar) as nuts_version
+    , cast(jobtech_taxonomy_version as varchar) as jobtech_taxonomy_version
+    , cast(esco_version as varchar) as esco_version
 from read_json(
     '{{ env_var('MANIFESTS_PATH', 'data/sample/sweeps_sample.ndjson') }}',
     format = 'auto',
@@ -38,7 +42,9 @@ from read_json(
         completed_pages: 'integer', expected_rows: 'bigint', row_count: 'bigint',
         hmac_key_version: 'varchar', source_version: 'varchar', licence_reference: 'varchar',
         access_method: 'varchar', approval_status: 'varchar', expected_country: 'varchar',
-        freshness_threshold_hours: 'integer', coverage_limitations: 'varchar'
+        freshness_threshold_hours: 'integer', coverage_limitations: 'varchar',
+        reference_hashes: 'varchar', nuts_version: 'varchar',
+        jobtech_taxonomy_version: 'varchar', esco_version: 'varchar'
     }
 )
 where status = 'complete'

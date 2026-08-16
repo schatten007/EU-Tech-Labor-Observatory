@@ -17,10 +17,9 @@ TARGET = ROOT / "site" / "build" / "index.html"
 
 
 def build_site(database: Path, target: Path) -> int:
-    rows: list[tuple[str, str | None, datetime, int, str, str, str, str, str]] = (
-        duckdb.connect(str(database), read_only=True)
-        .execute(
-            """
+    connection = duckdb.connect(str(database), read_only=True)
+    rows: list[tuple[str, str | None, datetime, int, str, str, str, str, str]] = connection.execute(
+        """
             select
                 source,
                 country,
@@ -34,9 +33,24 @@ def build_site(database: Path, target: Path) -> int:
             from labour_demand_latest
             order by active_postings desc, source, country
             """
+    ).fetchall()
+    dimension_rows: list[tuple[str, str, int]] = connection.execute(
+        """
+        select dimension, value_label, posting_count
+        from (
+            select dimension, value_label, posting_count from dimension_demand_latest
+            union all
+            select dimension, value_label, posting_count from skill_demand_latest
         )
-        .fetchall()
-    )
+        order by posting_count desc, dimension, value_label
+        limit 20
+        """
+    ).fetchall()
+    quality_rows: list[tuple[str, str, int]] = connection.execute(
+        "select dimension, mapping_status, sum(outcome_count)::bigint "
+        "from mapping_quality_latest group by all order by dimension, mapping_status"
+    ).fetchall()
+    connection.close()
     maximum = max((row[3] for row in rows), default=0) or 1
     table_rows = "".join(
         f"""
@@ -62,6 +76,14 @@ def build_site(database: Path, target: Path) -> int:
             freshness_status,
             coverage_status,
         ) in rows
+    )
+    dimension_table = "".join(
+        f"<tr><td>{escape(dimension)}</td><td>{escape(label)}</td><td>{count:,}</td></tr>"
+        for dimension, label, count in dimension_rows
+    )
+    quality_table = "".join(
+        f"<tr><td>{escape(dimension)}</td><td>{escape(status)}</td><td>{count:,}</td></tr>"
+        for dimension, status, count in quality_rows
     )
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(
@@ -113,7 +135,18 @@ def build_site(database: Path, target: Path) -> int:
         <thead><tr><th>Country</th><th>Source</th><th>Version</th><th>Observed</th><th>Freshness</th><th>Coverage</th><th class="count">Postings</th><th>Relative volume</th><th>Access</th></tr></thead>
         <tbody>{table_rows}</tbody>
       </table>
-    </div>
+     </div>
+    <section class="tables" aria-label="Mapped demand">
+      <p class="label">Mappings use pinned reference data: NUTS 2024 regions, JobTech Taxonomy v30, and ESCO 1.2.1. Only structured taxonomy fields are used; job titles and free text are never classified. Sweden only: no German posting source has passed the approval gate. Ambiguous, low-confidence, unmapped, and not-present values are excluded from mapped demand and shown separately as mapping quality.</p>
+      <div class="table-wrap"><table><caption>Latest mapped demand by region, occupation, and skill</caption>
+        <thead><tr><th>Dimension</th><th>Value</th><th class="count">Postings</th></tr></thead>
+        <tbody>{dimension_table or '<tr><td colspan="3">No mapped dimension results</td></tr>'}</tbody>
+      </table></div>
+      <div class="table-wrap"><table><caption>Mapping quality outcomes</caption>
+        <thead><tr><th>Dimension</th><th>Status</th><th class="count">Outcomes</th></tr></thead>
+        <tbody>{quality_table or '<tr><td colspan="3">No mapping quality results</td></tr>'}</tbody>
+      </table></div>
+    </section>
     <footer>Aggregate observations only. Native posting identifiers and private text are not published.</footer>
   </main>
 </body>

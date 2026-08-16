@@ -157,10 +157,12 @@ def build_sample() -> None:
         JOBTECH_FRESHNESS_THRESHOLD_HOURS,
         JOBTECH_LICENCE_REFERENCE,
         JOBTECH_SOURCE_VERSION,
+        SCHEMA_VERSION,
         _key_version,
         collection_scope,
         normalize_jobtech_hit,
     )
+    from scripts.enrich import reference_provenance
     from scripts.sanitize import sanitize_record
 
     SAMPLE.parent.mkdir(parents=True, exist_ok=True)
@@ -177,6 +179,9 @@ def build_sample() -> None:
                 "publication_date": "2026-08-01T08:00:00Z",
                 "last_publication_date": "2026-08-02T09:00:00Z",
                 "country_code": "SE",
+                "workplace_address": {"municipality_code": "0180"},
+                "occupation": {"concept_id": "CZkP_hCz_KM8"},
+                "must_have": {"skills": [{"concept_id": "jBKc_5Yx_Y6T"}]},
                 "number_of_vacancies": 1,
             },
         ),
@@ -188,6 +193,9 @@ def build_sample() -> None:
                 "last_publication_date": "2026-08-04T09:00:00Z",
                 "removed_date": "2026-08-10T10:00:00Z",
                 "country_code": "SE",
+                "workplace_address": {"region_code": "14"},
+                "occupation": {"concept_id": "GDHs_eoz_uKx"},
+                "nice_to_have": {"skills": [{"concept_id": "qfkh_ZRK_w4W"}]},
                 "number_of_vacancies": 1,
             },
         ),
@@ -198,6 +206,8 @@ def build_sample() -> None:
                 "publication_date": "2026-08-04T08:00:00Z",
                 "last_publication_date": "2026-08-04T09:00:00Z",
                 "country_code": "SE",
+                "workplace_address": {"region_code": "99"},
+                "occupation": {"concept_id": "3vry_gaE_yfQ"},
                 "number_of_vacancies": 1,
             },
         ),
@@ -208,6 +218,9 @@ def build_sample() -> None:
                 "publication_date": "2026-08-01T08:00:00Z",
                 "last_publication_date": "2026-08-02T09:00:00Z",
                 "country_code": "SE",
+                "workplace_address": {"municipality_code": "1480"},
+                "occupation": {"concept_id": "71Ji_irM_rSJ"},
+                "must_have": {"skills": [{"concept_id": "yNm8_krX_usR"}]},
                 "number_of_vacancies": 1,
             },
         ),
@@ -240,7 +253,13 @@ def build_sample() -> None:
     rows.append(
         sanitize_record(
             normalize_jobtech_hit(
-                {"id": "synthetic-001", "country_code": "SE"},
+                {
+                    "id": "synthetic-001",
+                    "country_code": "SE",
+                    "workplace_address": {"municipality_code": "0180"},
+                    "occupation": {"concept_id": "CZkP_hCz_KM8"},
+                    "must_have": {"skills": [{"concept_id": "jBKc_5Yx_Y6T"}]},
+                },
                 "2026-08-08T09:00:00Z",
                 scope_id=scope_id,
                 sweep_id="20260808T090000Z-rotated",
@@ -251,7 +270,7 @@ def build_sample() -> None:
     SAMPLE.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     manifests = [
         {
-            "schema_version": 2,
+            "schema_version": SCHEMA_VERSION,
             "collector_version": COLLECTOR_VERSION,
             "source": "jobtech",
             "scope_id": scope_id,
@@ -277,6 +296,7 @@ def build_sample() -> None:
             "expected_country": JOBTECH_EXPECTED_COUNTRY,
             "freshness_threshold_hours": JOBTECH_FRESHNESS_THRESHOLD_HOURS,
             "coverage_limitations": JOBTECH_COVERAGE_LIMITATIONS,
+            **reference_provenance(),
         }
         for index, (observed_at, sweep_id, row_count) in enumerate(
             (
