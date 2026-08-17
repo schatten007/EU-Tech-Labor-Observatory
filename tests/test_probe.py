@@ -10,7 +10,7 @@ from urllib.error import HTTPError
 import duckdb
 from pytest import MonkeyPatch
 
-from scripts import collect, enrich, evaluate, probe, publish, sanitize
+from scripts import collect, enrich, evaluate, probe, publish, release_check, sanitize
 
 KEY = b"test-only-key-with-at-least-32-bytes"
 
@@ -575,7 +575,8 @@ def test_collect_jobtech_sweep_detects_completed_partition_tampering(tmp_path: P
         raise AssertionError("tampered completed partition should fail")
 
 
-def test_publish_builds_aggregate_page(tmp_path: Path) -> None:
+def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.delenv("OBSERVATIONS_PATH", raising=False)
     database = tmp_path / "site.duckdb"
     target = tmp_path / "index.html"
     connection = duckdb.connect(str(database))
@@ -701,13 +702,14 @@ def test_publish_builds_aggregate_page(tmp_path: Path) -> None:
                11::bigint as expected_rows, 11::bigint as observed_rows,
                'fresh'::varchar as freshness_status, 'covered'::varchar as coverage_status,
                3.0::double as freshness_age_hours,
-               'Keyword-scoped'::varchar as coverage_limitations
+               'Keyword-scoped'::varchar as coverage_limitations,
+               48::integer as freshness_threshold_hours
         union all
         select 'jobtech', 'jobtech-scope', 'sweep-zero', 'SE', timestamp '2026-08-05 09:00:00',
-               9::bigint, 9::bigint, 'stale', 'covered', 27.0::double, 'Keyword-scoped'
+               9::bigint, 9::bigint, 'stale', 'covered', 27.0::double, 'Keyword-scoped', 24
         union all
         select 'jobtech', 'jobtech-archive', 'sweep-old', 'SE', timestamp '2026-07-01 09:00:00',
-               12::bigint, 9::bigint, 'stale', 'invalid', 900.0::double, 'Keyword-scoped'
+               12::bigint, 9::bigint, 'stale', 'invalid', 900.0::double, 'Keyword-scoped', 72
         """
     )
     connection.execute(
@@ -781,9 +783,35 @@ def test_publish_builds_aggregate_page(tmp_path: Path) -> None:
     assert 'data-row data-source="jobtech" data-country="SE"' in page
     assert "of this source\u2019s largest scope" in page
     assert "Groups under 5 postings are suppressed." not in page
+    # Iteration 11: operational status, governance, and the release checks over the built page.
+    assert "Operational status of the latest complete sweep" in page
+    assert "The last complete sweep is 0.1 days old" in page
+    # The archive scope stored 9 of 12 rows, and its own sweep threshold is quoted, not the
+    # history-wide maximum published by collection_frequency.
+    assert "so rows are missing" in page
+    assert "past the 72 hour freshness threshold" in page
+    assert "this scope is incomplete" not in page
+    assert "20 row(s) stored by the latest sweep of each scope" in page
+    assert "Source licences, access methods" in page
+    assert "Privacy assessment" in page
+    assert "Architecture overview" in page
+    assert "built from the synthetic sample in data/sample/" in page
+    assert f"Methodology version {publish.METHODOLOGY_VERSION}" in page
+    assert f'data-methodology-version="{publish.METHODOLOGY_VERSION}"' in page
+    # A masked group hides its vacancy and duration figures too, so the page must not promise
+    # more than that.
+    assert "a true zero posting count stays visible" in page
+    problems = release_check.check_page(page)
+    # This fixture writes posting_flows directly, so its small counts never pass through the dbt
+    # mask and the disclosure rule has to see them. Every other release rule must pass.
+    assert [problem for problem in problems if "suppression threshold" not in problem] == []
+    assert any("table-survival-flows publishes 1" in problem for problem in problems)
 
 
-def test_publish_handles_zero_only_aggregate(tmp_path: Path) -> None:
+def test_publish_handles_zero_only_aggregate(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    # A live build must not be labelled as the synthetic sample, so the basis label is pinned
+    # for the non-default observations path too.
+    monkeypatch.setenv("OBSERVATIONS_PATH", "data/raw/collections/jobtech/*/*/observations.ndjson")
     database = tmp_path / "zero.duckdb"
     target = tmp_path / "zero.html"
     connection = duckdb.connect(str(database))
@@ -867,7 +895,7 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path) -> None:
             source varchar, scope_id varchar, sweep_id varchar, country varchar,
             observed_at timestamp, expected_rows bigint, observed_rows bigint,
             freshness_status varchar, coverage_status varchar, freshness_age_hours double,
-            coverage_limitations varchar)
+            coverage_limitations varchar, freshness_threshold_hours integer)
         """
     )
     connection.execute(
@@ -893,3 +921,116 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path) -> None:
     assert "No missing mapping results" in page
     assert "data-filters" in page
     assert "no trend published for this scope" in page
+    assert "built from stored collection partitions (data/raw/collections/jobtech" in page
+    assert "built from the synthetic sample" not in page
+    assert release_check.check_page(page) == []
+
+
+def masked_views(flows_cells: str, basis_cells: str = "<td>Active</td><td>7</td><td>0</td>") -> str:
+    """Both suppression-masked tables, because the checker fails when one is missing."""
+    flows = ("Scope", "Openings", "Active postings", "Active vacancies")
+    basis = ("Basis", "Postings", "Advertised vacancies")
+    heads = tuple(
+        "".join(f'<th scope="col">{name}</th>' for name in names) for names in (flows, basis)
+    )
+    return (
+        f'<table id="table-survival-flows"><caption>Flows</caption><thead><tr>{heads[0]}</tr>'
+        f"</thead><tbody><tr data-row>{flows_cells}</tr></tbody></table>"
+        f'<table id="table-survival-basis"><caption>Basis</caption><thead><tr>{heads[1]}</tr>'
+        f"</thead><tbody><tr data-row>{basis_cells}</tr></tbody></table>"
+    )
+
+
+def stub_page(body: str = "", *, version: str | None = None, masked: str | None = None) -> str:
+    """The smallest page that satisfies every release rule, so one fault can be added at a time."""
+    sections = "".join(
+        f'<section id="{slug}"><h2>{heading}</h2></section>' for slug, heading in publish.SECTIONS
+    )
+    stamp = publish.METHODOLOGY_VERSION if version is None else version
+    views = (
+        masked_views("<td>scope</td><td>7</td><td>9</td><td>0</td>") if masked is None else masked
+    )
+    return (
+        f'<!doctype html><html lang="en" data-methodology-version="{stamp}">'
+        "<head><title>Observatory</title></head><body><h1>Observatory</h1>"
+        f"<p>Groups of 1 to {publish.SUPPRESSION_THRESHOLD - 1} postings are suppressed.</p>"
+        "<noscript><p>Filters need JavaScript.</p></noscript>"
+        f"{sections}{views}{body}</body></html>"
+    )
+
+
+def test_release_check_accepts_a_compliant_page() -> None:
+    assert release_check.check_page(stub_page()) == []
+
+
+def test_release_check_flags_accessibility_asset_and_link_faults() -> None:
+    body = (
+        "<div hidden><p>Invisible without JavaScript.</p></div>"
+        '<a href="#nowhere">Broken</a><a href="https://example.com/tracker">Offsite</a>'
+        '<link rel="stylesheet" href="theme.css"><iframe src="https://example.com/frame"></iframe>'
+        # A label without `for` must not vouch for an unrelated control; a wrapping label does.
+        '<label>Loose label</label><select name="loose"><option value="">All</option></select>'
+        '<label>Wrapped <input name="wrapped"></label>'
+        '<table id="table-loose"><thead><tr><th>Postings</th></tr></thead>'
+        "<tbody><tr data-row><td>7</td></tr></tbody></table>"
+    )
+    problems = release_check.check_page(stub_page(body))
+    assert any("table table-loose has no caption" in problem for problem in problems)
+    assert any("header cell(s) without scope" in problem for problem in problems)
+    assert any("#nowhere has no matching id" in problem for problem in problems)
+    assert any("outside the documented allowlist" in problem for problem in problems)
+    assert any("external asset requested: theme.css" in problem for problem in problems)
+    assert any("example.com/frame" in problem for problem in problems)
+    assert any("select control (no id) has no label" in problem for problem in problems)
+    assert any("div element is hidden without JavaScript" in problem for problem in problems)
+    assert not any("input control" in problem for problem in problems)
+
+
+def test_release_check_flags_unmasked_small_counts_only_in_the_masked_views() -> None:
+    columns = '<thead><tr><th scope="col">Scope</th><th scope="col">Openings</th></tr></thead>'
+    rows = (
+        "<tbody><tr data-row><td>scope</td><td>3</td></tr>"
+        "<tr data-row><td>scope</td><td>0</td></tr>"
+        "<tr data-row><td>scope</td><td>suppressed</td></tr></tbody>"
+    )
+    latest = (
+        f'<table id="table-quality-coverage"><caption>Coverage</caption>{columns}{rows}</table>'
+    )
+    # A true zero and a suppressed cell are both fine; only 1..k-1 in a masked view is a fault,
+    # and the latest-sweep marts publish their raw counts.
+    assert release_check.check_page(
+        stub_page(latest, masked=masked_views("<td>scope</td><td>3</td><td>9</td><td>0</td>"))
+    ) == [
+        "table table-survival-flows publishes 3 in the openings column, "
+        f"below the suppression threshold of {publish.SUPPRESSION_THRESHOLD}"
+    ]
+
+
+def test_release_check_flags_figures_published_beside_a_suppressed_count() -> None:
+    # posting_flows masks active_vacancies on active_postings, so a number here would republish
+    # the group the mask just hid.
+    leaked = masked_views("<td>scope</td><td>7</td><td>suppressed</td><td>12</td>")
+    assert release_check.check_page(stub_page(masked=leaked)) == [
+        "table table-survival-flows publishes 12 in the active vacancies column while its "
+        "active postings count is suppressed"
+    ]
+
+
+def test_release_check_flags_missing_masked_views() -> None:
+    problems = release_check.check_page(stub_page(masked=""))
+    assert any("table-survival-basis is missing from the page" in problem for problem in problems)
+    assert any("table-survival-flows is missing from the page" in problem for problem in problems)
+
+
+def test_release_check_flags_disclosure_and_version_drift() -> None:
+    problems = release_check.check_page(
+        stub_page(f'<p aria-label="TEAM@EXAMPLE.ORG">Token {"A1" * 20}.</p>', version="9.9")
+    )
+    assert any("key-like token is rendered" in problem for problem in problems)
+    assert any("email address is rendered" in problem for problem in problems)
+    assert any("does not match" in problem for problem in problems)
+    bare = f'<html lang="en" data-methodology-version="{publish.METHODOLOGY_VERSION}"><h1>x</h1>'
+    missing = release_check.check_page(bare)
+    assert any("suppression rule as 1 to" in problem for problem in missing)
+    assert any("section overview is missing" in problem for problem in missing)
+    assert any("noscript" in problem for problem in missing)

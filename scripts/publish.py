@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterable, Sequence
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from html import escape
 from pathlib import Path
 
@@ -35,11 +35,13 @@ COVERAGE_LABELS = {
 }
 SECTIONS = (
     ("overview", "Overview"),
+    ("status", "Status"),
     ("countries", "Countries"),
     ("occupations", "Occupations and skills"),
     ("survival", "Survival"),
     ("quality", "Data quality"),
     ("methodology", "Methodology"),
+    ("governance", "Governance"),
 )
 WORKFLOW = (
     "Select a country or NUTS region and technology occupation.",
@@ -48,8 +50,90 @@ WORKFLOW = (
     "Review historical trends and posting duration as supporting context.",
 )
 
+# ponytail: one hand-bumped version per published definition set, stamped on the page and on
+# every CSV download so a saved file can be traced back to the definitions that produced it.
+METHODOLOGY_VERSION = "1.0"
+# Mirrors the offline default in transform/models/staging/stg_postings.sql.
+SAMPLE_OBSERVATIONS = "data/sample/postings_sample.ndjson"
+SOURCE_TERMS = {
+    "jobtech": (
+        "Attribute Arbetsförmedlingen / JobTech Development. Aggregates may be republished; "
+        "posting text and identifiers may not.",
+        "Pseudonymised observations stay in private append-only partitions and are never published.",
+    )
+}
+DEFAULT_TERMS = (
+    "Reuse terms are recorded per sweep in the licence reference beside this row.",
+    "Pseudonymised observations stay in private append-only partitions and are never published.",
+)
+RETENTION = (
+    (
+        "Raw collection partitions",
+        "Kept indefinitely and never rewritten. History is append-only, so a posting that "
+        "disappears becomes an event rather than a deletion. These partitions stay private.",
+    ),
+    (
+        "Published aggregates",
+        "Rebuilt from the views on every publication. This page holds no per-posting row, so "
+        "there is nothing on it to delete or amend for an individual posting.",
+    ),
+    (
+        "Pseudonymisation keys",
+        "Held outside the repository and versioned. Retired key versions are retained so that a "
+        "key rotation is never read as a wave of posting removals.",
+    ),
+    (
+        "Reference crosswalks",
+        "Pinned snapshots are kept, and the version used is printed beside every mapped figure.",
+    ),
+)
+PRIVACY = (
+    "Job postings are employer adverts, but their free text can carry personal data, so free text "
+    "never leaves the collector: scripts/sanitize.py applies an explicit field allowlist and drops "
+    "everything outside it.",
+    "The native posting identifier is replaced by an HMAC pseudonym under a versioned secret. The "
+    "secret is not published, so a pseudonym cannot be resolved back to a source record from here.",
+    "Only aggregates are published. Native identifiers, source URLs, employer names, and posting "
+    "text are absent by construction rather than removed after the fact.",
+    "Residual risk, stated plainly: latest-sweep counts by country, region, occupation, and skill "
+    "are published in full, so a rare combination can be a small number. Those cells count "
+    "postings, carry no employer, no geography finer than a NUTS region, and no text, so a small "
+    "count cannot single out a person.",
+)
+ARCHITECTURE = (
+    (
+        "1. Collect",
+        "scripts/collect.py reads one complete sweep from a documented public API, page by page, "
+        "and stores it as an append-only partition beside a manifest of expected and observed rows.",
+    ),
+    (
+        "2. Enrich",
+        "scripts/enrich.py maps structured geography, occupation, and skill fields onto pinned "
+        "NUTS, JobTech Taxonomy, and ESCO reference data. Free text is never classified.",
+    ),
+    (
+        "3. Sanitize",
+        "scripts/sanitize.py is the privacy boundary: it pseudonymises the native identifier and "
+        "keeps only allowlisted fields before anything is stored for analysis.",
+    ),
+    (
+        "4. Transform",
+        "dbt builds views only: staging, a derived posting event log, and the publish views, each "
+        "under an enforced column contract with data tests.",
+    ),
+    (
+        "5. Publish",
+        "scripts/publish.py queries the publish views and writes this single self-contained page. "
+        "No external assets, no analytics, and no network access at page-build time.",
+    ),
+)
+
 DemandRow = tuple[str, str, str | None, datetime, int, str, str, str, str, str]
-CoverageRow = tuple[str, str, str | None, datetime, int, int, str, str, float | None, str | None]
+# ponytail: freshness_threshold_hours is appended last so the existing index maths stays put;
+# it must come from the same sweep that produced freshness_status, not from a history aggregate.
+CoverageRow = tuple[
+    str, str, str | None, datetime, int, int, str, str, float | None, str | None, int | None
+]
 DimensionRow = tuple[str, str, str, int]
 MappingRow = tuple[str, str, int]
 # ponytail: the scope-keyed rows carry `source` last so the existing index maths and helpers
@@ -247,11 +331,11 @@ SCRIPT = r"""
       row.hidden = !show;
       if (!show) hiddenRows += 1;
     });
-    Array.prototype.forEach.call(document.querySelectorAll("[data-filtered-empty]"), function (note) {
-      var body = note.parentNode.parentNode;
+    Array.prototype.forEach.call(document.querySelectorAll("tr[data-filtered-empty]"), function (note) {
+      var body = note.parentNode;
       var total = body.querySelectorAll("tr[data-row]").length;
       var shown = body.querySelectorAll("tr[data-row]:not([hidden])").length;
-      note.parentNode.hidden = !(total > 0 && shown === 0);
+      note.hidden = !(total > 0 && shown === 0);
     });
     if (live) {
       live.textContent = hiddenRows
@@ -316,9 +400,10 @@ SCRIPT = r"""
       lines.push(Array.prototype.map.call(row.cells, function (cell) { return field(cell.textContent); }).join(","));
     });
     var caption = table.querySelector("caption");
+    var version = document.documentElement.getAttribute("data-methodology-version") || "";
     var link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" }));
-    link.download = slug(caption ? caption.textContent : table.id) + ".csv";
+    link.download = slug(caption ? caption.textContent : table.id) + (version ? "-methodology-" + slug(version) : "") + ".csv";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -395,6 +480,21 @@ def _definition(text: str) -> str:
     return f'<p class="definition">{escape(text)}</p>'
 
 
+def _licence(reference: str | None) -> str:
+    """A missing licence reference renders as a dash: an empty href is a broken self-link."""
+    if not reference:
+        return "—"
+    return f'<a href="{escape(reference, quote=True)}">Licence</a>'
+
+
+def _build_basis() -> str:
+    """Name the rows this build read, so a synthetic page is never mistaken for a live one."""
+    observations = os.environ.get("OBSERVATIONS_PATH", SAMPLE_OBSERVATIONS)
+    if observations == SAMPLE_OBSERVATIONS:
+        return "built from the synthetic sample in data/sample/"
+    return f"built from stored collection partitions ({observations})"
+
+
 def _badge(freshness_status: str, coverage_status: str) -> str:
     """Explicit stale-data and partial-coverage states, driven by the published statuses."""
     freshness_tone = {"fresh": "ok", "stale": "warn"}.get(freshness_status, "warn")
@@ -423,7 +523,7 @@ def _table(
     span = len(columns)
     fallback = f'<tr><td colspan="{span}" class="state">{escape(empty)}</td></tr>'
     filtered = (
-        f'<tr hidden><td colspan="{span}" class="state" data-filtered-empty>'
+        f'<tr hidden data-filtered-empty><td colspan="{span}" class="state">'
         "Every row in this table is hidden by the current filters.</td></tr>"
     )
     identifier = escape(f"table-{name}", quote=True)
@@ -546,7 +646,8 @@ def _query_coverage(connection: duckdb.DuckDBPyConnection) -> list[CoverageRow]:
     rows: list[CoverageRow] = connection.execute(
         """
         select source, scope_id, country, observed_at, expected_rows, observed_rows,
-               freshness_status, coverage_status, freshness_age_hours, coverage_limitations
+               freshness_status, coverage_status, freshness_age_hours, coverage_limitations,
+               freshness_threshold_hours
         from source_coverage
         qualify row_number() over (
             partition by source, scope_id order by observed_at desc, sweep_id desc
@@ -756,6 +857,114 @@ def _render_overview(
     )
 
 
+def _run_state(row: CoverageRow) -> str:
+    """One plain sentence per scope, worded from the conditions source_coverage actually tests."""
+    age, threshold = row[8], row[10]
+    age_text = f"is {age / 24:.1f} days old" if age is not None else "has an unknown age"
+    if row[6] == "fresh":
+        freshness = "which is inside the source freshness threshold"
+    elif row[6] == "stale":
+        freshness = (
+            f"which is past the {threshold} hour freshness threshold, so read it as out of date"
+            if threshold is not None
+            else "which is past the source freshness threshold, so read it as out of date"
+        )
+    else:
+        freshness = "and no freshness threshold is recorded for it"
+    expected, observed = row[4], row[5]
+    # source_coverage calls a sweep invalid for a shortfall, a surplus, or rows outside the
+    # expected country, and reports missing approval or metadata ahead of either comparison.
+    if observed < expected:
+        stored = f"It stored {observed:,} of {expected:,} expected row(s), so rows are missing."
+    elif observed > expected:
+        stored = (
+            f"It stored {observed:,} row(s) against {expected:,} expected, so it holds more than "
+            "its own manifest."
+        )
+    elif row[7] == "invalid":
+        stored = (
+            f"It stored the expected {observed:,} row(s), but some of them fall outside the "
+            "expected country."
+        )
+    else:
+        stored = f"It stored all {observed:,} expected row(s)."
+    if row[7] == "unknown_metadata":
+        stored += " Coverage is uncertified because sweep approval or metadata is incomplete."
+    return f"The last complete sweep {age_text}, {freshness}. {stored}"
+
+
+def _render_status(
+    coverage: Sequence[CoverageRow],
+    frequency: Sequence[FrequencyRow],
+    built: datetime,
+) -> str:
+    """Operational run summary: what the last sweep did per scope and how to read that state."""
+    cadence = {(row[7], row[0]): row for row in frequency}
+    fresh = sum(1 for row in coverage if row[6] == "fresh")
+    covered = sum(1 for row in coverage if row[7] == "covered")
+    sweeps = sum(row[1] for row in frequency)
+    stored_rows = sum(row[5] for row in coverage)
+    latest = max((row[3] for row in coverage), default=None)
+    stats = (
+        f"<div><dt>Last complete sweep</dt><dd>{_time(latest) if latest else '—'}"
+        f"<small>Across {len(coverage)} published source scope(s)</small></dd></div>"
+        f"<div><dt>Fresh scopes</dt><dd>{fresh} of {len(coverage)}"
+        "<small>Inside the source freshness threshold</small></dd></div>"
+        f"<div><dt>Fully covered scopes</dt><dd>{covered} of {len(coverage)}"
+        "<small>Manifest row count matched and sweep metadata complete</small></dd></div>"
+        f"<div><dt>Complete sweeps published</dt><dd>{sweeps:,}"
+        f"<small>{stored_rows:,} row(s) stored by the latest sweep of each scope</small></dd></div>"
+        f"<div><dt>Page built</dt><dd>{_time(built)}"
+        f"<small>Methodology version {escape(METHODOLOGY_VERSION)} · {escape(_build_basis())}</small>"
+        "</dd></div>"
+    )
+    rows: list[str] = []
+    for row in coverage:
+        entry = cadence.get((row[0], row[1]))
+        interval = entry[4] if entry else None
+        days = None if row[8] is None else row[8] / 24
+        rows.append(
+            f"<tr{_attrs(country=row[2], source=row[0])}>"
+            f"<td>{escape(row[0])}</td><td>{escape(row[1])}</td><td>{_time(row[3])}</td>"
+            f'<td class="count">{_stat(days)}</td><td class="count">{row[5]:,}</td>'
+            f'<td class="count">{_stat(interval)}</td>'
+            f'<td class="count">{row[10] if row[10] is not None else "—"}</td>'
+            f"<td>{_badge(row[6], row[7])}</td>"
+            f'<td class="wrap">{escape(_run_state(row))}</td></tr>'
+        )
+    return (
+        '<p class="lede">Whether the figures on this page are current, per source and scope. '
+        "A stale or partially covered scope stays published and labelled rather than hidden.</p>"
+        + _definition(
+            "Only sweeps whose own manifest reports a complete run are loaded, so a failed run is "
+            "never published as data: it shows up here as an ageing last sweep or as a scope that "
+            "is absent altogether. Approval and row-count problems are labelled rather than "
+            "dropped, except in the demand table, which publishes covered scopes only. Stale data "
+            "is the freshness alert; Partial coverage means the stored rows do not match the "
+            "manifest count or some rows fall outside the expected country; Unknown coverage means "
+            "the sweep is unapproved or its metadata is incomplete, so coverage is uncertified."
+        )
+        + f'<dl class="stats">{stats}</dl>'
+        + _table(
+            "Operational status of the latest complete sweep per source and scope",
+            (
+                ("Source", False),
+                ("Scope", False),
+                ("Last complete sweep", False),
+                ("Age (days)", True),
+                ("Rows stored", True),
+                ("Median interval (h)", True),
+                ("Freshness threshold (h)", True),
+                ("Status", False),
+                ("What this means", False),
+            ),
+            "".join(rows),
+            name="status-runs",
+            empty="No source scope has published a complete sweep yet",
+        )
+    )
+
+
 def _render_countries(demand: Sequence[DemandRow], regions: Sequence[DimensionRow]) -> str:
     # ponytail: one bar baseline per source, never page-wide, so the bar cannot imply a
     # between-source or between-country magnitude comparison.
@@ -771,7 +980,7 @@ def _render_countries(demand: Sequence[DemandRow], regions: Sequence[DimensionRo
         f'<td class="bar-cell"><span class="bar" style="width:{100 * active / (baselines[source] or 1):.1f}%" aria-hidden="true"></span>'
         f'<span class="bar-text">{100 * active / (baselines[source] or 1):.0f}% of this source\u2019s largest scope</span></td>'
         "<td><small>Within-source only</small></td>"
-        f'<td><a href="{escape(licence_reference, quote=True)}">Licence</a>'
+        f"<td>{_licence(licence_reference)}"
         f"<br><small>{escape(access_method)} · {escape(source_version)}</small></td></tr>"
         for (
             source,
@@ -937,8 +1146,8 @@ def _render_survival(
             "never as time to hire: the observatory cannot see hiring outcomes. Active postings are "
             "right-censored lower bounds, not completed durations. Advertised vacancies are counted "
             f"separately from postings. In this table and the flow table below, groups of 1 to "
-            f"{SUPPRESSION_THRESHOLD - 1} postings are suppressed rather than shown; a true zero "
-            "stays visible."
+            f"{SUPPRESSION_THRESHOLD - 1} postings are suppressed rather than shown, together with "
+            "the vacancy and duration figures of that group; a true zero posting count stays visible."
         )
         + _table(
             "Posting survival by closure basis. Advertised vacancies are counted separately from postings.",
@@ -1006,6 +1215,7 @@ def _render_quality(
             coverage_status,
             age_hours,
             limitations,
+            _threshold_hours,
         ) in coverage
     )
     frequency_body = "".join(
@@ -1103,9 +1313,10 @@ def _render_methodology(provenance: Sequence[ProvenanceRow]) -> str:
         (
             "Suppression",
             f"In the posting-flow and survival tables, groups of 1 to {SUPPRESSION_THRESHOLD - 1} "
-            "postings are suppressed to avoid singling out an individual posting. A true zero stays "
-            "visible, and latest-sweep counts by country, region, occupation, and skill are "
-            "published in full.",
+            "postings are suppressed to avoid singling out an individual posting, and the vacancy "
+            "and duration figures of a suppressed group are masked with it. A true zero posting "
+            "count stays visible, and latest-sweep counts by country, region, occupation, and "
+            "skill are published in full.",
         ),
     )
     body = "".join(
@@ -1113,7 +1324,7 @@ def _render_methodology(provenance: Sequence[ProvenanceRow]) -> str:
         f'<td>{_time(observed_at)}</td><td class="count">{row_count:,}</td>'
         f"<td>{escape(source_version or '—')}</td><td>{escape(nuts_version or '—')}</td>"
         f"<td>{escape(taxonomy_version or '—')}</td><td>{escape(esco_version or '—')}</td>"
-        f'<td><a href="{escape(licence_reference or "", quote=True)}">Licence</a>'
+        f"<td>{_licence(licence_reference)}"
         f"<br><small>{escape(access_method or '—')}</small></td></tr>"
         for (
             source,
@@ -1162,6 +1373,86 @@ def _render_methodology(provenance: Sequence[ProvenanceRow]) -> str:
     )
 
 
+def _render_governance(provenance: Sequence[ProvenanceRow]) -> str:
+    """Licences, retention, privacy assessment, architecture, and the reproducible snapshot."""
+    # ponytail: one row per source, taken from its most recently observed scope, so this table
+    # cannot disagree with the per-scope provenance table in the methodology section.
+    newest: dict[str, ProvenanceRow] = {}
+    for row in provenance:
+        held = newest.get(row[0])
+        if held is None or row[2] > held[2]:
+            newest[row[0]] = row
+    body = "".join(
+        f"<tr{_attrs(source=source)}><td>{escape(source)}</td><td>{_licence(row[3])}</td>"
+        f"<td>{escape(row[4] or '—')}</td><td>{escape(row[5] or '—')}</td>"
+        f'<td class="wrap">{escape(terms[0])}</td><td class="wrap">{escape(terms[1])}</td></tr>'
+        for source, row in sorted(newest.items())
+        for terms in (SOURCE_TERMS.get(source, DEFAULT_TERMS),)
+    )
+    retention = "".join(
+        f"<dt>{escape(term)}</dt><dd>{escape(text)}</dd>" for term, text in RETENTION
+    )
+    privacy = "".join(f"<li>{escape(text)}</li>" for text in PRIVACY)
+    steps = "".join(
+        f"<dt>{escape(step)}</dt><dd>{escape(text)}</dd>" for step, text in ARCHITECTURE
+    )
+    return (
+        '<p class="lede">Where the data comes from, what is kept, what is deliberately not '
+        "published, and how to rebuild this page from scratch.</p>"
+        + "<h3>Source licences and reuse</h3>"
+        + _definition(
+            "One row per source, read from the licence reference of that source's most recently "
+            "observed complete sweep; the methodology section lists every scope separately. "
+            "Aggregates on this page may be reused with attribution; posting text and native "
+            "identifiers are not published and are not available here."
+        )
+        + _table(
+            "Source licences, access methods, attribution requirements, and raw-data retention",
+            (
+                ("Source", False),
+                ("Licence", False),
+                ("Access", False),
+                ("Source version", False),
+                ("Attribution and reuse", False),
+                ("Raw data retention", False),
+            ),
+            body,
+            name="governance-licences",
+            empty="No licence results",
+        )
+        + "<h3>Retention</h3>"
+        + f'<dl class="definitions">{retention}</dl>'
+        + "<h3>Privacy assessment</h3>"
+        + f'<ul class="workflow">{privacy}</ul>'
+        + "<h3>Small-count disclosure control</h3>"
+        + _definition(
+            f"Groups of 1 to {SUPPRESSION_THRESHOLD - 1} postings are masked in the posting-flow "
+            "and survival views only, and a true zero in the posting counts those views key on "
+            "always stays visible. Vacancy and duration figures are masked together with the group "
+            "they describe, so they read as suppressed or as a dash whenever their posting count "
+            "does. No other view on this page is suppressed: latest-sweep counts by country, "
+            "region, occupation, and skill are published exactly as observed."
+        )
+        + "<h3>Architecture overview</h3>"
+        + f'<dl class="definitions">{steps}</dl>'
+        + "<h3>Reproducible demonstration snapshot</h3>"
+        + _definition(
+            f"This page is {_build_basis()}. The synthetic sample is committed to the repository "
+            "and regenerated with `uv run --offline python -m scripts.probe --sample`, and `make "
+            "site` rebuilds this page from it with no network access, so the build stays reviewable "
+            "if a live source becomes unavailable. Offline builds are labelled as synthetic here "
+            "rather than presented as observations of a real market."
+        )
+        + "<h3>Methodology version</h3>"
+        + _definition(
+            f"Methodology version {METHODOLOGY_VERSION}, covering the definitions, mapping rules, "
+            "and suppression rule described on this page. The version and build time are printed in "
+            "the footer, and every CSV downloaded from this page carries the version in its "
+            "file name."
+        )
+    )
+
+
 def build_site(database: Path, target: Path) -> int:
     connection = duckdb.connect(str(database), read_only=True)
     try:
@@ -1181,13 +1472,16 @@ def build_site(database: Path, target: Path) -> int:
     # the country selector apply to the survival, flow, and frequency rows too.
     countries = {row[1]: row[2] for row in demand if row[2]}
     countries.update({row[1]: row[2] for row in coverage if row[2]})
+    built = datetime.now(UTC)
     rendered = {
         "overview": _render_overview(demand, coverage, flows),
+        "status": _render_status(coverage, frequency, built),
         "countries": _render_countries(demand, regions),
         "occupations": _render_occupations(occupations, skills, mapping),
         "survival": _render_survival(survival, flows, countries),
         "quality": _render_quality(coverage, frequency, mapping, countries),
         "methodology": _render_methodology(provenance),
+        "governance": _render_governance(provenance),
     }
     links: list[str] = []
     for index, (slug, heading) in enumerate(SECTIONS):
@@ -1207,7 +1501,7 @@ def build_site(database: Path, target: Path) -> int:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(
         f"""<!doctype html>
-<html lang="en">
+<html lang="en" data-methodology-version="{escape(METHODOLOGY_VERSION, quote=True)}" data-built="{built.isoformat()}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1227,7 +1521,8 @@ def build_site(database: Path, target: Path) -> int:
   <main id="main" tabindex="-1">
     {filters}
     {sections}
-    <footer>Aggregate observations only. Native posting identifiers and private text are not published. Figures describe observed postings, not hiring outcomes, and are not real time.</footer>
+    <footer>Aggregate observations only. Native posting identifiers and private text are not published. Figures describe observed postings, not hiring outcomes, and are not real time.
+    <br>Methodology version {escape(METHODOLOGY_VERSION)} · page {_time(built)} · {escape(_build_basis())}. Reuse the aggregates with attribution to each source; see Governance.</footer>
   </main>
   <script>{SCRIPT}</script>
 </body>

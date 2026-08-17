@@ -16,6 +16,7 @@ than expanding the active increment.
 | 8 | 2026-08-16 | Complete | Add region, occupation, and skill mappings from real pinned crosswalks with quality reporting. | `make reference && make sample && make check && make site` passed |
 | 9 | 2026-08-17 | Complete | Add historical analytics: openings, active stock, and closures over time (day/week/month); posting survival and closure basis; postings vs advertised vacancies; small-count suppression; coverage and collection frequency. | `make sample && make check && make site` passed |
 | 10 | 2026-08-17 | Complete | Publish an accessible six-section dashboard: persistent filters with shareable hash URLs, server-rendered SVG trend charts, metric definitions, explicit empty/stale/partial-coverage/error states, and per-table CSV export. | `make check && make site` passed |
+| 11 | 2026-08-17 | Dashboard scope complete; user validation pending | Add the operations-facing dashboard scope of Iteration 11: Status run summary, Governance (licences, retention, privacy assessment, disclosure control, architecture, snapshot), a versioned methodology stamp, and an offline release-check gate over the built page. | `make check && make release-check` passed |
 
 ## Session Notes
 
@@ -207,3 +208,50 @@ than expanding the active increment.
   `collection_frequency` now select `source` (kept last in the row tuples) and carry
   `data-source`/`data-country` via a scope-to-country crosswalk, so the country and source
   filters no longer silently skip the scope-keyed tables.
+
+### 2026-08-17 - Iteration 11
+
+- Split Iteration 11 by surface: this session did only the dashboard-facing half (Status,
+  Governance, release checks). Scheduling, alert delivery, backups, backfills, and schema
+  migrations are untouched and stay open.
+- New `Status` section is the operational run summary: latest complete sweep, fresh and covered
+  scope counts, sweeps published, build stamp, and one plain sentence per scope stating age
+  against the freshness threshold and stored versus expected rows. It also states that failed or
+  partial runs never enter the warehouse, so absence and ageing are the only failure signals.
+- New `Governance` section publishes per-source licence and attribution (deduplicated from
+  `latest_complete_sweeps`), retention rules, a four-point privacy assessment that names the
+  residual small-cell risk in the latest-sweep marts, the k=5 rule restricted to the two masked
+  views, the five-step architecture, and the reproducible-snapshot statement. `_build_basis()`
+  reads `OBSERVATIONS_PATH`, so a sample build is labelled synthetic on the page.
+- `METHODOLOGY_VERSION = "1.0"` is stamped in the footer, on `<html data-methodology-version>`,
+  and appended to every CSV filename by the inline script. `data-filtered-empty` moved from the
+  cell to its `<tr>` so the only `hidden` attributes in the served HTML are progressive-enhancement
+  hooks; `_licence()` renders a dash instead of an empty `href` when a licence reference is null.
+- `scripts/release_check.py` (stdlib + `html.parser`) checks the built page for accessibility
+  (lang, one h1, heading order, captions, `th scope`, labels, chart `aria-label`, duplicate ids),
+  links and assets (internal anchors resolve, no external asset, external URLs against a string
+  allowlist that is never fetched), disclosure (no 1..k-1 count cell in `table-survival-basis` or
+  `table-survival-flows`, no key-like token or email, prose k matches the macro), and no-JS
+  readability. `make release-check` runs it after `make site`; it is not in `make check`.
+- Gotcha for the next session: the publish fixture writes `posting_flows` directly, so its small
+  counts bypass the dbt mask; the test asserts the checker flags exactly those and nothing else.
+  The usability study (>=5 students or recent graduates; tasks: technology demand in one region,
+  two occupations within one source, a skill comparison, what a removed posting means, whether DE
+  and SE numbers are comparable) has not run, and no interface revision has been made from it.
+- Post-review corrections, all pinned by tests: the Status prose now matches
+  `source_coverage.sql` instead of overstating it - only *complete* manifests are loaded (approval
+  and row-count problems are labelled, and only `labour_demand_latest` filters on `covered`),
+  Partial coverage covers shortfall, surplus, and wrong-country rows, and Unknown coverage is
+  named as unapproved or incomplete metadata. `_run_state` branches on the real arithmetic instead
+  of always saying "incomplete", `_query_coverage` selects `freshness_threshold_hours` so the
+  quoted threshold is the one that set the badge (not `collection_frequency`'s history-wide
+  `max`), the run-summary row count comes from `observed_rows` rather than the manifest's
+  `row_count`, the governance licence row is the source's newest sweep rather than its first
+  scope, and the k=5 claim now says a true zero *posting count* stays visible because vacancy and
+  duration figures are masked with their group. In `release_check.py`: a `<label>` without `for`
+  no longer vouches for every id-less control, a missing masked view or count column is itself a
+  failure (so a rename cannot silently disable the disclosure rule), a figure published beside a
+  suppressed keying count is flagged, asset detection covers any fetching attribute, and the
+  secret/email scans are case-insensitive and cover attribute values. Publish tests now pin
+  `OBSERVATIONS_PATH` for both build-basis labels instead of depending on the ambient value.
+
