@@ -1,11 +1,12 @@
-"""Build the offline labour-demand page from transformed aggregates."""
+"""Build the offline labour-demand dashboard from transformed aggregates."""
 
-# ruff: noqa: E501 - keeping the self-contained HTML/CSS readable is the smaller option.
+# ruff: noqa: E501 - keeping the self-contained HTML/CSS/JS readable is the smaller option.
 
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from collections.abc import Iterable, Sequence
+from datetime import datetime, timedelta
 from html import escape
 from pathlib import Path
 
@@ -16,13 +17,349 @@ DATABASE = ROOT / os.environ.get("DUCKDB_PATH", "data/dev.duckdb")
 TARGET = ROOT / "site" / "build" / "index.html"
 
 # Mirrors small_count_threshold() in transform/macros/suppress_small_counts.sql.
+# ponytail: one Python definition, reused everywhere; do not add a second literal.
 SUPPRESSION_THRESHOLD = 5
+DIMENSION_LIMIT = 25
 GRAIN_LABELS = {"day": "Daily", "week": "Weekly", "month": "Monthly"}
+GRAIN_RANK = {"day": 1, "week": 2, "month": 3}
 LIFECYCLE_LABELS = {
     "active": "Active (open at last sweep)",
     "source_reported": "Source-reported removal",
     "inferred_absence": "Inferred removal",
 }
+FRESHNESS_LABELS = {"fresh": "Fresh", "stale": "Stale data", "unknown": "Unknown freshness"}
+COVERAGE_LABELS = {
+    "covered": "Covered",
+    "invalid": "Partial coverage",
+    "unknown_metadata": "Unknown coverage",
+}
+SECTIONS = (
+    ("overview", "Overview"),
+    ("countries", "Countries"),
+    ("occupations", "Occupations and skills"),
+    ("survival", "Survival"),
+    ("quality", "Data quality"),
+    ("methodology", "Methodology"),
+)
+WORKFLOW = (
+    "Select a country or NUTS region and technology occupation.",
+    "Inspect current posting demand and source coverage.",
+    "Compare frequently observed and changing skills.",
+    "Review historical trends and posting duration as supporting context.",
+)
+
+DemandRow = tuple[str, str, str | None, datetime, int, str, str, str, str, str]
+CoverageRow = tuple[str, str, str | None, datetime, int, int, str, str, float | None, str | None]
+DimensionRow = tuple[str, str, str, int]
+MappingRow = tuple[str, str, int]
+# ponytail: the scope-keyed rows carry `source` last so the existing index maths and helpers
+# stay put; only the filter attributes read it.
+FlowRow = tuple[str, str, datetime, int | None, int | None, int | None, int | None, str]
+SurvivalRow = tuple[
+    str,
+    str,
+    bool,
+    int | None,
+    int | None,
+    float | None,
+    float | None,
+    float | None,
+    int | None,
+    str,
+]
+FrequencyRow = tuple[str, int, datetime, datetime, float | None, int | None, str | None, str]
+ProvenanceRow = tuple[
+    str, str, datetime, str | None, str | None, str | None, str | None, str | None, str | None, int
+]
+
+# Palette is checked against the #f4f6f5 page and white panels for WCAG AA text contrast;
+# --accent and --bar carry no text and always have a written value beside them.
+STYLE = r"""
+    :root {
+      color-scheme: light;
+      --ink: #17201c;
+      --ink-soft: #4c5b54;
+      --page: #f4f6f5;
+      --panel: #ffffff;
+      --line: #cbd3cf;
+      --line-soft: #e1e6e3;
+      --brand: #163d2c;
+      --brand-ink: #dfeae4;
+      --accent: #efb744;
+      --bar: #27845b;
+      --link: #12543b;
+      --ok-bg: #e3f0e9;
+      --ok-ink: #14543a;
+      --warn-bg: #fbeed2;
+      --warn-ink: #6a4703;
+      --err-bg: #fbe7e4;
+      --err-ink: #7a2318;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--page);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-size: 16px; line-height: 1.45; }
+    [hidden] { display: none !important; }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    .skip { position: absolute; left: -9999px; top: 0; background: var(--panel); color: var(--link); padding: 10px 14px; z-index: 5; }
+    .skip:focus { left: 8px; top: 8px; }
+    header { background: var(--brand); color: white; border-bottom: 5px solid var(--accent); }
+    header div, main, .tabs { width: min(1080px, calc(100% - 32px)); margin: auto; }
+    header div { padding: 22px 0 18px; }
+    h1 { margin: 0; font-size: 2.1rem; }
+    header p { margin: 6px 0 0; color: var(--brand-ink); }
+    header small, header p small { color: var(--brand-ink); }
+    header time { color: white; }
+    .definitions { margin: 8px 0 4px; max-width: 78ch; }
+    .definitions dt { font-weight: 600; margin-top: 8px; }
+    .definitions dd { margin: 2px 0 0 1.2em; color: var(--ink-soft); font-size: .9rem; }
+    nav.tabs-outer { background: var(--brand); }
+    .tabs { display: flex; flex-wrap: wrap; gap: 2px; padding-bottom: 0; }
+    .tabs a { color: var(--brand-ink); text-decoration: none; padding: 9px 13px; font-size: .92rem; border-bottom: 3px solid transparent; }
+    .tabs a:hover { color: white; }
+    .tabs a[aria-current] { color: white; background: rgba(255,255,255,.1); border-bottom-color: var(--accent); font-weight: 600; }
+    main { padding: 22px 0 48px; }
+    h2 { font-size: 1.3rem; margin: 26px 0 4px; }
+    h3 { font-size: 1rem; margin: 22px 0 4px; }
+    .panel > h2:first-child { margin-top: 4px; }
+    p { margin: 8px 0; }
+    a { color: var(--link); }
+    small { color: var(--ink-soft); }
+    .lede, .definition, .label { color: var(--ink-soft); font-size: .9rem; }
+    .definition { margin: 4px 0 8px; max-width: 78ch; }
+    .filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; margin: 0 0 14px; }
+    .filters .field { display: flex; flex-direction: column; gap: 3px; }
+    .filters label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); }
+    .filters select, .filters input { font: inherit; font-size: .88rem; padding: 5px 7px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); min-width: 9rem; }
+    .filters .actions { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+    button { font: inherit; font-size: .85rem; padding: 5px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--link); cursor: pointer; }
+    button:hover { border-color: var(--brand); }
+    .live { min-height: 1.2em; font-size: .85rem; color: var(--ink-soft); margin: 0 0 12px; }
+    .stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0 4px; padding: 0; }
+    .stats div { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--bar); padding: 10px 14px; min-width: 12rem; }
+    .stats dt { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); }
+    .stats dd { margin: 3px 0 0; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+    .stats dd small { display: block; font-size: .78rem; }
+    .workflow { margin: 8px 0 4px; padding-left: 1.3em; max-width: 74ch; }
+    .workflow li { margin: 3px 0; }
+    .badge { display: inline-block; font-size: .74rem; padding: 1px 7px; border: 1px solid transparent; border-radius: 2px; white-space: nowrap; }
+    .badge.ok { background: var(--ok-bg); color: var(--ok-ink); border-color: #bcd9c9; }
+    .badge.warn { background: var(--warn-bg); color: var(--warn-ink); border-color: #e0c179; }
+    .badge.err { background: var(--err-bg); color: var(--err-ink); border-color: #e0b0a8; }
+    .state { font-size: .88rem; padding: 10px 14px; margin: 8px 0; border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); }
+    .state.error { background: var(--err-bg); color: var(--err-ink); border-color: #e0b0a8; }
+    td.state { border-left: 0; border-right: 0; }
+    .block { margin: 12px 0 22px; }
+    .block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--panel); }
+    table { width: 100%; border-collapse: collapse; min-width: 640px; }
+    caption { text-align: left; padding: 12px 14px; font-size: .9rem; color: var(--ink-soft); }
+    th, td { padding: 9px 14px; border-top: 1px solid var(--line-soft); text-align: left; white-space: nowrap; font-size: .92rem; }
+    th { font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-soft); background: #f8faf9; }
+    tbody tr:hover { background: #f8faf9; }
+    .count { text-align: right; font-variant-numeric: tabular-nums; }
+    td.wrap { white-space: normal; min-width: 20rem; font-size: .85rem; color: var(--ink-soft); }
+    .bar-cell { width: 16%; min-width: 7rem; }
+    .bar { display: block; height: 9px; background: var(--bar); min-width: 2px; }
+    .bar-text { font-size: .74rem; color: var(--ink-soft); }
+    .spark { display: block; width: 100%; max-width: 720px; height: auto; background: var(--panel); border: 1px solid var(--line); }
+    .spark .axis { stroke: var(--line); stroke-width: 1; }
+    .spark polyline { fill: none; stroke: var(--bar); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+    .spark circle { fill: var(--bar); }
+    footer { margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--ink-soft); font-size: .85rem; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+    .table-wrap:focus-visible { outline-offset: -3px; }
+    @media (max-width: 600px) {
+      h1 { font-size: 1.4rem; }
+      .filters .actions { margin-left: 0; }
+      .filters select, .filters input { min-width: 0; width: 100%; }
+      header div, main, .tabs { width: min(100% - 24px, 1080px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+    }
+"""
+
+# Progressive enhancement only: every section and row is server-rendered and visible
+# without this script. Raw string: the JS escapes below are not Python escapes.
+SCRIPT = r"""
+(function () {
+  "use strict";
+  var KEYS = ["country", "source", "occupation", "skill", "from", "to"];
+  var form = document.querySelector("[data-filters]");
+  var live = document.querySelector("[data-live]");
+  var loading = document.querySelector("[data-loading]");
+  var failure = document.querySelector("[data-error]");
+  var tabs = Array.prototype.slice.call(document.querySelectorAll("[data-tab]"));
+  var panels = Array.prototype.slice.call(document.querySelectorAll("[data-panel]"));
+  var rows = Array.prototype.slice.call(document.querySelectorAll("tbody tr[data-row]"));
+  var section = "";
+
+  function readHash() {
+    var state = {};
+    location.hash.replace(/^#/, "").split("&").forEach(function (pair) {
+      var index = pair.indexOf("=");
+      if (index < 1) return;
+      var key = decodeURIComponent(pair.slice(0, index).replace(/\+/g, " "));
+      state[key] = decodeURIComponent(pair.slice(index + 1).replace(/\+/g, " "));
+    });
+    return state;
+  }
+
+  function writeHash(state) {
+    var parts = [];
+    KEYS.concat(["section"]).forEach(function (key) {
+      if (state[key]) parts.push(encodeURIComponent(key) + "=" + encodeURIComponent(state[key]));
+    });
+    var hash = "#" + parts.join("&");
+    try {
+      history.replaceState(null, "", parts.length ? hash : location.href.split("#")[0]);
+    } catch (ignored) {
+      if (parts.length) location.hash = parts.join("&");
+    }
+  }
+
+  function current() {
+    var state = { section: section };
+    KEYS.forEach(function (key) {
+      var field = form ? form.elements[key] : null;
+      if (field && field.value) state[key] = field.value;
+    });
+    return state;
+  }
+
+  function matches(row, state) {
+    var data = row.dataset;
+    if (state.country && data.country && data.country !== state.country) return false;
+    if (state.source && data.source && data.source !== state.source) return false;
+    if (state.occupation && data.dimension === "occupation" && data.value !== state.occupation) return false;
+    if (state.skill && data.dimension === "skill" && data.value !== state.skill) return false;
+    if (data.bucket && state.from && data.bucket < state.from) return false;
+    if (data.bucket && state.to && data.bucket > state.to) return false;
+    return true;
+  }
+
+  function apply(state) {
+    var hiddenRows = 0;
+    rows.forEach(function (row) {
+      var show = matches(row, state);
+      row.hidden = !show;
+      if (!show) hiddenRows += 1;
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-filtered-empty]"), function (note) {
+      var body = note.parentNode.parentNode;
+      var total = body.querySelectorAll("tr[data-row]").length;
+      var shown = body.querySelectorAll("tr[data-row]:not([hidden])").length;
+      note.parentNode.hidden = !(total > 0 && shown === 0);
+    });
+    if (live) {
+      live.textContent = hiddenRows
+        ? "Filters hide " + hiddenRows + " of " + rows.length + " rows."
+        : rows.length + " rows shown; no filters hide anything.";
+    }
+  }
+
+  function activate(wanted) {
+    var known = panels.filter(function (panel) { return panel.dataset.panel === wanted; });
+    var target = known.length ? wanted : (panels.length ? panels[0].dataset.panel : "");
+    panels.forEach(function (panel) { panel.hidden = panel.dataset.panel !== target; });
+    tabs.forEach(function (tab) {
+      if (tab.dataset.tab === target) tab.setAttribute("aria-current", "page");
+      else tab.removeAttribute("aria-current");
+    });
+    return target;
+  }
+
+  function sync(fromHash) {
+    if (loading) loading.hidden = false;
+    try {
+      var state = fromHash ? readHash() : current();
+      if (fromHash && form) {
+        KEYS.forEach(function (key) {
+          var field = form.elements[key];
+          if (field) field.value = state[key] || "";
+        });
+      }
+      section = activate(state.section || section);
+      state.section = section;
+      apply(state);
+      writeHash(state);
+      if (failure) failure.hidden = true;
+    } catch (problem) {
+      rows.forEach(function (row) { row.hidden = false; });
+      panels.forEach(function (panel) { panel.hidden = false; });
+      if (failure) {
+        failure.textContent = "Filters could not be applied (" + problem.message + "). Every row is shown instead.";
+        failure.hidden = false;
+      }
+    } finally {
+      if (loading) loading.hidden = true;
+    }
+  }
+
+  function slug(text) {
+    return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "table";
+  }
+
+  function field(text) {
+    var value = String(text == null ? "" : text).replace(/\s+/g, " ").trim();
+    return /[",]/.test(value) ? '"' + value.replace(/"/g, '""') + '"' : value;
+  }
+
+  function download(table) {
+    var lines = [Array.prototype.map.call(table.querySelectorAll("thead th"), function (head) {
+      return field(head.textContent);
+    }).join(",")];
+    Array.prototype.forEach.call(table.querySelectorAll("tbody tr[data-row]"), function (row) {
+      if (row.hidden) return;
+      lines.push(Array.prototype.map.call(row.cells, function (cell) { return field(cell.textContent); }).join(","));
+    });
+    var caption = table.querySelector("caption");
+    var link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" }));
+    link.download = slug(caption ? caption.textContent : table.id) + ".csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(function () { URL.revokeObjectURL(link.href); }, 0);
+  }
+
+  if (form) {
+    form.hidden = false;
+    form.addEventListener("change", function () { sync(false); });
+    form.addEventListener("submit", function (event) { event.preventDefault(); sync(false); });
+    var reset = form.querySelector("[data-reset]");
+    if (reset) {
+      reset.addEventListener("click", function () {
+        KEYS.forEach(function (key) {
+          var element = form.elements[key];
+          if (element) element.value = "";
+        });
+        sync(false);
+      });
+    }
+  }
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function (event) {
+      event.preventDefault();
+      section = tab.dataset.tab;
+      sync(false);
+      var panel = document.getElementById(section);
+      if (panel) panel.focus();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-csv]"), function (button) {
+    button.hidden = false;
+    button.addEventListener("click", function () {
+      var table = document.getElementById(button.dataset.csv);
+      if (table) download(table);
+    });
+  });
+  window.addEventListener("hashchange", function () { sync(true); });
+  sync(true);
+})();
+"""
 
 
 def _count(value: int | None) -> str:
@@ -35,137 +372,837 @@ def _stat(value: float | None) -> str:
     return f"{value:.1f}" if value is not None else "—"
 
 
-def build_site(database: Path, target: Path) -> int:
-    connection = duckdb.connect(str(database), read_only=True)
-    rows: list[tuple[str, str | None, datetime, int, str, str, str, str, str]] = connection.execute(
+def _time(moment: datetime) -> str:
+    return f'<time datetime="{moment.isoformat()}">{moment:%Y-%m-%d %H:%M} UTC</time>'
+
+
+def _attrs(**values: str | None) -> str:
+    """Mark a row as filterable and carry its escaped data-* filter keys."""
+    keys = "".join(
+        f' data-{key}="{escape(value, quote=True)}"' for key, value in values.items() if value
+    )
+    return f" data-row{keys}"
+
+
+def _options(values: Iterable[str | None]) -> str:
+    unique = sorted({value for value in values if value})
+    return "".join(
+        f'<option value="{escape(value, quote=True)}">{escape(value)}</option>' for value in unique
+    )
+
+
+def _definition(text: str) -> str:
+    return f'<p class="definition">{escape(text)}</p>'
+
+
+def _badge(freshness_status: str, coverage_status: str) -> str:
+    """Explicit stale-data and partial-coverage states, driven by the published statuses."""
+    freshness_tone = {"fresh": "ok", "stale": "warn"}.get(freshness_status, "warn")
+    coverage_tone = {"covered": "ok", "invalid": "err"}.get(coverage_status, "warn")
+    freshness = FRESHNESS_LABELS.get(freshness_status, freshness_status)
+    coverage = COVERAGE_LABELS.get(coverage_status, coverage_status)
+    return (
+        f'<span class="badge {freshness_tone}">{escape(freshness)}</span> '
+        f'<span class="badge {coverage_tone}">{escape(coverage)}</span>'
+    )
+
+
+def _table(
+    caption: str,
+    columns: Sequence[tuple[str, bool]],
+    body: str,
+    *,
+    name: str,
+    empty: str,
+) -> str:
+    """Wrap a table in a focusable scroll region with a CSV control and both empty states."""
+    heads = "".join(
+        f'<th scope="col" class="{"count" if numeric else "text"}">{escape(label)}</th>'
+        for label, numeric in columns
+    )
+    span = len(columns)
+    fallback = f'<tr><td colspan="{span}" class="state">{escape(empty)}</td></tr>'
+    filtered = (
+        f'<tr hidden><td colspan="{span}" class="state" data-filtered-empty>'
+        "Every row in this table is hidden by the current filters.</td></tr>"
+    )
+    identifier = escape(f"table-{name}", quote=True)
+    return (
+        '<div class="block">'
+        f'<div class="table-wrap" role="region" tabindex="0" aria-label="{escape(caption, quote=True)}">'
+        f'<table id="{identifier}"><caption>{escape(caption)}</caption>'
+        f"<thead><tr>{heads}</tr></thead><tbody>{body or fallback}{filtered}</tbody></table></div>"
+        f'<div class="block-head"><button type="button" data-csv="{identifier}" hidden>Download CSV</button></div>'
+        "</div>"
+    )
+
+
+def _panel(slug: str, heading: str, content: str) -> str:
+    return (
+        f'<section id="{slug}" class="panel" data-panel="{slug}" tabindex="-1" '
+        f'aria-labelledby="{slug}-heading"><h2 id="{slug}-heading">{escape(heading)}</h2>'
+        f"{content}</section>"
+    )
+
+
+def _sparkline(points: Sequence[float | None], label: str) -> str:
+    """Fixed-viewBox inline SVG; gap buckets break the line instead of plotting zero."""
+    known = [value for value in points if value is not None]
+    if not known:
+        return f'<p class="state">{escape(label)}: no plottable bucket, so no line is drawn.</p>'
+    peak = max(known)
+    scale = peak or 1.0
+    span = max(len(points) - 1, 1)
+    segments: list[list[str]] = [[]]
+    for index, value in enumerate(points):
+        if value is None:
+            segments.append([])
+            continue
+        segments[-1].append(f"{16 + 688 * index / span:.1f},{144 - 128 * (value / scale):.1f}")
+    lines = "".join(
+        f'<polyline points="{" ".join(segment)}"></polyline>'
+        for segment in segments
+        if len(segment) > 1
+    )
+    dots = "".join(
+        f'<circle cx="{point.split(",")[0]}" cy="{point.split(",")[1]}" r="3"></circle>'
+        for segment in segments
+        if len(segment) == 1
+        for point in segment
+    )
+    desc = (
+        f"{len(known)} plotted bucket(s), peak {peak:,.0f}, "
+        f"{len(points) - len(known)} bucket(s) left as gaps because they are suppressed or were "
+        "never observed. The exact values are listed in the table below this chart."
+    )
+    return (
+        f'<svg class="spark" role="img" width="720" height="160" viewBox="0 0 720 160" aria-label="{escape(label, quote=True)}">'
+        f"<title>{escape(label)}</title><desc>{escape(desc)}</desc>"
+        '<line class="axis" x1="16" y1="144" x2="704" y2="144"></line>'
+        f"{lines}{dots}</svg>"
+    )
+
+
+def _next_bucket(moment: datetime, grain: str) -> datetime:
+    if grain == "month":
+        carry, month = divmod(moment.month, 12)
+        return moment.replace(year=moment.year + carry, month=month + 1, day=1)
+    return moment + timedelta(days=7 if grain == "week" else 1)
+
+
+def _active_series(series: Sequence[FlowRow], grain: str) -> list[float | None]:
+    """Active postings on a bucket-stepped axis: a period the source never published is a gap."""
+    values = {row[2]: row[5] for row in series}
+    ordered = sorted(values)
+    if not ordered:
+        return []
+    buckets = list(ordered)
+    if grain in GRAIN_LABELS:
+        buckets = [ordered[0]]
+        while buckets[-1] < ordered[-1]:
+            buckets.append(_next_bucket(buckets[-1], grain))
+    points: list[float | None] = []
+    for key in buckets:
+        value = values.get(key)
+        points.append(None if value is None else float(value))
+    return points
+
+
+def _finest_series(flows: Sequence[FlowRow]) -> tuple[str, list[FlowRow]]:
+    """The headline trend uses the finest grain actually published."""
+    for grain in ("day", "week", "month"):
+        selected = [row for row in flows if row[1] == grain]
+        if selected:
+            return grain, selected
+    return "", []
+
+
+def _direction(values: Sequence[int | None]) -> str:
+    known = [value for value in values if value is not None]
+    if len(known) < 2:
+        return "too few unsuppressed buckets to state a direction"
+    first, last = known[0], known[-1]
+    if last > first:
+        return f"rising within the source ({first:,} to {last:,})"
+    if last < first:
+        return f"falling within the source ({first:,} to {last:,})"
+    return f"flat within the source ({last:,})"
+
+
+def _query_demand(connection: duckdb.DuckDBPyConnection) -> list[DemandRow]:
+    rows: list[DemandRow] = connection.execute(
         """
-            select
-                source,
-                country,
-                observed_at,
-                active_postings,
-                source_version,
-                licence_reference,
-                access_method,
-                freshness_status,
-                coverage_status
-            from labour_demand_latest
-            order by active_postings desc, source, country
-            """
+        select source, scope_id, country, observed_at, active_postings, source_version,
+               licence_reference, access_method, freshness_status, coverage_status
+        from labour_demand_latest
+        order by active_postings desc, source, country
+        """
     ).fetchall()
-    dimension_rows: list[tuple[str, str, int]] = connection.execute(
+    return rows
+
+
+def _query_coverage(connection: duckdb.DuckDBPyConnection) -> list[CoverageRow]:
+    """One row per source scope: source_coverage keeps every sweep, the section shows the latest."""
+    rows: list[CoverageRow] = connection.execute(
         """
-        select dimension, value_label, posting_count
-        from (
-            select dimension, value_label, posting_count from dimension_demand_latest
-            union all
-            select dimension, value_label, posting_count from skill_demand_latest
-        )
+        select source, scope_id, country, observed_at, expected_rows, observed_rows,
+               freshness_status, coverage_status, freshness_age_hours, coverage_limitations
+        from source_coverage
+        qualify row_number() over (
+            partition by source, scope_id order by observed_at desc, sweep_id desc
+        ) = 1
+        order by source, scope_id, country, observed_at desc
+        """
+    ).fetchall()
+    return rows
+
+
+def _query_dimension(connection: duckdb.DuckDBPyConnection, *, region: bool) -> list[DimensionRow]:
+    """Region rows feed Countries; everything else feeds Occupations and skills."""
+    comparison = "=" if region else "<>"
+    rows: list[DimensionRow] = connection.execute(
+        f"""
+        select dimension, value_label, taxonomy_version, posting_count
+        from dimension_demand_latest
+        where dimension {comparison} 'region'
         order by posting_count desc, dimension, value_label
-        limit 20
+        limit {DIMENSION_LIMIT}
         """
     ).fetchall()
-    quality_rows: list[tuple[str, str, int]] = connection.execute(
+    return rows
+
+
+def _query_skills(connection: duckdb.DuckDBPyConnection) -> list[DimensionRow]:
+    rows: list[DimensionRow] = connection.execute(
+        f"""
+        select dimension, value_label, taxonomy_version, posting_count
+        from skill_demand_latest
+        order by posting_count desc, value_label
+        limit {DIMENSION_LIMIT}
+        """
+    ).fetchall()
+    return rows
+
+
+def _query_mapping(connection: duckdb.DuckDBPyConnection) -> list[MappingRow]:
+    rows: list[MappingRow] = connection.execute(
         "select dimension, mapping_status, sum(outcome_count)::bigint "
         "from mapping_quality_latest group by all order by dimension, mapping_status"
     ).fetchall()
-    flow_rows: list[tuple[str, str, datetime, int | None, int | None, int | None, int | None]] = (
-        connection.execute(
-            """
-            select scope_id, grain, bucket_start, openings, closures, active_postings, active_vacancies
-            from posting_flows
-            order by scope_id, case grain when 'day' then 1 when 'week' then 2 else 3 end, bucket_start
-            """
-        ).fetchall()
-    )
-    survival_rows: list[
-        tuple[
-            str,
-            str,
-            bool,
-            int | None,
-            int | None,
-            float | None,
-            float | None,
-            float | None,
-            int | None,
-        ]
-    ] = connection.execute(
+    return rows
+
+
+def _query_flows(connection: duckdb.DuckDBPyConnection) -> list[FlowRow]:
+    rows: list[FlowRow] = connection.execute(
+        """
+        select scope_id, grain, bucket_start, openings, closures, active_postings,
+               active_vacancies, source
+        from posting_flows
+        order by source, scope_id, case grain when 'day' then 1 when 'week' then 2 else 3 end,
+                 bucket_start
+        """
+    ).fetchall()
+    return rows
+
+
+def _query_survival(connection: duckdb.DuckDBPyConnection) -> list[SurvivalRow]:
+    rows: list[SurvivalRow] = connection.execute(
         """
         select scope_id, lifecycle_status, any_right_censored, posting_count, advertised_vacancies,
-               median_duration_days, p25_duration_days, p75_duration_days, max_duration_days
+               median_duration_days, p25_duration_days, p75_duration_days, max_duration_days, source
         from posting_survival
-        order by scope_id, case lifecycle_status when 'active' then 1 when 'source_reported' then 2 else 3 end
+        order by source, scope_id,
+                 case lifecycle_status when 'active' then 1 when 'source_reported' then 2 else 3 end
         """
     ).fetchall()
-    frequency_rows: list[
-        tuple[str, int, datetime, datetime, float | None, int | None, str | None]
-    ] = connection.execute(
+    return rows
+
+
+def _query_frequency(connection: duckdb.DuckDBPyConnection) -> list[FrequencyRow]:
+    rows: list[FrequencyRow] = connection.execute(
         """
-            select scope_id, complete_sweeps, first_observed_at, last_observed_at,
-                   median_interval_hours, freshness_threshold_hours, coverage_limitations
-            from collection_frequency
-            order by scope_id
-            """
+        select scope_id, complete_sweeps, first_observed_at, last_observed_at,
+               median_interval_hours, freshness_threshold_hours, coverage_limitations, source
+        from collection_frequency
+        order by source, scope_id
+        """
     ).fetchall()
-    connection.close()
-    maximum = max((row[3] for row in rows), default=0) or 1
-    table_rows = "".join(
-        f"""
-        <tr>
-          <td><strong>{escape(country or "No postings")}</strong></td>
-          <td>{escape(source)}</td>
-          <td>{escape(source_version)}</td>
-          <td><time datetime="{observed_at.isoformat()}">{observed_at:%Y-%m-%d %H:%M} UTC</time></td>
-          <td>{escape(freshness_status)}</td>
-          <td>{escape(coverage_status)}</td>
-          <td class="count">{count:,}</td>
-          <td class="bar-cell"><span class="bar" style="width:{100 * count / maximum:.1f}%"></span></td>
-          <td><a href="{escape(licence_reference, quote=True)}">Licence</a><br><small>{escape(access_method)}</small></td>
-        </tr>"""
+    return rows
+
+
+def _query_provenance(connection: duckdb.DuckDBPyConnection) -> list[ProvenanceRow]:
+    rows: list[ProvenanceRow] = connection.execute(
+        """
+        select source, scope_id, observed_at, licence_reference, access_method, source_version,
+               nuts_version, jobtech_taxonomy_version, esco_version, row_count
+        from latest_complete_sweeps
+        order by source, scope_id
+        """
+    ).fetchall()
+    return rows
+
+
+def _render_filters(
+    demand: Sequence[DemandRow],
+    occupations: Sequence[DimensionRow],
+    skills: Sequence[DimensionRow],
+) -> str:
+    """Persistent filter bar. Hidden until the script enables it, because it needs JS to work."""
+    countries = _options(row[2] for row in demand)
+    sources = _options(row[0] for row in demand)
+    occupation_values = _options(row[1] for row in occupations)
+    skill_values = _options(row[1] for row in skills)
+    return (
+        '<form class="filters" data-filters hidden aria-label="Filter the published aggregates">'
+        '<div class="field"><label for="filter-from">Buckets from</label>'
+        '<input type="date" id="filter-from" name="from"></div>'
+        '<div class="field"><label for="filter-to">Buckets to</label>'
+        '<input type="date" id="filter-to" name="to"></div>'
+        '<div class="field"><label for="filter-country">Country</label>'
+        f'<select id="filter-country" name="country"><option value="">All countries</option>{countries}</select></div>'
+        '<div class="field"><label for="filter-source">Source</label>'
+        f'<select id="filter-source" name="source"><option value="">All sources</option>{sources}</select></div>'
+        '<div class="field"><label for="filter-occupation">Occupation</label>'
+        f'<select id="filter-occupation" name="occupation"><option value="">All occupations</option>{occupation_values}</select></div>'
+        '<div class="field"><label for="filter-skill">Skill</label>'
+        f'<select id="filter-skill" name="skill"><option value="">All skills</option>{skill_values}</select></div>'
+        '<div class="actions"><button type="submit">Apply filters</button>'
+        '<button type="button" data-reset>Reset filters</button></div>'
+        "</form>"
+        '<p class="state" data-loading hidden>Applying filters…</p>'
+        '<p class="state error" data-error hidden></p>'
+        '<p class="live" data-live role="status" aria-live="polite"></p>'
+        '<noscript><p class="state">Filters, section tabs, and CSV download need JavaScript. '
+        "Every section and every row is already rendered below without it.</p></noscript>"
+    )
+
+
+def _render_overview(
+    demand: Sequence[DemandRow],
+    coverage: Sequence[CoverageRow],
+    flows: Sequence[FlowRow],
+) -> str:
+    steps = "".join(f"<li>{escape(step)}</li>" for step in WORKFLOW)
+    # ponytail: the headline trend must stay inside one scope, so pick the leading demand scope
+    # that actually publishes flows rather than falling back to every scope's buckets.
+    published = {row[0] for row in flows}
+    scope = next((row[1] for row in demand if row[1] in published), "")
+    grain, series = _finest_series([row for row in flows if row[0] == scope])
+    trend = _direction([row[5] for row in series]) if scope else "no trend published for this scope"
+    updated = max((row[3] for row in demand), default=None)
+    fresh = sum(1 for row in coverage if row[6] == "fresh")
+    covered = sum(1 for row in coverage if row[7] == "covered")
+    leader = demand[0] if demand else None
+    stats = (
+        f"<div><dt>Last successful update</dt><dd>{_time(updated) if updated else '—'}"
+        "<small>Latest approved complete sweep</small></dd></div>"
+        f"<div><dt>Largest single observation</dt>"
+        f"<dd>{leader[4]:,} postings<small>{escape(leader[2] or 'No postings')} via {escape(leader[0])}</small></dd></div>"
+        if leader
+        else "<div><dt>Last successful update</dt><dd>—<small>No approved sweep yet</small></dd></div>"
+    )
+    stats += (
+        f"<div><dt>Trend direction</dt><dd>{escape(GRAIN_LABELS.get(grain, 'No trend'))}"
+        f"<small>{escape(trend)}{escape(f' · {scope}' if scope else '')}</small></dd></div>"
+        f"<div><dt>Source coverage</dt><dd>{covered} of {len(coverage)}"
+        f"<small>source scope(s) covered · {fresh} fresh</small></dd></div>"
+    )
+    body = "".join(
+        f"<tr{_attrs(country=country, source=source)}>"
+        f"<td><strong>{escape(country or 'No postings')}</strong></td>"
+        f"<td>{escape(source)}</td><td>{_time(observed_at)}</td>"
+        f'<td class="count">{active:,}</td>'
+        f"<td>{_badge(freshness_status, coverage_status)}</td></tr>"
         for (
             source,
+            _scope_id,
             country,
             observed_at,
-            count,
+            active,
+            _source_version,
+            _licence_reference,
+            _access_method,
+            freshness_status,
+            coverage_status,
+        ) in demand
+    )
+    return (
+        '<p class="lede">A quiet, aggregate record of public technology job-posting demand. '
+        "Counts are not summed or deduplicated across sources, and nothing here is real time: "
+        "every figure comes from the latest approved complete sweep.</p>"
+        "<h3>How to use this page</h3>"
+        f'<ol class="workflow">{steps}</ol>'
+        "<h3>Where the data stands now</h3>"
+        f'<dl class="stats">{stats}</dl>'
+        + _definition(
+            "Active postings are postings observed as open in the latest complete sweep for one "
+            "source and scope. Freshness compares the observation age with the source threshold; "
+            "coverage compares observed rows with expected rows. Latest-sweep counts are published "
+            "in full; small-count suppression applies to the posting-flow and survival tables."
+        )
+        + _table(
+            "Latest observed demand per source and scope",
+            (
+                ("Country", False),
+                ("Source", False),
+                ("Observed", False),
+                ("Postings", True),
+                ("Status", False),
+            ),
+            body,
+            name="overview-demand",
+            empty="No demand results",
+        )
+    )
+
+
+def _render_countries(demand: Sequence[DemandRow], regions: Sequence[DimensionRow]) -> str:
+    # ponytail: one bar baseline per source, never page-wide, so the bar cannot imply a
+    # between-source or between-country magnitude comparison.
+    baselines: dict[str, int] = {}
+    for row in demand:
+        baselines[row[0]] = max(baselines.get(row[0], 0), row[4])
+    body = "".join(
+        f"<tr{_attrs(country=country, source=source)}>"
+        f"<td><strong>{escape(country or 'No postings')}</strong></td>"
+        f"<td>{escape(source)}</td><td>{escape(scope_id)}</td><td>{_time(observed_at)}</td>"
+        f"<td>{_badge(freshness_status, coverage_status)}</td>"
+        f'<td class="count">{active:,}</td>'
+        f'<td class="bar-cell"><span class="bar" style="width:{100 * active / (baselines[source] or 1):.1f}%" aria-hidden="true"></span>'
+        f'<span class="bar-text">{100 * active / (baselines[source] or 1):.0f}% of this source\u2019s largest scope</span></td>'
+        "<td><small>Within-source only</small></td>"
+        f'<td><a href="{escape(licence_reference, quote=True)}">Licence</a>'
+        f"<br><small>{escape(access_method)} · {escape(source_version)}</small></td></tr>"
+        for (
+            source,
+            scope_id,
+            country,
+            observed_at,
+            active,
             source_version,
             licence_reference,
             access_method,
             freshness_status,
             coverage_status,
-        ) in rows
+        ) in demand
     )
-    dimension_table = "".join(
-        f"<tr><td>{escape(dimension)}</td><td>{escape(label)}</td><td>{count:,}</td></tr>"
-        for dimension, label, count in dimension_rows
+    regions_body = "".join(
+        f"<tr{_attrs(dimension=dimension, value=label)}>"
+        f"<td>{escape(label)}</td><td>{escape(taxonomy_version)}</td>"
+        f'<td class="count">{count:,}</td></tr>'
+        for dimension, label, taxonomy_version, count in regions
     )
-    quality_table = "".join(
-        f"<tr><td>{escape(dimension)}</td><td>{escape(status)}</td><td>{count:,}</td></tr>"
-        for dimension, status, count in quality_rows
+    return (
+        _definition(
+            "One row per source and scope. Counts are not summed or deduplicated across sources, "
+            "and absolute counts are not comparable between countries: each source has its own "
+            "scope, keyword filter, and posting culture. The relative-volume bar is scaled against "
+            "the largest scope of the same source only. Read direction of change within a source "
+            "instead."
+        )
+        + _table(
+            "Latest posting counts by country, with collection provenance",
+            (
+                ("Country", False),
+                ("Source", False),
+                ("Scope", False),
+                ("Observed", False),
+                ("Status", False),
+                ("Postings", True),
+                ("Relative volume", False),
+                ("Comparability", False),
+                ("Access", False),
+            ),
+            body,
+            name="countries-demand",
+            empty="No demand results",
+        )
+        + "<h3>NUTS regions</h3>"
+        + _definition(
+            "Mapped NUTS 2024 regions for the latest sweep. Region counts come from structured "
+            "source geography only, never from free text, and are a subset of the country total."
+        )
+        + _table(
+            "Latest mapped demand by NUTS region",
+            (("Region", False), ("Reference version", False), ("Postings", True)),
+            regions_body,
+            name="countries-regions",
+            empty="No mapped region results",
+        )
     )
-    flows_table = "".join(
-        f"<tr><td>{escape(scope_id)}</td><td>{GRAIN_LABELS.get(grain, grain)}</td>"
-        f'<td>{bucket_start:%Y-%m-%d}</td><td class="count">{_count(openings)}</td>'
-        f'<td class="count">{_count(closures)}</td><td class="count">{_count(active_postings)}</td>'
-        f'<td class="count">{_count(active_vacancies)}</td></tr>'
-        for scope_id, grain, bucket_start, openings, closures, active_postings, active_vacancies in flow_rows
+
+
+def _render_occupations(
+    occupations: Sequence[DimensionRow],
+    skills: Sequence[DimensionRow],
+    mapping: Sequence[MappingRow],
+) -> str:
+    def ranked(rows: Sequence[DimensionRow]) -> str:
+        return "".join(
+            f"<tr{_attrs(dimension=dimension, value=label)}>"
+            f'<td class="count">{rank}</td><td>{escape(label)}</td>'
+            f"<td>{escape(taxonomy_version)}</td>"
+            f'<td class="count">{count:,}</td></tr>'
+            for rank, (dimension, label, taxonomy_version, count) in enumerate(rows, start=1)
+        )
+
+    mapping_body = "".join(
+        f"<tr{_attrs()}><td>{escape(dimension)}</td><td>{escape(status)}</td>"
+        f'<td class="count">{count:,}</td></tr>'
+        for dimension, status, count in mapping
     )
-    survival_table = "".join(
-        f"<tr><td>{escape(LIFECYCLE_LABELS.get(status, status))}"
-        f"{' <small>(censored)</small>' if censored else ''}</td>"
+    columns = (("Rank", True), ("Value", False), ("Reference version", False), ("Postings", True))
+    return (
+        _definition(
+            "Mappings use pinned reference data: NUTS 2024 regions, JobTech Taxonomy v30, and ESCO "
+            "1.2.1. Only structured taxonomy fields are used; job titles and free text are never "
+            "classified. Sweden only: no German posting source has passed the approval gate. "
+            "Ambiguous, low-confidence, unmapped, and not-present values are excluded from mapped "
+            "demand and shown separately as mapping quality."
+        )
+        + _table(
+            "Ranked mapped demand by ESCO occupation",
+            columns,
+            ranked(occupations),
+            name="occupations-ranked",
+            empty="No mapped dimension results",
+        )
+        + "<h3>Technology skills</h3>"
+        + _definition(
+            "Skill demand counts postings whose structured fields map to an ESCO skill. Historical "
+            "movement is read from the trend section within one source; a skill can rise in share "
+            "while the total posting count falls."
+        )
+        + _table(
+            "Ranked mapped demand by ESCO skill",
+            columns,
+            ranked(skills),
+            name="occupations-skills",
+            empty="No mapped skill results",
+        )
+        + "<h3>Mapping quality</h3>"
+        + _definition(
+            "Mapping outcomes for the latest sweep. Unmapped, ambiguous, low-confidence, and "
+            "not-present outcomes stay distinct so that a missing value is never read as zero demand."
+        )
+        + _table(
+            "Mapping quality outcomes",
+            (("Dimension", False), ("Status", False), ("Outcomes", True)),
+            mapping_body,
+            name="occupations-mapping",
+            empty="No mapping quality results",
+        )
+    )
+
+
+def _render_survival(
+    survival: Sequence[SurvivalRow],
+    flows: Sequence[FlowRow],
+    countries: dict[str, str],
+) -> str:
+    survival_body = "".join(
+        f"<tr{_attrs(source=source, country=countries.get(scope_id))}>"
+        f"<td>{escape(LIFECYCLE_LABELS.get(status, status))}"
+        f"{' <small>(right-censored)</small>' if censored else ''}"
+        f"{' <small>(suppressed group)</small>' if postings is None else ''}</td>"
+        f"<td>{escape(scope_id)}</td>"
         f'<td class="count">{_count(postings)}</td><td class="count">{_count(vacancies)}</td>'
         f'<td class="count">{_stat(median)}</td>'
         f'<td class="count">{"—" if p25 is None and p75 is None else f"{_stat(p25)}–{_stat(p75)}"}</td>'
         f'<td class="count">{_stat(max_days)}</td></tr>'
-        for scope_id, status, censored, postings, vacancies, median, p25, p75, max_days in survival_rows
+        for scope_id, status, censored, postings, vacancies, median, p25, p75, max_days, source in survival
     )
-    frequency_table = "".join(
-        f'<tr><td>{escape(scope_id)}</td><td class="count">{sweeps:,}</td>'
+    flows_body = "".join(
+        f"<tr{_attrs(bucket=f'{bucket_start:%Y-%m-%d}', source=source, country=countries.get(scope_id))}>"
+        f"<td>{escape(scope_id)}</td><td>{escape(GRAIN_LABELS.get(grain, grain))}</td>"
+        f"<td>{bucket_start:%Y-%m-%d}</td>"
+        f'<td class="count">{_count(openings)}</td><td class="count">{_count(closures)}</td>'
+        f'<td class="count">{_count(active_postings)}</td>'
+        f'<td class="count">{_count(active_vacancies)}</td></tr>'
+        for scope_id, grain, bucket_start, openings, closures, active_postings, active_vacancies, source in flows
+    )
+    charts = "".join(
+        _sparkline(
+            _active_series(series, grain),
+            f"{GRAIN_LABELS.get(grain, grain)} active postings within one source scope: {scope_id}",
+        )
+        for scope_id in sorted({row[0] for row in flows})
+        # ponytail: finest grain per scope; coarser grains stay in the table below.
+        for grain, series in (_finest_series([row for row in flows if row[0] == scope_id]),)
+        if series
+    )
+    return (
+        _definition(
+            "A posting leaving the source is reported as posting duration or inferred removal, "
+            "never as time to hire: the observatory cannot see hiring outcomes. Active postings are "
+            "right-censored lower bounds, not completed durations. Advertised vacancies are counted "
+            f"separately from postings. In this table and the flow table below, groups of 1 to "
+            f"{SUPPRESSION_THRESHOLD - 1} postings are suppressed rather than shown; a true zero "
+            "stays visible."
+        )
+        + _table(
+            "Posting survival by closure basis. Advertised vacancies are counted separately from postings.",
+            (
+                ("Basis", False),
+                ("Scope", False),
+                ("Postings", True),
+                ("Advertised vacancies", True),
+                ("Median days", True),
+                ("P25–P75 days", True),
+                ("Max days", True),
+            ),
+            survival_body,
+            name="survival-basis",
+            empty="No survival results",
+        )
+        + "<h3>Posting flows over time</h3>"
+        + _definition(
+            "Openings are postings first seen in the bucket, closures are postings last seen before "
+            "it, and active postings are the stock still open. The line breaks wherever a bucket is "
+            "suppressed or was never observed; a gap is never plotted as zero. Trends are read "
+            "within one source and scope."
+        )
+        + charts
+        + _table(
+            "Posting openings, active stock, and closures over time (daily, weekly, monthly)",
+            (
+                ("Scope", False),
+                ("Period", False),
+                ("Bucket", False),
+                ("Openings", True),
+                ("Closures", True),
+                ("Active postings", True),
+                ("Active vacancies", True),
+            ),
+            flows_body,
+            name="survival-flows",
+            empty="No trend results",
+        )
+    )
+
+
+def _render_quality(
+    coverage: Sequence[CoverageRow],
+    frequency: Sequence[FrequencyRow],
+    mapping: Sequence[MappingRow],
+    countries: dict[str, str],
+) -> str:
+    coverage_body = "".join(
+        f"<tr{_attrs(country=country, source=source)}>"
+        f"<td>{escape(source)}</td><td>{escape(scope_id)}</td><td>{escape(country or '—')}</td>"
+        f"<td>{_time(observed_at)}</td>"
+        f'<td class="count">{expected_rows:,}</td><td class="count">{observed_rows:,}</td>'
+        f'<td class="count">{_stat(age_hours)}</td>'
+        f"<td>{_badge(freshness_status, coverage_status)}</td>"
+        f'<td class="wrap">{escape(limitations or "—")}</td></tr>'
+        for (
+            source,
+            scope_id,
+            country,
+            observed_at,
+            expected_rows,
+            observed_rows,
+            freshness_status,
+            coverage_status,
+            age_hours,
+            limitations,
+        ) in coverage
+    )
+    frequency_body = "".join(
+        f"<tr{_attrs(source=source, country=countries.get(scope_id))}>"
+        f'<td>{escape(source)}</td><td>{escape(scope_id)}</td><td class="count">{sweeps:,}</td>'
         f"<td>{first:%Y-%m-%d} to {last:%Y-%m-%d}</td>"
         f'<td class="count">{_stat(interval)}</td>'
         f'<td class="count">{threshold if threshold is not None else "—"}</td>'
-        f"<td>{escape(limitations or '')}</td></tr>"
-        for scope_id, sweeps, first, last, interval, threshold, limitations in frequency_rows
+        f'<td class="wrap">{escape(limitations or "—")}</td></tr>'
+        for scope_id, sweeps, first, last, interval, threshold, limitations, source in frequency
+    )
+    missing_body = "".join(
+        f"<tr{_attrs()}><td>{escape(dimension)}</td><td>{escape(status)}</td>"
+        f'<td class="count">{count:,}</td></tr>'
+        for dimension, status, count in mapping
+        if status != "mapped"
+    )
+    return (
+        _definition(
+            "Coverage is deterministic: expected rows come from the sweep manifest and observed rows "
+            "from the stored partition, so a shortfall is reported as partial coverage rather than "
+            "silently absorbed. A stale scope is still published, clearly labelled, instead of hidden."
+        )
+        + _table(
+            "Source coverage and freshness for the latest complete sweeps",
+            (
+                ("Source", False),
+                ("Scope", False),
+                ("Country", False),
+                ("Observed", False),
+                ("Expected rows", True),
+                ("Observed rows", True),
+                ("Age (h)", True),
+                ("Status", False),
+                ("Known limitations", False),
+            ),
+            coverage_body,
+            name="quality-coverage",
+            empty="No coverage results",
+        )
+        + "<h3>Collection frequency</h3>"
+        + _definition(
+            "Collection cadence per scope. A median interval longer than the freshness threshold "
+            "means trend buckets can be sparse; sparse buckets are shown as gaps, not as zeros."
+        )
+        + _table(
+            "Source coverage and collection frequency, published beside the metrics.",
+            (
+                ("Source", False),
+                ("Scope", False),
+                ("Complete sweeps", True),
+                ("Observed span", False),
+                ("Median interval (h)", True),
+                ("Freshness threshold (h)", True),
+                ("Known comparability limitations", False),
+            ),
+            frequency_body,
+            name="quality-frequency",
+            empty="No coverage results",
+        )
+        + "<h3>Missing and uncertain mappings</h3>"
+        + _definition(
+            "Outcomes that are not mapped are published so that missing reference data is visible. "
+            "These postings are excluded from mapped demand and are not redistributed."
+        )
+        + _table(
+            "Mapping outcomes that are not mapped",
+            (("Dimension", False), ("Status", False), ("Outcomes", True)),
+            missing_body,
+            name="quality-missing",
+            empty="No missing mapping results",
+        )
+    )
+
+
+def _render_methodology(provenance: Sequence[ProvenanceRow]) -> str:
+    definitions = (
+        (
+            "Openings",
+            "Postings first observed in a bucket, based on first_seen = min(observed_at).",
+        ),
+        ("Closures", "Postings last observed before a bucket and absent afterwards."),
+        ("Active postings", "Postings observed as open in the sweep covering the bucket."),
+        (
+            "Advertised vacancies",
+            "Vacancy counts advertised inside postings, counted separately from postings.",
+        ),
+        (
+            "Posting duration",
+            "Observed days between first and last sighting; for open postings it is a "
+            "right-censored lower bound. It is never time to hire.",
+        ),
+        ("Freshness", "Observation age against the source freshness threshold."),
+        ("Coverage", "Observed rows against expected rows for the same sweep."),
+        (
+            "Suppression",
+            f"In the posting-flow and survival tables, groups of 1 to {SUPPRESSION_THRESHOLD - 1} "
+            "postings are suppressed to avoid singling out an individual posting. A true zero stays "
+            "visible, and latest-sweep counts by country, region, occupation, and skill are "
+            "published in full.",
+        ),
+    )
+    body = "".join(
+        f"<tr{_attrs(source=source)}><td>{escape(source)}</td><td>{escape(scope_id)}</td>"
+        f'<td>{_time(observed_at)}</td><td class="count">{row_count:,}</td>'
+        f"<td>{escape(source_version or '—')}</td><td>{escape(nuts_version or '—')}</td>"
+        f"<td>{escape(taxonomy_version or '—')}</td><td>{escape(esco_version or '—')}</td>"
+        f'<td><a href="{escape(licence_reference or "", quote=True)}">Licence</a>'
+        f"<br><small>{escape(access_method or '—')}</small></td></tr>"
+        for (
+            source,
+            scope_id,
+            observed_at,
+            licence_reference,
+            access_method,
+            source_version,
+            nuts_version,
+            taxonomy_version,
+            esco_version,
+            row_count,
+        ) in provenance
+    )
+    terms = "".join(f"<dt>{escape(term)}</dt><dd>{escape(text)}</dd>" for term, text in definitions)
+    return (
+        _definition(
+            "Every metric on this page is an aggregate of public job-vacancy postings. Native "
+            "posting identifiers, source URLs, and free text are removed at the privacy boundary "
+            "before anything is stored for publication."
+        )
+        + f'<dl class="definitions">{terms}</dl>'
+        + "<h3>Provenance and licences</h3>"
+        + _definition(
+            "The latest valid complete sweep per source and scope, with the licence, access method, "
+            "and pinned reference versions used to produce it. Use the CSV control to download this "
+            "metadata table."
+        )
+        + _table(
+            "Latest complete sweep provenance, licences, and pinned reference versions",
+            (
+                ("Source", False),
+                ("Scope", False),
+                ("Observed", False),
+                ("Rows", True),
+                ("Source version", False),
+                ("NUTS", False),
+                ("JobTech taxonomy", False),
+                ("ESCO", False),
+                ("Licence", False),
+            ),
+            body,
+            name="methodology-provenance",
+            empty="No provenance results",
+        )
+    )
+
+
+def build_site(database: Path, target: Path) -> int:
+    connection = duckdb.connect(str(database), read_only=True)
+    try:
+        demand = _query_demand(connection)
+        coverage = _query_coverage(connection)
+        regions = _query_dimension(connection, region=True)
+        occupations = _query_dimension(connection, region=False)
+        skills = _query_skills(connection)
+        mapping = _query_mapping(connection)
+        flows = _query_flows(connection)
+        survival = _query_survival(connection)
+        frequency = _query_frequency(connection)
+        provenance = _query_provenance(connection)
+    finally:
+        connection.close()
+    # Scope-keyed views carry no country column, so the filter bar needs this crosswalk to make
+    # the country selector apply to the survival, flow, and frequency rows too.
+    countries = {row[1]: row[2] for row in demand if row[2]}
+    countries.update({row[1]: row[2] for row in coverage if row[2]})
+    rendered = {
+        "overview": _render_overview(demand, coverage, flows),
+        "countries": _render_countries(demand, regions),
+        "occupations": _render_occupations(occupations, skills, mapping),
+        "survival": _render_survival(survival, flows, countries),
+        "quality": _render_quality(coverage, frequency, mapping, countries),
+        "methodology": _render_methodology(provenance),
+    }
+    links: list[str] = []
+    for index, (slug, heading) in enumerate(SECTIONS):
+        current = ' aria-current="page"' if index == 0 else ""
+        links.append(f'<a href="#{slug}" data-tab="{slug}"{current}>{escape(heading)}</a>')
+    nav = "".join(links)
+    sections = "".join(_panel(slug, heading, rendered[slug]) for slug, heading in SECTIONS)
+    filters = _render_filters(demand, occupations, skills)
+    updated = max((row[3] for row in demand), default=None)
+    stamp = (
+        f"Last successful update {_time(updated)}. " if updated else "No successful update yet. "
+    )
+    summary = (
+        f"{stamp}{len(demand)} independently sourced country observation(s). "
+        "Counts are not summed or deduplicated across sources."
     )
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(
@@ -174,84 +1211,31 @@ def build_site(database: Path, target: Path) -> int:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Aggregate European technology job-posting demand, posting duration, source coverage, and provenance.">
   <link rel="icon" href="data:,">
   <title>EU Tech Labour Observatory</title>
-  <style>
-    :root {{ color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #17201c; background: #f4f6f5; }}
-    * {{ box-sizing: border-box; }}
-    body {{ margin: 0; }}
-    header {{ background: #163d2c; color: white; border-bottom: 5px solid #efb744; }}
-    header div, main {{ width: min(1080px, calc(100% - 32px)); margin: auto; }}
-    header div {{ padding: 24px 0 20px; }}
-    h1 {{ margin: 0; font-size: 2.2rem; letter-spacing: 0; }}
-    header p {{ margin: 6px 0 0; color: #dce9e2; }}
-    main {{ padding: 28px 0 48px; }}
-    .summary {{ margin-bottom: 22px; }}
-    .label, caption {{ color: #53605a; }}
-    .table-wrap {{ overflow-x: auto; border: 1px solid #cbd3cf; background: white; }}
-    table {{ width: 100%; border-collapse: collapse; min-width: 720px; }}
-    caption {{ text-align: left; padding: 14px 16px; font-size: .9rem; }}
-    th, td {{ padding: 13px 16px; border-top: 1px solid #e1e6e3; text-align: left; white-space: nowrap; }}
-    th {{ font-size: .78rem; text-transform: uppercase; color: #53605a; background: #f8faf9; }}
-    .count {{ text-align: right; font-variant-numeric: tabular-nums; }}
-    .bar-cell {{ width: 18%; }}
-    .bar {{ display: block; height: 10px; background: #27845b; min-width: 2px; }}
-    a {{ color: #155f43; }}
-    small {{ color: #65716b; }}
-    footer {{ margin-top: 18px; color: #65716b; font-size: .85rem; }}
-    @media (max-width: 600px) {{ h1 {{ font-size: 1.45rem; }} .summary {{ display: block; }} header div, main {{ width: min(100% - 24px, 1080px); }} }}
-  </style>
+  <style>{STYLE}  </style>
 </head>
 <body>
+  <a class="skip" href="#main">Skip to main content</a>
   <header><div>
     <h1>EU Tech Labour Observatory</h1>
-    <p>Latest observed public technology job postings</p>
+    <p>Where technology postings are advertised, which skills they ask for, and how long they stay up.</p>
+    <p><small>{summary}</small></p>
   </div></header>
-  <main>
-    <section class="summary" aria-label="Summary">
-      <span class="label">{len(rows)} independently sourced country observation(s). Counts are not summed or deduplicated across sources.</span>
-    </section>
-    <div class="table-wrap">
-      <table>
-        <caption>Counts reflect the latest complete approved sweep for each source and scope, not estimated vacancies.</caption>
-        <thead><tr><th>Country</th><th>Source</th><th>Version</th><th>Observed</th><th>Freshness</th><th>Coverage</th><th class="count">Postings</th><th>Relative volume</th><th>Access</th></tr></thead>
-        <tbody>{table_rows}</tbody>
-      </table>
-     </div>
-    <section class="tables" aria-label="Mapped demand">
-      <p class="label">Mappings use pinned reference data: NUTS 2024 regions, JobTech Taxonomy v30, and ESCO 1.2.1. Only structured taxonomy fields are used; job titles and free text are never classified. Sweden only: no German posting source has passed the approval gate. Ambiguous, low-confidence, unmapped, and not-present values are excluded from mapped demand and shown separately as mapping quality.</p>
-      <div class="table-wrap"><table><caption>Latest mapped demand by region, occupation, and skill</caption>
-        <thead><tr><th>Dimension</th><th>Value</th><th class="count">Postings</th></tr></thead>
-        <tbody>{dimension_table or '<tr><td colspan="3">No mapped dimension results</td></tr>'}</tbody>
-      </table></div>
-      <div class="table-wrap"><table><caption>Mapping quality outcomes</caption>
-        <thead><tr><th>Dimension</th><th>Status</th><th class="count">Outcomes</th></tr></thead>
-        <tbody>{quality_table or '<tr><td colspan="3">No mapping quality results</td></tr>'}</tbody>
-      </table></div>
-    </section>
-    <section class="tables" aria-label="Historical analytics">
-      <p class="label">Historical view. A posting leaving the source is reported as posting duration or inferred removal, never as time to hire. Trends are read within a single source and scope; counts are not summed across sources or compared as absolute values between countries. Active-posting durations are right-censored lower bounds, not completed survival. Cells covering fewer than {SUPPRESSION_THRESHOLD} postings are suppressed to avoid singling out an individual posting.</p>
-      <div class="table-wrap"><table><caption>Posting openings, active stock, and closures over time (daily, weekly, monthly)</caption>
-        <thead><tr><th>Scope</th><th>Period</th><th>Bucket</th><th class="count">Openings</th><th class="count">Closures</th><th class="count">Active postings</th><th class="count">Active vacancies</th></tr></thead>
-        <tbody>{flows_table or '<tr><td colspan="7">No trend results</td></tr>'}</tbody>
-      </table></div>
-      <div class="table-wrap"><table><caption>Posting survival by closure basis. Advertised vacancies are counted separately from postings.</caption>
-        <thead><tr><th>Basis</th><th class="count">Postings</th><th class="count">Advertised vacancies</th><th class="count">Median days</th><th class="count">P25–P75 days</th><th class="count">Max days</th></tr></thead>
-        <tbody>{survival_table or '<tr><td colspan="6">No survival results</td></tr>'}</tbody>
-      </table></div>
-      <div class="table-wrap"><table><caption>Source coverage and collection frequency, published beside the metrics.</caption>
-        <thead><tr><th>Scope</th><th class="count">Complete sweeps</th><th>Observed span</th><th class="count">Median interval (h)</th><th class="count">Freshness threshold (h)</th><th>Known comparability limitations</th></tr></thead>
-        <tbody>{frequency_table or '<tr><td colspan="6">No coverage results</td></tr>'}</tbody>
-      </table></div>
-    </section>
-    <footer>Aggregate observations only. Native posting identifiers and private text are not published.</footer>
+  <nav class="tabs-outer" aria-label="Sections"><div class="tabs">{nav}</div></nav>
+  <main id="main" tabindex="-1">
+    {filters}
+    {sections}
+    <footer>Aggregate observations only. Native posting identifiers and private text are not published. Figures describe observed postings, not hiring outcomes, and are not real time.</footer>
   </main>
+  <script>{SCRIPT}</script>
 </body>
 </html>
 """,
         encoding="utf-8",
     )
-    return len(rows)
+    return len(demand)
 
 
 def main() -> int:

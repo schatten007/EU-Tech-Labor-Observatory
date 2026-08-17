@@ -15,6 +15,7 @@ than expanding the active increment.
 | 7 | 2026-08-15 | Complete at feasibility boundary | Review DE/SE sources; add approved-source metadata, coverage, and freshness without unsupported German collection. | `make sample && make check && make site` passed |
 | 8 | 2026-08-16 | Complete | Add region, occupation, and skill mappings from real pinned crosswalks with quality reporting. | `make reference && make sample && make check && make site` passed |
 | 9 | 2026-08-17 | Complete | Add historical analytics: openings, active stock, and closures over time (day/week/month); posting survival and closure basis; postings vs advertised vacancies; small-count suppression; coverage and collection frequency. | `make sample && make check && make site` passed |
+| 10 | 2026-08-17 | Complete | Publish an accessible six-section dashboard: persistent filters with shareable hash URLs, server-rendered SVG trend charts, metric definitions, explicit empty/stale/partial-coverage/error states, and per-table CSV export. | `make check && make site` passed |
 
 ## Session Notes
 
@@ -171,3 +172,38 @@ than expanding the active increment.
   dbt tests. `make check` passed (dbt PASS=161, 27 pytest).
 - Added root `AGENTS.md` capturing the stable conventions so they are not re-derived each
   session. Dashboard redesign remains Iteration 10.
+
+### 2026-08-17 - Iteration 10 (elegant dashboard UI/UX)
+
+- Rebuilt `scripts/publish.py` from one monolithic f-string into `_query_*` / `_render_*` /
+  `_table` / `_panel` helpers composed by `build_site`, which keeps its signature and its
+  `labour_demand_latest` row-count return. Every value still passes through `escape()`.
+- Added the two previously unused publish views: `source_coverage` (expected vs observed rows,
+  freshness/coverage status) and `latest_complete_sweeps` (licence, access method, pinned NUTS /
+  JobTech / ESCO versions), and split the merged occupation+skill query into ranked per-dimension
+  queries (`DIMENSION_LIMIT = 25`).
+- Six real `<section>` panels (Overview, Countries, Occupations and skills, Survival, Data
+  quality, Methodology) with `<h2>` headings, a skip link, `scope="col"`, focusable
+  `role="region"` table wrappers, `:focus-visible`, `prefers-reduced-motion`, and the system
+  font stack replacing the `Inter` reference.
+- Charts are server-rendered inline SVG with a fixed `viewBox="0 0 720 160"`, `role="img"`,
+  `<title>`/`<desc>`, one chart per scope at its finest published grain; suppressed buckets break
+  the polyline instead of being plotted as zero. Deviation from the plan: charts are per scope,
+  not per grain, because one line per grain silently merged two scopes.
+- Filters (date range, country, source, occupation, skill), section tabs, `location.hash` state,
+  and per-table CSV export are inline-JS progressive enhancement over `data-row` / `data-*`
+  attributes; all content and every explicit state (empty, filtered-empty, stale, partial
+  coverage, loading, error) is server-rendered and visible without JavaScript.
+- `make check` passed offline (dbt PASS=161, 27 pytest); publish tests gained the two new
+  fixture tables plus assertions for the sections, filter bar, SVG, badges, and CSV controls.
+- Post-review corrections, all pinned by tests: `_query_coverage` now takes the latest sweep per
+  scope (`qualify row_number()`) with a deterministic tiebreaker, so the "latest complete sweeps"
+  table stopped rendering the whole sweep history and the Overview stat counts scopes, not sweeps.
+  `_sparkline` reports the real peak (0 no longer prints as 1) and `_active_series` steps the axis
+  by bucket date, so an unobserved period breaks the line like a suppressed one. The overview
+  trend now picks a scope that actually publishes flows instead of falling back to all scopes.
+  The relative-volume bar is scaled per source, and the k=5 claim names the two masked views
+  instead of appearing above unsuppressed counts. `posting_flows`/`posting_survival`/
+  `collection_frequency` now select `source` (kept last in the row tuples) and carry
+  `data-source`/`data-country` via a scope-to-country crosswalk, so the country and source
+  filters no longer silently skip the scope-keyed tables.

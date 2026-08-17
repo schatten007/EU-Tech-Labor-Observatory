@@ -643,22 +643,40 @@ def test_publish_builds_aggregate_page(tmp_path: Path) -> None:
     connection.execute(
         """
         create table posting_flows as
-        select 'jobtech-scope'::varchar as scope_id, 'day'::varchar as grain,
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'day'::varchar as grain,
                timestamp '2026-08-06 00:00:00' as bucket_start, true as is_suppressed,
                5::bigint as openings, cast(null as bigint) as closures,
                6::bigint as active_postings, 13::bigint as active_vacancies
+        union all
+        select 'jobtech', 'jobtech-scope', 'day', timestamp '2026-08-07 00:00:00', true,
+               cast(null as bigint), cast(null as bigint), cast(null as bigint),
+               cast(null as bigint)
+        union all
+        select 'jobtech', 'jobtech-scope', 'day', timestamp '2026-08-08 00:00:00', false,
+               4::bigint, 1::bigint, 9::bigint, 15::bigint
+        union all
+        select 'jobtech', 'jobtech-scope', 'day', timestamp '2026-08-09 00:00:00', false,
+               3::bigint, 1::bigint, 11::bigint, 17::bigint
+        union all
+        select 'jobtech', 'jobtech-scope', 'day', timestamp '2026-08-11 00:00:00', false,
+               2::bigint, 1::bigint, 13::bigint, 19::bigint
+        union all
+        select 'jobtech', 'jobtech-scope', 'week', timestamp '2026-08-03 00:00:00', false,
+               12::bigint, 2::bigint, 11::bigint, 17::bigint
         """
     )
     connection.execute(
         """
         create table posting_survival as
-        select 'jobtech-scope'::varchar as scope_id, 'active'::varchar as lifecycle_status,
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'active'::varchar as lifecycle_status,
                false as is_suppressed, true as any_right_censored,
                7::bigint as posting_count, 13::bigint as advertised_vacancies,
                0.0::double as median_duration_days, 0.0::double as p25_duration_days,
                1.0::double as p75_duration_days, 1::bigint as max_duration_days
         union all
-        select 'jobtech-scope', 'inferred_absence', true, false,
+        select 'jobtech', 'jobtech-scope', 'inferred_absence', true, false,
                cast(null as bigint), cast(null as bigint), cast(null as double),
                cast(null as double), cast(null as double), cast(null as bigint)
         """
@@ -666,11 +684,43 @@ def test_publish_builds_aggregate_page(tmp_path: Path) -> None:
     connection.execute(
         """
         create table collection_frequency as
-        select 'jobtech-scope'::varchar as scope_id, 3::bigint as complete_sweeps,
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               3::bigint as complete_sweeps,
                timestamp '2026-08-05 09:00:00' as first_observed_at,
                timestamp '2026-08-08 09:00:00' as last_observed_at,
                36.0::double as median_interval_hours, 48::integer as freshness_threshold_hours,
                'Keyword-scoped'::varchar as coverage_limitations
+        """
+    )
+    connection.execute(
+        """
+        create table source_coverage as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'sweep-one'::varchar as sweep_id,
+               'SE'::varchar as country, timestamp '2026-08-06 09:00:00' as observed_at,
+               11::bigint as expected_rows, 11::bigint as observed_rows,
+               'fresh'::varchar as freshness_status, 'covered'::varchar as coverage_status,
+               3.0::double as freshness_age_hours,
+               'Keyword-scoped'::varchar as coverage_limitations
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-zero', 'SE', timestamp '2026-08-05 09:00:00',
+               9::bigint, 9::bigint, 'stale', 'covered', 27.0::double, 'Keyword-scoped'
+        union all
+        select 'jobtech', 'jobtech-archive', 'sweep-old', 'SE', timestamp '2026-07-01 09:00:00',
+               12::bigint, 9::bigint, 'stale', 'invalid', 900.0::double, 'Keyword-scoped'
+        """
+    )
+    connection.execute(
+        """
+        create table latest_complete_sweeps as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               timestamp '2026-08-06 09:00:00' as observed_at,
+               'https://data.jobtechdev.se/dataservice/jobsearch/'::varchar as licence_reference,
+               'official-public-api'::varchar as access_method,
+               'JobSearch current ads'::varchar as source_version,
+               'NUTS-2024'::varchar as nuts_version,
+               'v30'::varchar as jobtech_taxonomy_version, '1.2.1'::varchar as esco_version,
+               3::bigint as row_count
         """
     )
     connection.close()
@@ -694,6 +744,43 @@ def test_publish_builds_aggregate_page(tmp_path: Path) -> None:
     assert "never as time to hire" in page
     assert "Time to hire" not in page
     assert "suppressed" in page
+    # Iteration 10: six sections, persistent filters, server-rendered charts, accessibility.
+    for slug, heading in publish.SECTIONS:
+        assert f'<h2 id="{slug}-heading">{heading}</h2>' in page
+        assert f'data-tab="{slug}"' in page
+    assert "data-filters" in page
+    assert 'name="occupation"' in page
+    assert 'name="skill"' in page
+    assert "Reset filters" in page
+    assert 'data-country="SE"' in page
+    assert 'data-source="jobtech"' in page
+    assert 'data-dimension="skill"' in page
+    assert 'data-bucket="2026-08-07"' in page
+    assert 'role="img"' in page
+    assert "<title>Daily active postings within one source scope: jobtech-scope</title>" in page
+    assert "<polyline points=" in page
+    # One bucket is suppressed and one (2026-08-10) was never observed; both stay gaps.
+    assert "4 plotted bucket(s), peak 13, 2 bucket(s) left as gaps" in page
+    assert len(page.split('<polyline points="')[1].split('"')[0].split(" ")) == 2
+    assert 'scope="col"' in page
+    assert 'class="skip"' in page
+    assert 'role="region"' in page
+    assert "Stale data" in page
+    assert "Partial coverage" in page
+    assert "Download CSV" in page
+    assert 'data-csv="table-quality-coverage"' in page
+    assert "right-censored" in page
+    # Coverage is reduced to the latest sweep per scope, so the older sweep-zero row is not shown.
+    assert page.count('id="table-quality-coverage"') == 1
+    coverage_table = page.split('id="table-quality-coverage"')[1].split("</table>")[0]
+    assert coverage_table.count("data-row") == 2
+    assert "2026-08-05" not in coverage_table
+    assert "1 of 2" in page
+    assert "source scope(s) covered" in page
+    # Scope-keyed rows carry the filter keys, so country and source selectors reach them.
+    assert 'data-row data-source="jobtech" data-country="SE"' in page
+    assert "of this source\u2019s largest scope" in page
+    assert "Groups under 5 postings are suppressed." not in page
 
 
 def test_publish_handles_zero_only_aggregate(tmp_path: Path) -> None:
@@ -752,14 +839,15 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path) -> None:
     connection.execute(
         """
         create table posting_flows(
-            scope_id varchar, grain varchar, bucket_start timestamp, is_suppressed boolean,
-            openings bigint, closures bigint, active_postings bigint, active_vacancies bigint)
+            source varchar, scope_id varchar, grain varchar, bucket_start timestamp,
+            is_suppressed boolean, openings bigint, closures bigint, active_postings bigint,
+            active_vacancies bigint)
         """
     )
     connection.execute(
         """
         create table posting_survival(
-            scope_id varchar, lifecycle_status varchar, is_suppressed boolean,
+            source varchar, scope_id varchar, lifecycle_status varchar, is_suppressed boolean,
             any_right_censored boolean, posting_count bigint, advertised_vacancies bigint,
             median_duration_days double, p25_duration_days double, p75_duration_days double,
             max_duration_days bigint)
@@ -768,9 +856,26 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path) -> None:
     connection.execute(
         """
         create table collection_frequency(
-            scope_id varchar, complete_sweeps bigint, first_observed_at timestamp,
+            source varchar, scope_id varchar, complete_sweeps bigint, first_observed_at timestamp,
             last_observed_at timestamp, median_interval_hours double,
             freshness_threshold_hours integer, coverage_limitations varchar)
+        """
+    )
+    connection.execute(
+        """
+        create table source_coverage(
+            source varchar, scope_id varchar, sweep_id varchar, country varchar,
+            observed_at timestamp, expected_rows bigint, observed_rows bigint,
+            freshness_status varchar, coverage_status varchar, freshness_age_hours double,
+            coverage_limitations varchar)
+        """
+    )
+    connection.execute(
+        """
+        create table latest_complete_sweeps(
+            source varchar, scope_id varchar, observed_at timestamp, licence_reference varchar,
+            access_method varchar, source_version varchar, nuts_version varchar,
+            jobtech_taxonomy_version varchar, esco_version varchar, row_count bigint)
         """
     )
     connection.close()
@@ -782,3 +887,9 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path) -> None:
     assert "No mapped dimension results" in page
     assert "No trend results" in page
     assert "No survival results" in page
+    # Iteration 10: the remaining empty states and the filter bar still render.
+    assert "No coverage results" in page
+    assert "No provenance results" in page
+    assert "No missing mapping results" in page
+    assert "data-filters" in page
+    assert "no trend published for this scope" in page
