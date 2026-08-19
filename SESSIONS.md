@@ -17,6 +17,8 @@ than expanding the active increment.
 | 9 | 2026-08-17 | Complete | Add historical analytics: openings, active stock, and closures over time (day/week/month); posting survival and closure basis; postings vs advertised vacancies; small-count suppression; coverage and collection frequency. | `make sample && make check && make site` passed |
 | 10 | 2026-08-17 | Complete | Publish an accessible six-section dashboard: persistent filters with shareable hash URLs, server-rendered SVG trend charts, metric definitions, explicit empty/stale/partial-coverage/error states, and per-table CSV export. | `make check && make site` passed |
 | 11 | 2026-08-17 | Dashboard scope complete; user validation pending | Add the operations-facing dashboard scope of Iteration 11: Status run summary, Governance (licences, retention, privacy assessment, disclosure control, architecture, snapshot), a versioned methodology stamp, and an offline release-check gate over the built page. | `make check && make release-check` passed |
+| 11a | 2026-08-19 | Complete | First real collection: fix the collector's country assumption against the live JobTech payload, filter the sweep to Sweden at the source, and scope sample-only dbt tests out of `live-site`. | `make check && make sweep && make live-site` passed |
+
 
 ## Session Notes
 
@@ -254,4 +256,35 @@ than expanding the active increment.
   suppressed keying count is flagged, asset detection covers any fetching attribute, and the
   secret/email scans are case-insensitive and cover attribute values. Publish tests now pin
   `OBSERVATIONS_PATH` for both build-basis labels instead of depending on the ambient value.
+
+
+### 2026-08-19 - Iteration 11a
+
+- The first real sweep failed on its first hit. Live JobTech omits top-level `country_code` and
+  nests SCB code `199` (Sverige) in `workplace_address`, but the collector demanded ISO `SE`.
+  Only the synthetic fixture ever used `SE`, so the offline gate could never have caught this;
+  the normaliser now accepts both codes and still stores `SE`.
+- Platsbanken answers a Swedish keyword with a few genuinely foreign ads (1 Frankrike, 1 Danmark
+  out of 622). Sweden-only is an approval constraint, so the sweep now sends `country=199` and
+  lets the API exclude them. Dropping them locally instead would have broken the one-row-per-hit
+  and `row_count`/`total` reconciliation invariants, and would have reported partial coverage
+  forever. The scope id changed with the new parameter, which is correct: it is a different scope.
+- `make live-site` had never been run against live data and could not have succeeded. `dbt
+  build` ran four tests that assert facts about the synthetic sample (its zero-row sweep, its
+  stale scope, its exact closure timeline). They are tagged `sample_fixture` and excluded there;
+  `assert_source_coverage` was split so the real coverage and freshness invariants still run on
+  live partitions.
+- `assert_survival_logic` passed on the first live sweep only because both sides of the set
+  comparison were empty. It would have failed on the second sweep, once inferred closures existed.
+- Changing the scope params and the limitations text invalidated the generated sample, which is
+  built from the same two values, so `make sample` was re-run: without it `make site` would have
+  published a limitation sentence the collector can no longer produce. `assert_key_rotation_does_
+  not_close` turned out to be sample-pinned too (it matches one fixture timestamp), so it is tagged
+  and its live-safe half now exists as `assert_no_cross_key_closures`, which pins no date.
+- The page request is now derived from the recorded scope (`_search_params`) instead of a second
+  literal, because a manifest claiming "filtered to Sweden" must not be able to outlive the filter.
+  A test asserts the filter on the captured URL; verified it fails when the parameter is dropped.
+- First live partition: 620 rows over 7 pages, 620/620 rows covered, fresh at 0.06 h, and
+  `release_check` clean on the live page. `make check` stays green on the sample at 36 Python
+  tests and 163 dbt resources; `make live-site` runs 158 of them.
 

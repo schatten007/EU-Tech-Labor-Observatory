@@ -1,5 +1,8 @@
+{{ config(tags=['sample_fixture']) }}
+
 -- The synthetic timeline covers persistence, source-reported closure, and inferred
--- closure at the first later complete snapshot.
+-- closure at the first later complete snapshot. It is an exact-set assertion about the sample,
+-- so live-site excludes this tag: real closures are correct but are not these closures.
 
 with expected as (
     select

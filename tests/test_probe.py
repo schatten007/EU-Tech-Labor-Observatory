@@ -109,6 +109,43 @@ def test_jobtech_normalizer_requires_explicit_sweden_country() -> None:
         raise AssertionError("missing country must not be inferred as Sweden")
 
 
+def test_jobtech_normalizer_accepts_the_live_country_code_shape() -> None:
+    """The live API omits country_code and nests SCB code 199, not ISO SE, in the address."""
+    live_shape = hit("live-shape")
+    live_shape.pop("country_code")
+    live_shape["workplace_address"] = {
+        "municipality_code": "1380",
+        "region_code": "13",
+        "country": "Sverige",
+        "country_code": collect.JOBTECH_SWEDEN_COUNTRY_CODE,
+    }
+
+    row = collect.normalize_jobtech_hit(live_shape, "2026-08-15T00:00:00Z")
+
+    assert row["country"] == collect.JOBTECH_EXPECTED_COUNTRY
+
+
+def test_jobtech_normalizer_rejects_a_foreign_country_code() -> None:
+    """Platsbanken answers Swedish keywords with a few foreign ads; none may be collected."""
+    foreign = hit("foreign")
+    foreign.pop("country_code")
+    foreign["workplace_address"] = {"country": "Frankrike", "country_code": "60"}
+
+    try:
+        collect.normalize_jobtech_hit(foreign, "2026-08-15T00:00:00Z")
+    except ValueError as error:
+        assert "country_code SE" in str(error)
+    else:
+        raise AssertionError("a foreign posting must not be collected")
+
+
+def test_jobtech_scope_filters_the_search_to_sweden() -> None:
+    """The country filter must be part of the requested scope, not just a post-hoc check."""
+    _, _, scope_json = collect.collection_scope()
+
+    assert f'"country":"{collect.JOBTECH_SWEDEN_COUNTRY_CODE}"' in scope_json
+
+
 FIXTURE_REFERENCE = Path(__file__).parent / "fixtures" / "reference"
 FIXTURE_REVIEW = FIXTURE_REFERENCE / "review_sample.ndjson"
 
@@ -248,6 +285,8 @@ def test_collect_jobtech_sweep_paginates_and_publishes_manifest(tmp_path: Path) 
     assert manifest["expected_country"] == "SE"
     assert manifest["licence_reference"] == collect.JOBTECH_LICENCE_REFERENCE
     assert len(urls) == 2
+    # The manifest claims a Sweden-filtered sweep, so the request must actually carry the filter.
+    assert all(f"country={collect.JOBTECH_SWEDEN_COUNTRY_CODE}" in url for url in urls)
     partition = tmp_path / "collections" / "jobtech" / manifest["scope_id"] / manifest["sweep_id"]
     assert (partition / "observations.ndjson").exists()
     assert (

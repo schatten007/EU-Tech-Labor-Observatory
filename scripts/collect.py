@@ -42,10 +42,14 @@ JOBTECH_LICENCE_REFERENCE = "https://data.jobtechdev.se/dataservice/jobsearch/"
 JOBTECH_ACCESS_METHOD = "official-public-api"
 JOBTECH_APPROVAL_STATUS = "approved"
 JOBTECH_EXPECTED_COUNTRY = "SE"
+# ponytail: JobTech publishes SCB country codes, not ISO 3166, and 199 is Sverige. The same code
+# filters the search server-side, so the handful of foreign ads that match a Swedish keyword never
+# reach an approved Sweden-only sweep instead of aborting it mid-collection.
+JOBTECH_SWEDEN_COUNTRY_CODE = "199"
 JOBTECH_FRESHNESS_THRESHOLD_HOURS = 48
 JOBTECH_COVERAGE_LIMITATIONS = (
-    "Keyword-scoped Platsbanken postings; provider-default ordering is not a "
-    "transactional snapshot."
+    "Keyword-scoped Platsbanken postings filtered to Sweden; provider-default ordering is not "
+    "a transactional snapshot."
 )
 
 
@@ -98,10 +102,15 @@ def _canonical_json(value: Mapping[str, Any]) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
+def _search_params(query: str, page_size: int) -> dict[str, Any]:
+    """The one request a sweep sends, so the recorded scope cannot drift from the wire."""
+    return {"q": query, "limit": page_size, "country": JOBTECH_SWEDEN_COUNTRY_CODE}
+
+
 def _scope(query: str, page_size: int) -> tuple[str, str, str]:
     scope = {
         "endpoint": JOBTECH_SEARCH,
-        "params": {"q": query, "limit": page_size},
+        "params": _search_params(query, page_size),
         "ordering": "provider-default",
         "country": JOBTECH_EXPECTED_COUNTRY,
         "language": "sv",
@@ -193,9 +202,10 @@ def normalize_jobtech_hit(
     if not isinstance(address, dict):
         address = {}
 
-    country = hit.get("country_code") or address.get("country_code")
-    if country != JOBTECH_EXPECTED_COUNTRY:
-        raise ValueError("JobTech hit must have country_code SE")
+    raw_country = hit.get("country_code") or address.get("country_code")
+    if raw_country not in (JOBTECH_EXPECTED_COUNTRY, JOBTECH_SWEDEN_COUNTRY_CODE):
+        raise ValueError("JobTech hit must have country_code SE or 199")
+    country = JOBTECH_EXPECTED_COUNTRY
 
     enrichment = enrich_hit(hit, references)
     region = enrichment["region"]
@@ -635,7 +645,7 @@ def collect_jobtech_sweep(
 
         while total is None or page_index * page_size < total:
             offset = page_index * page_size
-            query_params = {"q": query, "offset": offset, "limit": page_size}
+            query_params = {**_search_params(query, page_size), "offset": offset}
             url = f"{JOBTECH_SEARCH}?{urlencode(query_params)}"
             payload = _request_page(
                 url,

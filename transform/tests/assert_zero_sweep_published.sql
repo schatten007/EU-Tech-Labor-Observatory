@@ -1,3 +1,7 @@
+{{ config(tags=['sample_fixture']) }}
+
+-- The zero-row sweep exists only in the synthetic sample, so live-site excludes this tag.
+
 select source, scope_id, sweep_id, active_postings
 from {{ ref('labour_demand_latest') }}
 where scope_id = 'jobtech-empty-scope'

@@ -67,9 +67,13 @@ reference:
 	uv run python -m scripts.build_reference
 
 # Offline preview of final, immutable live partitions only. This does not collect data.
+# tag:sample_fixture is excluded because those tests are exact assertions about the synthetic
+# sample (its zero-row sweep, its stale scope, its closure and key-rotation timeline): on live
+# partitions they cannot fire, so running them would only claim coverage they do not give. Every
+# untagged test still runs here, including coverage, freshness, grain, and suppression.
 live-site:
 	if not exist "data\raw\collections\jobtech" (echo Run make sweep before make live-site. & exit /b 1)
-	set "OBSERVATORY_REFERENCE_TIME=$(REFERENCE_TIME)" && set "OBSERVATIONS_PATH=data/raw/collections/jobtech/*/*/observations.ndjson" && set "MANIFESTS_PATH=data/raw/collections/jobtech/*/*/manifest.json" && $(DBT) build --project-dir transform
+	set "OBSERVATORY_REFERENCE_TIME=$(REFERENCE_TIME)" && set "OBSERVATIONS_PATH=data/raw/collections/jobtech/*/*/observations.ndjson" && set "MANIFESTS_PATH=data/raw/collections/jobtech/*/*/manifest.json" && $(DBT) build --project-dir transform --exclude tag:sample_fixture
 	set "OBSERVATIONS_PATH=data/raw/collections/jobtech/*/*/observations.ndjson" && set "MANIFESTS_PATH=data/raw/collections/jobtech/*/*/manifest.json" && uv run --offline python -m scripts.publish
 
 clean:
