@@ -287,4 +287,13 @@ than expanding the active increment.
 - First live partition: 620 rows over 7 pages, 620/620 rows covered, fresh at 0.06 h, and
   `release_check` clean on the live page. `make check` stays green on the sample at 36 Python
   tests and 163 dbt resources; `make live-site` runs 158 of them.
+- `live-site` and `clean` were cmd.exe-only and broke when make was started from Git Bash, where
+  recipes run under `/usr/bin/sh`. `if not exist ... (...)` is a syntax error there, and worse,
+  `set "VAR=value" &&` sets positional parameters instead of exporting, so dbt would have read the
+  synthetic sample while the footer claimed live partitions. The paths are now target-specific
+  `export`s, the sweep guard is a make-level `$(error)`, the timestamp comes from python instead of
+  powershell, and `clean` uses `shutil`. Verified identical results from PowerShell (cmd.exe) and
+  Git Bash (sh). `clean` also never worked: it omitted `--project-dir transform`.
+- Three sweeps in, the multi-sweep path is exercised for real: 14 `inferred_absence` closures,
+  survival rows, and day/week/month flow buckets, with every sweep `covered`.
 

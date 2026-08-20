@@ -11,15 +11,19 @@ DBT := uv run --offline dbt
 # synthetic sample. The flag is conditional so a clone without .env still works.
 UV_LIVE := uv run $(if $(wildcard .env),--env-file .env,)
 
-# Lazy on purpose: this powershell call runs only when live-site expands REFERENCE_TIME. An
-# exported OBSERVATORY_REFERENCE_TIME still wins, but it is read inside powershell and
-# shape-checked there, so a malformed value never reaches the recipe. Failure prints nothing.
-STAMP = $(shell powershell -NoProfile -Command "$$t = $$env:OBSERVATORY_REFERENCE_TIME; if (-not $$t) { $$t = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ') }; if ($$t -match '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$$') { $$t }")
+# Lazy on purpose: this runs only when live-site expands REFERENCE_TIME. An exported
+# OBSERVATORY_REFERENCE_TIME still wins, but python reads and shape-checks it, so the value never
+# passes through a shell. Python, not powershell, because recipes run under cmd.exe when make is
+# started from PowerShell and under sh when it is started from Git Bash.
+STAMP = $(shell uv run --offline python -c "import datetime,os,re;t=os.environ.get('OBSERVATORY_REFERENCE_TIME') or datetime.datetime.now(datetime.UTC).isoformat(timespec='seconds').replace('+00:00','Z');print(t if re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z',t) else '')")
 
-# Fail closed, because the silent path is the dangerous one: an empty stamp reaches cmd.exe as
-# set "VAR=", which UNSETS it, so dbt would fall back to its sample default and publish a live
-# sweep as fresh with a negative age. $(or) expands STAMP once, so one powershell call.
+# Fail closed, because the silent path is the dangerous one: an empty stamp would let dbt fall back
+# to its sample default and publish a live sweep as fresh with a negative age.
 REFERENCE_TIME = $(or $(STAMP),$(error could not resolve a valid UTC OBSERVATORY_REFERENCE_TIME; expected yyyy-mm-ddThh:mm:ssZ))
+
+# Expanded only inside the live-site recipe, so check and site never pay for the glob.
+LIVE_SWEEPS = $(wildcard data/raw/collections/jobtech/*/*/manifest.json)
+LIVE_READY = $(if $(LIVE_SWEEPS),$(words $(LIVE_SWEEPS)),$(error no stored sweeps found; run make sweep before make live-site))
 
 .PHONY: check lint types test evaluate dbt sample site release-check probe sweep reference live-site clean
 
@@ -71,11 +75,17 @@ reference:
 # sample (its zero-row sweep, its stale scope, its closure and key-rotation timeline): on live
 # partitions they cannot fire, so running them would only claim coverage they do not give. Every
 # untagged test still runs here, including coverage, freshness, grain, and suppression.
+# make exports the paths itself instead of the recipe setting them, because `set "VAR=value" &&`
+# is cmd.exe-only: under Git Bash's sh it sets positional parameters and silently leaves dbt
+# reading the synthetic sample while the page claims to be live.
+live-site: export OBSERVATIONS_PATH := data/raw/collections/jobtech/*/*/observations.ndjson
+live-site: export MANIFESTS_PATH := data/raw/collections/jobtech/*/*/manifest.json
+live-site: export OBSERVATORY_REFERENCE_TIME = $(REFERENCE_TIME)
 live-site:
-	if not exist "data\raw\collections\jobtech" (echo Run make sweep before make live-site. & exit /b 1)
-	set "OBSERVATORY_REFERENCE_TIME=$(REFERENCE_TIME)" && set "OBSERVATIONS_PATH=data/raw/collections/jobtech/*/*/observations.ndjson" && set "MANIFESTS_PATH=data/raw/collections/jobtech/*/*/manifest.json" && $(DBT) build --project-dir transform --exclude tag:sample_fixture
-	set "OBSERVATIONS_PATH=data/raw/collections/jobtech/*/*/observations.ndjson" && set "MANIFESTS_PATH=data/raw/collections/jobtech/*/*/manifest.json" && uv run --offline python -m scripts.publish
+	@echo publishing from $(LIVE_READY) stored sweeps
+	$(DBT) build --project-dir transform --exclude tag:sample_fixture
+	uv run --offline python -m scripts.publish
 
 clean:
-	$(DBT) clean
-	rm -rf .mypy_cache .ruff_cache .pytest_cache
+	$(DBT) clean --project-dir transform
+	uv run --offline python -c "import shutil;[shutil.rmtree(p,ignore_errors=True) for p in ('.mypy_cache','.ruff_cache','.pytest_cache')]"

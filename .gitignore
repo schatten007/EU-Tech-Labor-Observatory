@@ -39,6 +39,8 @@ transform/target/
 transform/dbt_packages/
 transform/logs/
 transform/.user.yml
+# A dbt call without --project-dir writes here; never commit it.
+logs/
 
 # ── dlt ──────────────────────────────────────────────────────────────────────
 .dlt/pipelines/
