@@ -24,6 +24,14 @@ def hit(identifier: str) -> dict[str, object]:
     }
 
 
+def data_it_hit(identifier: str, concept_id: str | None = None) -> dict[str, object]:
+    """A hit as the occupation-field search returns it: the filtered field is echoed back."""
+    return {
+        **hit(identifier),
+        "occupation_field": {"concept_id": concept_id or collect.JOBTECH_DATA_IT_FIELD},
+    }
+
+
 def fake_clock() -> datetime:
     return datetime(2026, 8, 15, 0, 0, tzinfo=UTC)
 
@@ -144,6 +152,53 @@ def test_jobtech_scope_filters_the_search_to_sweden() -> None:
     _, _, scope_json = collect.collection_scope()
 
     assert f'"country":"{collect.JOBTECH_SWEDEN_COUNTRY_CODE}"' in scope_json
+
+
+def test_occupation_field_scope_replaces_the_keyword_filter() -> None:
+    """Two scopes, one filter each: never both on one request, never merged into one scope."""
+    keyword_id, _, keyword_json = collect.collection_scope()
+    field_id, _, field_json = collect.collection_scope(
+        occupation_field=collect.JOBTECH_DATA_IT_FIELD
+    )
+
+    assert f'"occupation-field":"{collect.JOBTECH_DATA_IT_FIELD}"' in field_json
+    assert '"q"' not in field_json
+    assert '"q":"utvecklare"' in keyword_json
+    assert "occupation-field" not in keyword_json
+    assert field_id != keyword_id
+    assert f'"country":"{collect.JOBTECH_SWEDEN_COUNTRY_CODE}"' in field_json
+
+
+def test_keyword_scope_id_is_frozen() -> None:
+    """Scope definitions are append-only: editing this one orphans every posting already under it,
+    and an orphaned posting can never be closed, so it would render as active forever."""
+    assert collect.collection_scope()[0] == "jobtech-f5cf1d409aa51fad"
+
+
+def test_scope_refuses_two_selectors_at_once() -> None:
+    try:
+        collect.collection_scope("utvecklare", occupation_field=collect.JOBTECH_DATA_IT_FIELD)
+    except ValueError as error:
+        assert "not both" in str(error)
+    else:
+        raise AssertionError("a scope must carry exactly one filter")
+
+
+def test_scope_refuses_an_occupation_field_that_is_not_a_concept_id() -> None:
+    """A scope is append-only, so a typo is permanent: a misspelled field the API answers with
+    zero hits would publish a complete empty partition under a new scope that renders forever."""
+    for typo in (
+        collect.JOBTECH_DATA_IT_FIELD + "X",
+        f" {collect.JOBTECH_DATA_IT_FIELD} ",
+        "apaJ2jaLuF",
+        "",
+    ):
+        try:
+            collect.collection_scope(occupation_field=typo)
+        except ValueError as error:
+            assert "concept id" in str(error)
+        else:
+            raise AssertionError(f"{typo!r} must not be accepted as an occupation field")
 
 
 FIXTURE_REFERENCE = Path(__file__).parent / "fixtures" / "reference"
@@ -293,6 +348,290 @@ def test_collect_jobtech_sweep_paginates_and_publishes_manifest(tmp_path: Path) 
         json.loads((partition / "manifest.json").read_text(encoding="utf-8"))["status"]
         == "complete"
     )
+
+
+def test_collect_jobtech_sweep_requests_the_occupation_field_on_the_wire(tmp_path: Path) -> None:
+    """The scope claims an occupation field, so the request must actually carry that parameter."""
+    urls: list[str] = []
+
+    def transport(url: str, timeout: float) -> dict[str, Any]:
+        del timeout
+        urls.append(url)
+        return {"total": {"value": 1}, "hits": [data_it_hit("one")]}
+
+    manifest = collect.collect_jobtech_sweep(
+        tmp_path,
+        KEY,
+        occupation_field=collect.JOBTECH_DATA_IT_FIELD,
+        observed_at="2026-08-15T00:00:00Z",
+        transport=transport,
+        sleeper=lambda _: None,
+        clock=fake_clock,
+        monotonic_now=lambda: 0.0,
+        sweep_id="20260815T000000Z-datait",
+    )
+
+    assert manifest["status"] == "complete"
+    assert manifest["row_count"] == 1
+    assert urls and all(f"occupation-field={collect.JOBTECH_DATA_IT_FIELD}" in url for url in urls)
+    assert all("q=" not in url for url in urls)
+    assert all(f"country={collect.JOBTECH_SWEDEN_COUNTRY_CODE}" in url for url in urls)
+    assert manifest["scope_id"] != collect.collection_scope()[0]
+    assert manifest["coverage_limitations"] == collect.JOBTECH_OCCUPATION_FIELD_LIMITATIONS
+
+
+def test_collect_jobtech_sweep_rejects_an_ignored_occupation_field_filter(tmp_path: Path) -> None:
+    """The API answers an unknown parameter with everything and no error, so a page where the
+    requested field is a minority means the sweep collected Sweden under a narrow scope name."""
+    other_fields = ("E7hm_BLq_fqZ", "j7Cq_ZJe_grK", "ARvv_Cbu_ptx")
+
+    def transport(url: str, timeout: float) -> dict[str, Any]:
+        del url, timeout
+        return {
+            "total": {"value": 10},
+            "hits": [data_it_hit("in-scope")]
+            + [
+                data_it_hit(f"off-{index}", other_fields[index % len(other_fields)])
+                for index in range(9)
+            ],
+        }
+
+    try:
+        collect.collect_jobtech_sweep(
+            tmp_path,
+            KEY,
+            occupation_field=collect.JOBTECH_DATA_IT_FIELD,
+            observed_at="2026-08-15T00:00:00Z",
+            page_size=10,
+            transport=transport,
+            sleeper=lambda _: None,
+            clock=fake_clock,
+            monotonic_now=lambda: 0.0,
+            sweep_id="20260815T000000Z-ignored",
+        )
+    except collect.CollectionError as error:
+        assert "did not apply the occupation-field filter: only 1 of 10" in str(error)
+    else:
+        raise AssertionError("a silently ignored filter must abort the sweep")
+
+    state = tmp_path / "collection-state" / "20260815T000000Z-ignored" / "manifest.json"
+    assert json.loads(state.read_text(encoding="utf-8"))["status"] == "failed"
+    assert not (tmp_path / "collections").exists()
+
+
+def test_collect_jobtech_sweep_rejects_hits_without_the_requested_field(tmp_path: Path) -> None:
+    """An absent occupation_field is the shape a widened, unfiltered response actually has."""
+
+    def transport(url: str, timeout: float) -> dict[str, Any]:
+        del url, timeout
+        return {"total": {"value": 10}, "hits": [hit(f"plain-{index}") for index in range(10)]}
+
+    try:
+        collect.collect_jobtech_sweep(
+            tmp_path,
+            KEY,
+            occupation_field=collect.JOBTECH_DATA_IT_FIELD,
+            observed_at="2026-08-15T00:00:00Z",
+            page_size=10,
+            transport=transport,
+            sleeper=lambda _: None,
+            clock=fake_clock,
+            monotonic_now=lambda: 0.0,
+            sweep_id="20260815T000000Z-nofield",
+        )
+    except collect.CollectionError as error:
+        assert "only 0 of 10" in str(error)
+    else:
+        raise AssertionError("hits missing the filtered field must abort the sweep")
+
+
+def test_occupation_field_sweep_tolerates_adjacent_occupations(tmp_path: Path) -> None:
+    """Measured live: the source's field filter returns 97-100 of 100 in-field, the rest adjacent
+    (a Säkerhetsingenjör answering a Data/IT search). That is the filter working, not failing."""
+    manifest = collect.collect_jobtech_sweep(
+        tmp_path,
+        KEY,
+        occupation_field=collect.JOBTECH_DATA_IT_FIELD,
+        observed_at="2026-08-15T00:00:00Z",
+        page_size=10,
+        transport=lambda url, timeout: {
+            "total": {"value": 10},
+            "hits": [data_it_hit(f"in-{index}") for index in range(9)]
+            + [data_it_hit("adjacent", "E7hm_BLq_fqZ")],
+        },
+        sleeper=lambda _: None,
+        clock=fake_clock,
+        monotonic_now=lambda: 0.0,
+        sweep_id="20260815T000000Z-adjacent",
+    )
+
+    assert manifest["status"] == "complete"
+    assert manifest["row_count"] == 10
+    # The postings are published, so the limitation has to say the scope is not pure.
+    assert "adjacent occupations" in str(manifest["coverage_limitations"])
+
+
+def test_occupation_field_sweep_does_not_judge_the_filter_on_a_short_page(tmp_path: Path) -> None:
+    """A final page is total % page_size rows long, so one adjacent hit out of two is exactly the
+    majority threshold. Refusing there would strand the scope: the checkpoint is resumable, so the
+    same short page would be requested and refused again on every retry."""
+    responses: dict[int, dict[str, Any]] = {
+        0: {"total": {"value": 12}, "hits": [data_it_hit(f"in-{index}") for index in range(10)]},
+        10: {
+            "total": {"value": 12},
+            "hits": [data_it_hit("last-in-field"), data_it_hit("last-adjacent", "E7hm_BLq_fqZ")],
+        },
+    }
+
+    def transport(url: str, timeout: float) -> dict[str, Any]:
+        del timeout
+        return responses[int(url.split("offset=")[1].split("&")[0])]
+
+    manifest = collect.collect_jobtech_sweep(
+        tmp_path,
+        KEY,
+        occupation_field=collect.JOBTECH_DATA_IT_FIELD,
+        observed_at="2026-08-15T00:00:00Z",
+        page_size=10,
+        transport=transport,
+        sleeper=lambda _: None,
+        clock=fake_clock,
+        monotonic_now=lambda: 0.0,
+        sweep_id="20260815T000000Z-shortpage",
+    )
+
+    assert manifest["status"] == "complete"
+    assert manifest["row_count"] == 12
+
+
+def test_occupation_field_sweep_accepts_a_zero_row_sweep(tmp_path: Path) -> None:
+    """An empty page proves nothing about the filter and must not be read as a widened sweep."""
+    manifest = collect.collect_jobtech_sweep(
+        tmp_path,
+        KEY,
+        occupation_field=collect.JOBTECH_DATA_IT_FIELD,
+        observed_at="2026-08-15T00:00:00Z",
+        transport=lambda url, timeout: {"total": {"value": 0}, "hits": []},
+        sleeper=lambda _: None,
+        clock=fake_clock,
+        monotonic_now=lambda: 0.0,
+        sweep_id="20260815T000000Z-datait-empty",
+    )
+
+    assert manifest["status"] == "complete"
+    assert manifest["row_count"] == 0
+
+
+def test_keyword_sweep_ignores_the_occupation_field_of_its_hits(tmp_path: Path) -> None:
+    """A keyword sweep never asked about occupation fields, so a mixed answer is correct."""
+    manifest = collect.collect_jobtech_sweep(
+        tmp_path,
+        KEY,
+        observed_at="2026-08-15T00:00:00Z",
+        transport=lambda url, timeout: {
+            "total": {"value": 2},
+            "hits": [data_it_hit("one", "unrelated"), hit("two")],
+        },
+        sleeper=lambda _: None,
+        clock=fake_clock,
+        monotonic_now=lambda: 0.0,
+        sweep_id="20260815T000000Z-keyword",
+    )
+
+    assert manifest["row_count"] == 2
+    assert manifest["scope_id"] == collect.collection_scope()[0]
+    assert manifest["coverage_limitations"] == collect.JOBTECH_COVERAGE_LIMITATIONS
+
+
+def test_collect_jobtech_sweep_resumes_an_occupation_field_scope(tmp_path: Path) -> None:
+    """Resume must rehydrate the selector the saved scope carries. Defaulting to the keyword query
+    would resume under a different scope_id and fail the checkpoint's scope comparison."""
+    responses: dict[int, dict[str, Any]] = {
+        0: {"total": {"value": 2}, "hits": [data_it_hit("one")]},
+        1: {"total": {"value": 2}, "hits": [data_it_hit("two")]},
+    }
+    calls: list[int] = []
+
+    def transport(url: str, timeout: float) -> dict[str, Any]:
+        del timeout
+        offset = int(url.split("offset=")[1].split("&")[0])
+        calls.append(offset)
+        if offset == 1 and calls.count(1) == 1:
+            raise TimeoutError("interrupt page two")
+        return responses[offset]
+
+    for resume in (False, True):
+        try:
+            manifest = collect.collect_jobtech_sweep(
+                tmp_path,
+                KEY,
+                # The resumed call passes no selector at all: it has to read one back from the
+                # checkpoint, which is the whole point of the test.
+                occupation_field=None if resume else collect.JOBTECH_DATA_IT_FIELD,
+                observed_at=None if resume else "2026-08-15T00:00:00Z",
+                page_size=None if resume else 1,
+                transport=transport,
+                sleeper=lambda _: None,
+                clock=fake_clock,
+                monotonic_now=lambda: 0.0,
+                sweep_id="20260815T000000Z-datait-resume",
+                policy=collect.RetryPolicy(max_attempts=1, deadline_s=10),
+                resume=resume,
+            )
+        except collect.CollectionError:
+            assert not resume, "the resumed run must not fail"
+            manifest = {}
+
+    assert manifest["status"] == "complete"
+    assert manifest["row_count"] == 2
+    assert '"occupation-field"' in str(manifest["scope_json"])
+    assert '"q"' not in str(manifest["scope_json"])
+
+
+def test_collect_jobtech_sweep_refuses_a_scope_it_cannot_traverse(tmp_path: Path) -> None:
+    """Measured live: Data/IT is 2589 ads and the API refuses offset > 2000, so 489 of them are
+    unreachable. Publishing the reachable prefix as a complete sweep would close all 489 as
+    inferred absences on the next sweep, so the sweep must refuse before writing anything."""
+
+    def transport(url: str, timeout: float) -> dict[str, Any]:
+        del url, timeout
+        return {"total": {"value": 2589}, "hits": [data_it_hit("one")]}
+
+    try:
+        collect.collect_jobtech_sweep(
+            tmp_path,
+            KEY,
+            occupation_field=collect.JOBTECH_DATA_IT_FIELD,
+            observed_at="2026-08-15T00:00:00Z",
+            transport=transport,
+            sleeper=lambda _: None,
+            clock=fake_clock,
+            monotonic_now=lambda: 0.0,
+            sweep_id="20260815T000000Z-unreachable",
+        )
+    except collect.CollectionError as error:
+        assert "only 2100 are reachable" in str(error)
+    else:
+        raise AssertionError("an untraversable scope must not be collected")
+
+    assert not (tmp_path / "collections").exists()
+    state = tmp_path / "collection-state" / "20260815T000000Z-unreachable"
+    assert not (state / "pages").exists()
+
+
+def test_reachable_window_follows_the_page_size_grid() -> None:
+    """Offsets land on multiples of page_size, so rounding the cap up would let a non-divisor page
+    size pass the check and then die at the first offset above 2000 with the pages already saved."""
+    collect._verify_reachable(2100, 100)
+    collect._verify_reachable(2010, 30)
+    collect._verify_reachable(2001, 1)
+    for total, page_size, reachable in ((2101, 100, 2100), (2011, 30, 2010), (2002, 1, 2001)):
+        try:
+            collect._verify_reachable(total, page_size)
+        except collect.CollectionError as error:
+            assert f"only {reachable} are reachable" in str(error)
+        else:
+            raise AssertionError(f"{total} rows at page size {page_size} is not traversable")
 
 
 def test_collect_jobtech_sweep_supports_empty_complete_sweep(tmp_path: Path) -> None:

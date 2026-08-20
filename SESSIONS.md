@@ -18,6 +18,7 @@ than expanding the active increment.
 | 10 | 2026-08-17 | Complete | Publish an accessible six-section dashboard: persistent filters with shareable hash URLs, server-rendered SVG trend charts, metric definitions, explicit empty/stale/partial-coverage/error states, and per-table CSV export. | `make check && make site` passed |
 | 11 | 2026-08-17 | Dashboard scope complete; user validation pending | Add the operations-facing dashboard scope of Iteration 11: Status run summary, Governance (licences, retention, privacy assessment, disclosure control, architecture, snapshot), a versioned methodology stamp, and an offline release-check gate over the built page. | `make check && make release-check` passed |
 | 11a | 2026-08-19 | Complete | First real collection: fix the collector's country assumption against the live JobTech payload, filter the sweep to Sweden at the source, and scope sample-only dbt tests out of `live-site`. | `make check && make sweep && make live-site` passed |
+| 12 | 2026-08-20 | Collector complete; second scope blocked by the source | Add occupation-field scopes beside the keyword scope, verify on the wire that the source actually applied the requested filter, and refuse a scope whose rows cannot all be reached. The Data/IT scope is refused: 2589 records against a 2100-record traversal window. | `make check && make sweep && make live-site && make release-check` passed |
 
 
 ## Session Notes
@@ -296,4 +297,44 @@ than expanding the active increment.
   Git Bash (sh). `clean` also never worked: it omitted `--project-dir transform`.
 - Three sweeps in, the multi-sweep path is exercised for real: 14 `inferred_absence` closures,
   survival rows, and day/week/month flow buckets, with every sweep `covered`.
+
+### 2026-08-20 - Iteration 12
+
+- A scope is now a keyword *or* an occupation field, never both: `_selector` reduces the two
+  selectors to one and `_search_params` stays the single source for the recorded scope and the
+  wire. The keyword `scope_id` is byte-identical (`jobtech-f5cf1d409aa51fad`, pinned by a test) and
+  `make sample` produced no diff, so the four stored keyword sweeps are not orphaned.
+- Resume rehydrates whichever selector the saved scope carries. Defaulting to `q` would have
+  restarted an occupation-field sweep under a different `scope_id` and failed its own checkpoint.
+- The filter guard is a majority test, not equality, because the first version was wrong on live
+  data. Measured with `occupation-field=apaJ_2ja_LuF`: page 0 was 100/100 in-field, page 2 was
+  97/100 — the source counts adjacent occupations as part of the query (a `Säkerhetsingenjör`
+  answers a Data/IT search). An ignored parameter looks nothing like that: the camelCase name
+  returned all 40,649 Swedish ads, where Data/IT is 6%. So the sweep aborts below a simple
+  majority, and the occupation-field `coverage_limitations` now says the scope is not pure.
+- **The Data/IT scope cannot be collected and was not opened.** The search API answers any
+  `offset > 2000` with HTTP 400 whatever the limit (`limit=1&offset=2099` is a 400), so one query
+  reaches at most 2100 records; Data/IT + country=199 reports 2589. The first attempt collected 21
+  pages and died at `offset=2100`. Publishing that prefix as complete would close the 489 unseen
+  postings as `inferred_absence` on the next sweep and invent a duration for each, so
+  `_verify_reachable` now refuses the sweep on its first page, before any page is written.
+- Splitting the field is the open decision, not a detail: slices each need to be independently
+  complete, and every slice is its own `scope_hash`, so "never sum across scopes" would forbid a
+  Data/IT total unless disjointness is proven — and the 3% cross-field bleed above shows the
+  source's own grouping is not clean. Search `stats=occupation-group` is a noisy top-N (5 values,
+  a duplicated term, summing 2031 of 2589), so a group inventory has to come from the Taxonomy
+  API. Largest group measured: `DJh5_yyF_hEM` at 1157, comfortably inside the window.
+- `make check` green at 50 Python tests and 163 dbt resources (no dbt resource added, so the
+  `USER_MANUAL.md` PASS count is unchanged); `make sweep` still lands in the keyword scope (628
+  rows, 7 pages, fifth partition); `make live-site` runs 158 and `release_check` is clean.
+- Review caught three holes in the new guards, all now closed with tests. The reachable window has
+  to follow the page-size grid (`2000 // page_size * page_size + page_size`), because offsets only
+  land on multiples of the page size and rounding up let a non-divisor size pass the check and die
+  at offset 2010 with 67 pages already written. The filter majority test now skips pages shorter
+  than `JOBTECH_FILTER_MIN_SAMPLE`, because a two-row final page with one adjacent hit is exactly
+  the threshold and the resumable checkpoint would refuse the same page forever. And an
+  occupation field is now shape-checked against the concept-id format before any request: a typo
+  the API answers with zero hits would have published a complete empty partition under a new
+  scope, which is the one case the filter guard cannot see and which append-only scopes make
+  permanent.
 

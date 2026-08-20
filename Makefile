@@ -25,7 +25,7 @@ REFERENCE_TIME = $(or $(STAMP),$(error could not resolve a valid UTC OBSERVATORY
 LIVE_SWEEPS = $(wildcard data/raw/collections/jobtech/*/*/manifest.json)
 LIVE_READY = $(if $(LIVE_SWEEPS),$(words $(LIVE_SWEEPS)),$(error no stored sweeps found; run make sweep before make live-site))
 
-.PHONY: check lint types test evaluate dbt sample site release-check probe sweep reference live-site clean
+.PHONY: check lint types test evaluate dbt sample site release-check probe sweep sweep-datait sweep-all reference live-site clean
 
 check: lint types test evaluate dbt
 
@@ -62,9 +62,22 @@ release-check: site
 probe:
 	uv run python -m scripts.probe --live
 
-# NOT part of check. Collects one complete canonical JobTech query sweep.
+# NOT part of check. Collects one complete canonical JobTech keyword sweep.
 sweep:
 	$(UV_LIVE) python -m scripts.collect sweep
+
+# The id is read back from the collector rather than repeated here: a copy that drifted would
+# still collect happily, just under a third scope nobody meant to open. Lazy, so only a live
+# sweep pays for the call. An empty value makes argparse refuse the run instead of widening it.
+JOBTECH_DATA_IT_FIELD = $(shell uv run --offline python -c "from scripts.collect import JOBTECH_DATA_IT_FIELD as field;print(field)")
+
+# NOT part of check. The second scope: JobTech's own Data/IT occupation field, ~26 pages.
+sweep-datait:
+	$(UV_LIVE) python -m scripts.collect sweep --occupation-field $(JOBTECH_DATA_IT_FIELD)
+
+# Both scopes, serially (do not run this under -j; two live sweeps would race the same API).
+# Never retire a scope: an abandoned scope's postings can never be closed and render forever.
+sweep-all: sweep sweep-datait
 
 # NOT part of check. Rebuilds pinned reference crosswalks from the JobTech Taxonomy API.
 reference:
