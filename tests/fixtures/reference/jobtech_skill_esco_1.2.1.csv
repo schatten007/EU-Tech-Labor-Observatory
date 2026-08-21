@@ -2,3 +2,8 @@ source_concept_id,source_label,target_uri,target_label,relation,confidence
 skill-python,Python,http://data.europa.eu/esco/skill/fixture-python,Python,exact-match,high
 skill-sql,SQL,http://data.europa.eu/esco/skill/fixture-sql,SQL,exact-match,high
 skill-cloud,Moln,http://data.europa.eu/esco/skill/fixture-cloud,cloud technologies,close-match,low
+skill-tiebreak,Behållartekniker,http://data.europa.eu/esco/skill/fixture-tiebreak-exact,use containerisation,exact-match,high
+skill-tiebreak,Behållartekniker,http://data.europa.eu/esco/skill/fixture-tiebreak-close,Docker,close-match,low
+skill-tiebreak,Behållartekniker,http://data.europa.eu/esco/skill/fixture-tiebreak-broad,deployment tooling,broad-match,low
+skill-two-exact,Databasdesign,http://data.europa.eu/esco/skill/fixture-two-exact-a,database design,exact-match,high
+skill-two-exact,Databasdesign,http://data.europa.eu/esco/skill/fixture-two-exact-b,data modelling,exact-match,high

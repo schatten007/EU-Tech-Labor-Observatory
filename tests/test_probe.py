@@ -242,6 +242,53 @@ def test_enrichment_keeps_mapping_states_distinct() -> None:
     assert absent["skills"][0]["status"] == "not_present"
 
 
+def test_sole_exact_match_resolves_a_multi_candidate_concept() -> None:
+    """A multi-candidate concept stays refused unless exactly one candidate is an exact match."""
+    refs = enrich.load_references(FIXTURE_REFERENCE)
+    exact_occupation = "http://data.europa.eu/esco/occupation/fixture-tiebreak-exact"
+    exact_skill = "http://data.europa.eu/esco/skill/fixture-tiebreak-exact"
+    tiebroken = enrich.enrich_hit(
+        {
+            "occupation": {"concept_id": "occ-tiebreak"},
+            "must_have": {"skills": [{"concept_id": "skill-tiebreak"}]},
+        },
+        refs,
+    )
+    conflicted = enrich.enrich_hit(
+        {
+            "occupation": {"concept_id": "occ-two-exact"},
+            "must_have": {"skills": [{"concept_id": "skill-two-exact"}]},
+        },
+        refs,
+    )
+    single = enrich.enrich_hit(
+        {
+            "occupation": {"concept_id": "occ-low"},
+            "must_have": {"skills": [{"concept_id": "skill-cloud"}]},
+        },
+        refs,
+    )
+    no_exact = enrich.enrich_hit({"occupation": {"concept_id": "occ-ambiguous"}}, refs)
+
+    assert tiebroken["occupation"]["status"] == "mapped"
+    assert tiebroken["occupation"]["method"] == "exact_match_tiebreak"
+    assert tiebroken["occupation"]["uri"] == exact_occupation
+    assert tiebroken["skills"][0]["status"] == "mapped"
+    assert tiebroken["skills"][0]["method"] == "exact_match_tiebreak"
+    assert tiebroken["skills"][0]["uri"] == exact_skill
+    # Two stated equivalences cannot both be the mapping, so the conflict is published, not picked.
+    assert conflicted["occupation"]["status"] == "ambiguous"
+    assert conflicted["occupation"]["uri"] is None
+    assert conflicted["occupation"]["method"] == "no_match"
+    assert conflicted["skills"][0]["status"] == "ambiguous"
+    assert conflicted["skills"][0]["uri"] is None
+    # The single-candidate and no-exact-match paths keep their previous outcomes.
+    assert single["occupation"]["status"] == "low_confidence"
+    assert single["occupation"]["method"] == "crosswalk"
+    assert single["skills"][0]["status"] == "low_confidence"
+    assert no_exact["occupation"]["status"] == "ambiguous"
+
+
 def test_municipality_prefix_resolves_full_swedish_coverage() -> None:
     refs = enrich.load_references(FIXTURE_REFERENCE)
     goteborg = enrich.enrich_hit({"workplace_address": {"municipality_code": "1480"}}, refs)
@@ -270,10 +317,14 @@ def test_committed_reference_has_no_placeholder_uris() -> None:
         "occ-manual",
         "occ-ambiguous",
         "occ-low",
+        "occ-tiebreak",
+        "occ-two-exact",
         "skill-python",
         "skill-manual",
         "skill-cloud",
         "skill-unknown",
+        "skill-tiebreak",
+        "skill-two-exact",
     }
     for name in ("jobtech_occupation_esco_1.2.1.csv", "jobtech_skill_esco_1.2.1.csv"):
         with (reference / name).open(encoding="utf-8") as handle:
@@ -1021,6 +1072,21 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
     )
     connection.execute(
         """
+        create table mapping_coverage_latest as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'sweep-one'::varchar as sweep_id, 'region'::varchar as dimension,
+               3::bigint as postings_total, 3::bigint as postings_with_source_value,
+               2::bigint as postings_mapped, 'NUTS-2024'::varchar as taxonomy_version
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', 'occupation', 3::bigint, 2::bigint,
+               1::bigint, '1.2.1'
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', 'skill', 3::bigint, 2::bigint, 1::bigint,
+               '1.2.1'
+        """
+    )
+    connection.execute(
+        """
         create table posting_flows as
         select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
                'day'::varchar as grain,
@@ -1179,6 +1245,22 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
     # A masked group hides its vacancy and duration figures too, so the page must not promise
     # more than that.
     assert "a true zero posting count stays visible" in page
+    # Iteration 13: every ranking states the postings it was drawn from, so a top-N list cannot
+    # be read as the whole sweep. Counts, never percentages.
+    assert page.count('class="denominator"') == 2
+    # The selection rule is stated on the page, because the methodology version claims to cover
+    # the mapping rules described here. Figures published under 1.0 used the stricter rule.
+    assert "exactly one of them is an exact match, that one is used" in page
+    assert publish.METHODOLOGY_VERSION != "1.0"
+    assert (
+        "Ranked from 1 mapped posting(s) of 3 in the latest sweep; 2 carry a structured occupation."
+        in page
+    )
+    assert (
+        "Ranked from 1 mapped posting(s) of 3 in the latest sweep; 2 carry a structured skill."
+        in page
+    )
+    assert "%" not in page.split('class="denominator"')[1].split("</p>")[0]
     problems = release_check.check_page(page)
     # This fixture writes posting_flows directly, so its small counts never pass through the dbt
     # mask and the disclosure rule has to see them. Every other release rule must pass.
@@ -1244,6 +1326,14 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path, monkeypatch: Monkey
     )
     connection.execute(
         """
+        create table mapping_coverage_latest(
+            source varchar, scope_id varchar, sweep_id varchar, dimension varchar,
+            postings_total bigint, postings_with_source_value bigint, postings_mapped bigint,
+            taxonomy_version varchar)
+        """
+    )
+    connection.execute(
+        """
         create table posting_flows(
             source varchar, scope_id varchar, grain varchar, bucket_start timestamp,
             is_suppressed boolean, openings bigint, closures bigint, active_postings bigint,
@@ -1301,7 +1391,29 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path, monkeypatch: Monkey
     assert "no trend published for this scope" in page
     assert "built from stored collection partitions (data/raw/collections/jobtech" in page
     assert "built from the synthetic sample" not in page
+    # No coverage row means no denominator to state, and saying so beats printing a bare zero.
+    assert page.count('class="denominator"') == 2
+    assert "so this occupation ranking has no stated denominator" in page
+    assert "so this skill ranking has no stated denominator" in page
     assert release_check.check_page(page) == []
+
+
+def test_publish_refuses_to_pool_two_collecting_scopes() -> None:
+    """The rankings and the mapping-quality table pool scopes, so a second one stops the build."""
+    one: list[publish.MappingCoverageRow] = [("jobtech", "jobtech-scope", "occupation", 3, 2, 1)]
+    zero_row_scope = [*one, ("jobtech", "jobtech-empty-scope", "occupation", 0, 0, 0)]
+    two = [*one, ("jobtech", "jobtech-datait", "occupation", 4, 3, 2)]
+
+    publish._verify_single_scope(one)
+    publish._verify_single_scope(zero_row_scope)
+    try:
+        publish._verify_single_scope(two)
+    except ValueError as error:
+        assert "jobtech/jobtech-datait" in str(error)
+        assert "jobtech/jobtech-scope" in str(error)
+        assert "_query_dimension" in str(error)
+    else:
+        raise AssertionError("two scopes with postings must not be published as one ranking")
 
 
 def masked_views(flows_cells: str, basis_cells: str = "<td>Active</td><td>7</td><td>0</td>") -> str:
@@ -1319,7 +1431,30 @@ def masked_views(flows_cells: str, basis_cells: str = "<td>Active</td><td>7</td>
     )
 
 
-def stub_page(body: str = "", *, version: str | None = None, masked: str | None = None) -> str:
+DENOMINATOR = (
+    '<p class="denominator">Ranked from 7 mapped posting(s) of 9 in the latest sweep; '
+    "8 carry a structured value.</p>"
+)
+
+
+def ranked_views(*, denominators: bool = True) -> str:
+    """Both ranked top-N tables, because a ranking absent from the page also skips its rule."""
+    head = '<thead><tr><th scope="col">Value</th><th scope="col">Postings</th></tr></thead>'
+    return "".join(
+        f"{DENOMINATOR if denominators else ''}"
+        f'<table id="{identifier}"><caption>Ranked</caption>{head}'
+        "<tbody><tr data-row><td>value</td><td>7</td></tr></tbody></table>"
+        for identifier in ("table-occupations-ranked", "table-occupations-skills")
+    )
+
+
+def stub_page(
+    body: str = "",
+    *,
+    version: str | None = None,
+    masked: str | None = None,
+    ranked: str | None = None,
+) -> str:
     """The smallest page that satisfies every release rule, so one fault can be added at a time."""
     sections = "".join(
         f'<section id="{slug}"><h2>{heading}</h2></section>' for slug, heading in publish.SECTIONS
@@ -1328,12 +1463,13 @@ def stub_page(body: str = "", *, version: str | None = None, masked: str | None 
     views = (
         masked_views("<td>scope</td><td>7</td><td>9</td><td>0</td>") if masked is None else masked
     )
+    rankings = ranked_views() if ranked is None else ranked
     return (
         f'<!doctype html><html lang="en" data-methodology-version="{stamp}">'
         "<head><title>Observatory</title></head><body><h1>Observatory</h1>"
         f"<p>Groups of 1 to {publish.SUPPRESSION_THRESHOLD - 1} postings are suppressed.</p>"
         "<noscript><p>Filters need JavaScript.</p></noscript>"
-        f"{sections}{views}{body}</body></html>"
+        f"{sections}{views}{rankings}{body}</body></html>"
     )
 
 
@@ -1398,6 +1534,28 @@ def test_release_check_flags_missing_masked_views() -> None:
     problems = release_check.check_page(stub_page(masked=""))
     assert any("table-survival-basis is missing from the page" in problem for problem in problems)
     assert any("table-survival-flows is missing from the page" in problem for problem in problems)
+
+
+def test_release_check_flags_a_ranking_published_without_its_denominator() -> None:
+    absent = "has no denominator sentence before it"
+    problems = release_check.check_page(stub_page(ranked=ranked_views(denominators=False)))
+    assert [problem for problem in problems if absent in problem] == [
+        f"table table-occupations-ranked {absent}, so a ranked subset can be read as the "
+        "whole sweep",
+        f"table table-occupations-skills {absent}, so a ranked subset can be read as the "
+        "whole sweep",
+    ]
+    # One sentence cannot cover two rankings: the first table consumes it, so the second is bare.
+    shared = release_check.check_page(
+        stub_page(ranked=DENOMINATOR + ranked_views(denominators=False))
+    )
+    assert [problem for problem in shared if absent in problem] == [
+        f"table table-occupations-skills {absent}, so a ranked subset can be read as the "
+        "whole sweep"
+    ]
+    missing = release_check.check_page(stub_page(ranked=""))
+    assert any("table-occupations-ranked is missing" in problem for problem in missing)
+    assert any("table-occupations-skills is missing" in problem for problem in missing)
 
 
 def test_release_check_flags_disclosure_and_version_drift() -> None:

@@ -108,11 +108,26 @@ models:
       - {name: sweep_id, data_type: varchar, data_tests: [not_null]}
       - {name: dimension, data_type: varchar, data_tests: [not_null]}
       - {name: mapping_status, data_type: varchar, data_tests: [not_null]}
-      - {name: mapping_method, data_type: varchar, data_tests: [not_null]}
+      # Pinned because the point of a distinct method is auditability, and an unpinned vocabulary
+      # cannot be audited: a typo in scripts/enrich.py would otherwise publish silently.
+      - {name: mapping_method, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [municipality_crosswalk, municipality_prefix_crosswalk, region_crosswalk, crosswalk, manual_review, exact_match_tiebreak, no_match, source_absent]}}]}
       - {name: mapping_confidence, data_type: varchar}
       - {name: taxonomy_version, data_type: varchar, data_tests: [not_null]}
       - {name: outcome_count, data_type: bigint, data_tests: [not_null]}
       - {name: total_outcomes, data_type: hugeint, data_tests: [not_null]}
+
+  - name: mapping_coverage_latest
+    description: Posting-level mapping coverage per dimension for the latest complete sweep, as the denominator for every ranking.
+    config: {contract: {enforced: true}}
+    columns:
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: sweep_id, data_type: varchar, data_tests: [not_null]}
+      - {name: dimension, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [region, occupation, skill]}}]}
+      - {name: postings_total, data_type: bigint, data_tests: [not_null]}
+      - {name: postings_with_source_value, data_type: bigint, data_tests: [not_null]}
+      - {name: postings_mapped, data_type: bigint, data_tests: [not_null]}
+      - {name: taxonomy_version, data_type: varchar, data_tests: [not_null]}
 
   - name: posting_survival
     description: Posting survival duration and closure-basis breakdown per source and scope, with small-count suppression.

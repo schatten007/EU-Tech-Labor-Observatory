@@ -118,21 +118,35 @@ def _mapping(
         }
     options = candidates.get(source_id, ())
     selected: MappingCandidate | None
+    method = "no_match"
     if len(options) == 0:
         status = "unmapped"
         selected = None
     elif len(options) > 1:
-        status = "ambiguous"
-        selected = None
+        # A concept with several candidates is normally refused, because picking one of two
+        # close-matches would be a guess dressed up as a mapping. One sole exact-match is not a
+        # guess: the crosswalk states an equivalence, and the rest are looser relations that lose
+        # to it on their own terms. Two exact matches are a genuine conflict and stay refused.
+        # The method is recorded separately from plain crosswalk so every such decision can be
+        # audited later; this is a provenance rule, not a measured accuracy gain.
+        exact = [option for option in options if option.relation == "exact-match"]
+        if len(exact) == 1:
+            selected = exact[0]
+            status = "mapped"
+            method = "exact_match_tiebreak"
+        else:
+            status = "ambiguous"
+            selected = None
     else:
         selected = options[0]
         status = "mapped" if selected.relation == "exact-match" else "low_confidence"
+        method = "crosswalk"
     return {
         "uri": selected.uri if selected and status == "mapped" else None,
         "label": selected.label if selected and status == "mapped" else None,
         "status": status,
         "confidence": selected.confidence if selected else None,
-        "method": "crosswalk" if selected else "no_match",
+        "method": method,
         "relation": selected.relation if selected else None,
         "source_language": "sv",
         "jobtech_taxonomy_version": JOBTECH_TAXONOMY_VERSION,

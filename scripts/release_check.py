@@ -38,6 +38,9 @@ COUNT_HEADERS = frozenset(
 )
 # Only these two views mask small counts; see transform/macros/suppress_small_counts.sql.
 MASKED_TABLES = frozenset({"table-survival-basis", "table-survival-flows"})
+# Ranked top-N tables. Each publishes a subset of the sweep, so each must be preceded by the
+# denominator sentence from mapping_coverage_latest; a ranking without one reads as the whole sweep.
+RANKED_TABLES = frozenset({"table-occupations-ranked", "table-occupations-skills"})
 # Columns those views mask on another column's count, so publishing one while its keying count
 # reads suppressed would republish the suppressed group.
 DEPENDENT_COLUMNS = {
@@ -64,6 +67,7 @@ class Table:
     unscoped: int = 0
     fallbacks: int = 0
     body: list[list[str]] = field(default_factory=list)
+    denominator: str = ""
 
 
 class Page(HTMLParser):
@@ -92,6 +96,9 @@ class Page(HTMLParser):
         self._head = False
         self._row: list[str] | None = None
         self._cell: list[str] | None = None
+        self._denominator: list[str] | None = None
+        self._denominator_tag = ""
+        self._pending = ""
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = {key: (value or "") for key, value in attrs}
@@ -130,8 +137,14 @@ class Page(HTMLParser):
             self.controls.append(
                 (tag, values.get("id", ""), values.get("aria-label", ""), bool(self._label))
             )
+        if "denominator" in values.get("class", "").split():
+            self._denominator = []
+            self._denominator_tag = tag
         if tag == "table":
             self._table = Table(values.get("id", ""))
+            # Consumed, not copied: two ranked tables must not lean on one denominator sentence.
+            self._table.denominator = self._pending
+            self._pending = ""
             self.tables.append(self._table)
         if tag == "caption" and self._table:
             self._table.caption = True
@@ -155,6 +168,9 @@ class Page(HTMLParser):
             self._quiet = max(self._quiet - 1, 0)
         if tag == "label":
             self._label = max(self._label - 1, 0)
+        if self._denominator is not None and tag == self._denominator_tag:
+            self._pending = BLANK.sub(" ", "".join(self._denominator)).strip()
+            self._denominator = None
         if tag in {"th", "td"} and self._cell is not None:
             text = BLANK.sub(" ", "".join(self._cell)).strip()
             if self._table and self._head and tag == "th":
@@ -173,6 +189,8 @@ class Page(HTMLParser):
         self.text.append(data)
         if self._cell is not None:
             self._cell.append(data)
+        if self._denominator is not None:
+            self._denominator.append(data)
 
 
 def _small(value: str) -> bool:
@@ -285,6 +303,18 @@ def check_page(html: str) -> list[str]:
     for table in page.tables:
         if table.identifier in MASKED_TABLES:
             problems.extend(_masked_problems(table))
+    # A ranked table publishes a top-N subset, so it is only honest beside its denominator. A
+    # renamed or dropped ranked table would disable the rule, so its absence is a problem too.
+    problems.extend(
+        f"ranked view {identifier} is missing from the page, so its denominator rule never ran"
+        for identifier in sorted(RANKED_TABLES - published)
+    )
+    problems.extend(
+        f"table {table.identifier} has no denominator sentence before it, so a ranked subset "
+        "can be read as the whole sweep"
+        for table in page.tables
+        if table.identifier in RANKED_TABLES and not table.denominator
+    )
     if SECRET.search(scanned):
         problems.append("a pseudonym or key-like token is rendered in the page text or attributes")
     if EMAIL.search(scanned):

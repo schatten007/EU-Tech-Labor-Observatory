@@ -19,6 +19,7 @@ than expanding the active increment.
 | 11 | 2026-08-17 | Dashboard scope complete; user validation pending | Add the operations-facing dashboard scope of Iteration 11: Status run summary, Governance (licences, retention, privacy assessment, disclosure control, architecture, snapshot), a versioned methodology stamp, and an offline release-check gate over the built page. | `make check && make release-check` passed |
 | 11a | 2026-08-19 | Complete | First real collection: fix the collector's country assumption against the live JobTech payload, filter the sweep to Sweden at the source, and scope sample-only dbt tests out of `live-site`. | `make check && make sweep && make live-site` passed |
 | 12 | 2026-08-20 | Collector complete; second scope blocked by the source | Add occupation-field scopes beside the keyword scope, verify on the wire that the source actually applied the requested filter, and refuse a scope whose rows cannot all be reached. The Data/IT scope is refused: 2589 records against a 2100-record traversal window. | `make check && make sweep && make live-site && make release-check` passed |
+| 13 | 2026-08-21 | Complete; live effect measured but not yet published | Accept a sole `exact-match` when the crosswalk offers several candidates, and publish the posting denominator beside every ranking. Measured on the latest sweep's retained raw pages: occupation `mapped` 65 to 510 of 615. The stored partitions are immutable, so the page shows it only after the next sweep. | `make check && make live-site && make release-check` passed |
 
 
 ## Session Notes
@@ -337,4 +338,84 @@ than expanding the active increment.
   the API answers with zero hits would have published a complete empty partition under a new
   scope, which is the one case the filter guard cannot see and which append-only scopes make
   permanent.
+
+### 2026-08-21 - Iteration 13
+
+- `_mapping` no longer discards a concept just because the crosswalk offers more than one
+  candidate: if exactly one of them is an `exact-match`, that one is selected as `mapped` under a
+  distinct `method = exact_match_tiebreak`. Two or more exact matches are a real conflict and stay
+  `ambiguous`. The method is separate from `crosswalk` so every such decision stays auditable, and
+  the `mapping_method` vocabulary is now pinned by `accepted_values` (eight values) because an
+  unpinned vocabulary cannot be audited and would swallow a typo.
+- Reach of the rule in the pinned reference, counted: 277 of 2179 occupation concepts and 820 of
+  5962 skill concepts have several candidates of which exactly one is exact. 152 occupation and 96
+  skill concepts have two or more exact matches and are still refused.
+- **`make live-site` cannot show the improvement, and re-running it never will.** Enrichment happens
+  before the privacy boundary, so each immutable partition already carries its own
+  `*_mapping_status`, and `sanitize.py`'s allowlist drops the JobTech concept id — re-enriching a
+  stored partition is not merely undesirable, it is impossible. Live figures were therefore measured
+  by re-enriching the latest sweep's retained private checkpoint pages
+  (`data/raw/collection-state/<sweep>/pages/`), with the pre-change rule reimplemented alongside so
+  both halves are counted over one identical input set. That reimplementation reproduces the
+  published distribution exactly (615 postings, occupation 456/63/65/31, skill 108/76/33/558/3),
+  which is what makes the comparison trustworthy.
+- Measured on the latest sweep (615 postings): occupation `mapped` 65 to 510 and `ambiguous` 456 to
+  11, with `low_confidence` 63 and `unmapped` 31 untouched. Skill mappings `mapped` 33 to 76 and
+  `ambiguous` 108 to 65; postings with at least one mapped skill 25 to 47. **None of this is on the
+  page yet.** The published page still reads 65 of 615 and will until the next sweep is collected.
+- **This is a provenance change, not a validated accuracy gain.** 445 of 615 postings changing state
+  on one rule is an eightfold jump measured against a review sample of three rows. A sole stated
+  equivalence is a defensible selection rule and `exact_match_tiebreak` makes each instance
+  traceable, but nothing here measures live precision. The honest follow-up is a manual spot-check
+  of a handful of tiebroken occupations and skills; it is not something this increment did, and
+  nothing on the page claims improved accuracy.
+- New view `mapping_coverage_latest`: one row per source, scope, sweep and dimension carrying
+  `postings_total`, `postings_with_source_value` and `postings_mapped`, all counted as distinct
+  postings. `mapping_quality_latest` could not carry this: its skill rows come from
+  `stg_skill_mappings`, so they count mappings, and a posting asking for five mapped skills would
+  inflate its own denominator. The three live denominators now on the page: region 589 mapped of
+  615 with 589 carrying source geography; occupation 65 of 615 with all 615 carrying a structured
+  occupation, so that loss is entirely in mapping and not in source coverage; skill 25 of 615 with
+  only 57 carrying a structured skill at all. The skill figure looks bad and is published as-is.
+- `assert_mapping_coverage.sql` is deliberately untagged, so it runs against live partitions too. It
+  pins the narrowing `mapped <= with_source_value <= total`, the one-row-per-dimension grain, and
+  the agreement of `postings_total` with `mapping_quality_latest.total_outcomes` for region and
+  occupation only — never for skill, whose quality grain is per mapping (615 against 778). The file
+  says so, so nobody "fixes" the asymmetry.
+- The build now refuses to publish once a second scope has postings, because `_query_dimension`,
+  `_query_skills` and `_query_mapping` all read their views without a scope filter and would sum
+  unrelated populations under a denominator naming one sweep. Green today with one collecting scope,
+  and a zero-row scope publishes no coverage row to collide with. Exercised by a test rather than
+  left as an assumption. This is the deferral mechanism for per-scope sections: it fires the moment
+  Increment 12b's slicing decision lands.
+- `release_check` now insists each ranked table is directly preceded by its `class="denominator"`
+  sentence, and treats a missing ranked table as a fault of its own. The sentence is consumed by the
+  first table that follows it, so two rankings cannot lean on one denominator. Counts only: a
+  percentage would invite a coverage trend that a single sweep cannot support.
+- The skill ranking needed one extra clause. Its rows count postings per skill, so the eight
+  published rows sum to 33 while the denominator states 25 distinct mapped postings; without saying
+  that, a reader would try to reconcile the two. The definition text now does.
+- Nothing in the offline gate exercises the new rule on its own, so four fixture concepts were
+  added (`occ-tiebreak`, `occ-two-exact`, `skill-tiebreak`, `skill-two-exact`) and all four are in
+  the placeholder set that keeps them out of the committed reference. `make sample` produced no
+  diff, as predicted: of the sample's four occupation concepts one is all `close-match`, one is
+  resolved by manual review, and two were already single exact matches. The real review sample did
+  not move either — its only unmapped skill has one `broad-match` candidate — so occupation
+  precision/recall stay 1.0/1.0 and skill 1.0/0.75, unedited.
+- `make check` green at 53 Python tests and 175 dbt resources (12 new: the view, its nine column
+  tests, the pinned method vocabulary, and the coverage assertion); `make live-site` runs 170 and
+  `release_check` is clean on the live page.
+- Review caught the traceability hole: `METHODOLOGY_VERSION` is the declared mechanism for tracing a
+  saved figure back to the rules that produced it, it is stamped in the footer, in
+  `data-methodology-version`, and in every CSV file name, and its own text claims to cover the
+  *mapping rules* — yet a mapping rule had changed under it. Two CSVs both named
+  `...-methodology-1-0.csv` would have carried figures from two different rules. Bumped to **1.1**,
+  and the selection rule is now stated in the occupations definition text (stated, not praised: the
+  page still makes no accuracy claim). A test pins both, because a silent revert to 1.0 is exactly
+  the failure this guards.
+- Open item, deliberately not fixed: the single-scope guard has no override, and scopes are
+  append-only, so the first successful second-scope sweep blocks every republish — including an
+  urgent privacy fix — until per-scope sections land. Not reachable today: `make sweep-datait` is
+  refused by `_verify_reachable` before it can open the scope. Whoever lands the slicing decision
+  should either ship per-scope sections with it or add a narrow single-scope escape hatch.
 

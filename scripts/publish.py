@@ -52,7 +52,9 @@ WORKFLOW = (
 
 # ponytail: one hand-bumped version per published definition set, stamped on the page and on
 # every CSV download so a saved file can be traced back to the definitions that produced it.
-METHODOLOGY_VERSION = "1.0"
+# 1.1: a sole exact match now resolves a multi-candidate crosswalk concept, so figures published
+# under 1.0 came from a stricter mapping rule and the two are not one series.
+METHODOLOGY_VERSION = "1.1"
 # Mirrors the offline default in transform/models/staging/stg_postings.sql.
 SAMPLE_OBSERVATIONS = "data/sample/postings_sample.ndjson"
 SOURCE_TERMS = {
@@ -136,6 +138,9 @@ CoverageRow = tuple[
 ]
 DimensionRow = tuple[str, str, str, int]
 MappingRow = tuple[str, str, int]
+# (source, scope_id, dimension, postings_total, postings_with_source_value, postings_mapped):
+# the scope keys are carried so the single-scope guard and the denominators read the same rows.
+MappingCoverageRow = tuple[str, str, str, int, int, int]
 # ponytail: the scope-keyed rows carry `source` last so the existing index maths and helpers
 # stay put; only the filter attributes read it.
 FlowRow = tuple[str, str, datetime, int | None, int | None, int | None, int | None, str]
@@ -210,8 +215,9 @@ STYLE = r"""
     p { margin: 8px 0; }
     a { color: var(--link); }
     small { color: var(--ink-soft); }
-    .lede, .definition, .label { color: var(--ink-soft); font-size: .9rem; }
+    .lede, .definition, .label, .denominator { color: var(--ink-soft); font-size: .9rem; }
     .definition { margin: 4px 0 8px; max-width: 78ch; }
+    .denominator { margin: 4px 0 8px; max-width: 78ch; font-variant-numeric: tabular-nums; }
     .filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; margin: 0 0 14px; }
     .filters .field { display: flex; flex-direction: column; gap: 3px; }
     .filters label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); }
@@ -693,6 +699,40 @@ def _query_mapping(connection: duckdb.DuckDBPyConnection) -> list[MappingRow]:
     return rows
 
 
+def _query_mapping_coverage(
+    connection: duckdb.DuckDBPyConnection,
+) -> list[MappingCoverageRow]:
+    """The denominator for every ranking: postings observed, offered, and usable per dimension."""
+    rows: list[MappingCoverageRow] = connection.execute(
+        """
+        select source, scope_id, dimension, postings_total, postings_with_source_value,
+               postings_mapped
+        from mapping_coverage_latest
+        order by source, scope_id, dimension
+        """
+    ).fetchall()
+    return rows
+
+
+def _verify_single_scope(coverage: Sequence[MappingCoverageRow]) -> None:
+    """Refuse to publish pooled aggregates as soon as a second scope has postings.
+
+    _query_dimension, _query_skills and _query_mapping all read their views without a scope filter,
+    so two collecting scopes would be summed into one ranking while the denominator beside it named
+    a single sweep, and a posting counted by both scopes would be counted twice. Per-scope sections
+    are the fix; failing the build is how that work does not get skipped by accident. Green today
+    with one collecting scope, and a zero-row scope publishes no coverage row to collide with.
+    """
+    scopes = sorted({(row[0], row[1]) for row in coverage if row[3] > 0})
+    if len(scopes) > 1:
+        collided = ", ".join(f"{source}/{scope_id}" for source, scope_id in scopes)
+        raise ValueError(
+            f"{len(scopes)} scopes have postings ({collided}), and _query_dimension, "
+            "_query_skills and _query_mapping pool every scope into one figure; publish "
+            "per-scope sections before this build can be trusted"
+        )
+
+
 def _query_flows(connection: duckdb.DuckDBPyConnection) -> list[FlowRow]:
     rows: list[FlowRow] = connection.execute(
         """
@@ -1041,10 +1081,33 @@ def _render_countries(demand: Sequence[DemandRow], regions: Sequence[DimensionRo
     )
 
 
+def _denominator(coverage: Sequence[MappingCoverageRow], dimension: str, noun: str) -> str:
+    """State what a ranking is drawn from, so a top-25 list is never read as the whole sweep.
+
+    Three counts, no ratio: a percentage invites a coverage trend that a single sweep cannot
+    support. The class is on the paragraph so scripts/release_check.py can insist the sentence is
+    still there next to each ranked table.
+    """
+    row = next((entry for entry in coverage if entry[2] == dimension and entry[3] > 0), None)
+    if row is None:
+        text = (
+            f"No coverage row was published for the latest sweep, so this {noun} ranking has no "
+            "stated denominator."
+        )
+    else:
+        total, with_source_value, mapped = row[3], row[4], row[5]
+        text = (
+            f"Ranked from {mapped:,} mapped posting(s) of {total:,} in the latest sweep; "
+            f"{with_source_value:,} carry a structured {noun}."
+        )
+    return f'<p class="denominator">{escape(text)}</p>'
+
+
 def _render_occupations(
     occupations: Sequence[DimensionRow],
     skills: Sequence[DimensionRow],
     mapping: Sequence[MappingRow],
+    coverage: Sequence[MappingCoverageRow],
 ) -> str:
     def ranked(rows: Sequence[DimensionRow]) -> str:
         return "".join(
@@ -1066,9 +1129,13 @@ def _render_occupations(
             "Mappings use pinned reference data: NUTS 2024 regions, JobTech Taxonomy v30, and ESCO "
             "1.2.1. Only structured taxonomy fields are used; job titles and free text are never "
             "classified. Sweden only: no German posting source has passed the approval gate. "
-            "Ambiguous, low-confidence, unmapped, and not-present values are excluded from mapped "
-            "demand and shown separately as mapping quality."
+            "Where the crosswalk offers several candidates for one source concept and exactly one "
+            "of them is an exact match, that one is used; two or more exact matches are left "
+            "unresolved, as is a set with none. Ambiguous, low-confidence, unmapped, and "
+            "not-present values are excluded from mapped demand and shown separately as mapping "
+            "quality."
         )
+        + _denominator(coverage, "occupation", "occupation")
         + _table(
             "Ranked mapped demand by ESCO occupation",
             columns,
@@ -1080,8 +1147,11 @@ def _render_occupations(
         + _definition(
             "Skill demand counts postings whose structured fields map to an ESCO skill. Historical "
             "movement is read from the trend section within one source; a skill can rise in share "
-            "while the total posting count falls."
+            "while the total posting count falls. A posting asking for several mapped skills is "
+            "counted in every one of their rows, so the rows below count postings per skill and do "
+            "not sum to the mapped-posting count stated under this paragraph."
         )
+        + _denominator(coverage, "skill", "skill")
         + _table(
             "Ranked mapped demand by ESCO skill",
             columns,
@@ -1462,12 +1532,14 @@ def build_site(database: Path, target: Path) -> int:
         occupations = _query_dimension(connection, region=False)
         skills = _query_skills(connection)
         mapping = _query_mapping(connection)
+        mapping_coverage = _query_mapping_coverage(connection)
         flows = _query_flows(connection)
         survival = _query_survival(connection)
         frequency = _query_frequency(connection)
         provenance = _query_provenance(connection)
     finally:
         connection.close()
+    _verify_single_scope(mapping_coverage)
     # Scope-keyed views carry no country column, so the filter bar needs this crosswalk to make
     # the country selector apply to the survival, flow, and frequency rows too.
     countries = {row[1]: row[2] for row in demand if row[2]}
@@ -1477,7 +1549,7 @@ def build_site(database: Path, target: Path) -> int:
         "overview": _render_overview(demand, coverage, flows),
         "status": _render_status(coverage, frequency, built),
         "countries": _render_countries(demand, regions),
-        "occupations": _render_occupations(occupations, skills, mapping),
+        "occupations": _render_occupations(occupations, skills, mapping, mapping_coverage),
         "survival": _render_survival(survival, flows, countries),
         "quality": _render_quality(coverage, frequency, mapping, countries),
         "methodology": _render_methodology(provenance),
