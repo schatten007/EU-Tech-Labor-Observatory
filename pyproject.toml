@@ -2,24 +2,24 @@
 name = "eu-tech-labour-observatory"
 version = "0.1.0"
 description = "Open longitudinal record of technology-level demand and posting survival across European public job-vacancy sources."
-readme = "README.md"
+readme = "SCRAPERS.md"
 requires-python = ">=3.12,<3.13"
 license = { file = "LICENSE" }
 dependencies = [
-    # Pinned >=1.27.2: 1.27.0 and 1.27.1 were YANKED for a data-loss bug in
-    # incremental merge, which is the exact code path this project depends on.
-    "dlt[duckdb,parquet]>=1.27.2",
-    "dbt-core>=1.10,<2",
-    "dbt-duckdb>=1.9",
+    "httpx>=0.27",
+    "beautifulsoup4>=4.12",
+    "lxml>=5",
+    "duckdb>=1.0",
+    "pydantic>=2.10",
+    "structlog>=24.4",
+    "pyarrow>=18",
 ]
 
-# ponytail: no build backend. This is an environment, not a library.
-# Flip to a real package when something outside scripts/ needs to import it.
 [tool.uv]
 package = false
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.9", "mypy>=1.14"]
+dev = ["pytest>=8", "ruff>=0.9", "mypy>=1.14", "respx>=0.21"]
 
 [tool.ruff]
 line-length = 100
@@ -32,8 +32,11 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 python_version = "3.12"
 strict = true
 explicit_package_bases = true
-# transform/ is SQL + YAML; site/ and data/ hold no Python.
 exclude = ["transform/", "site/", "\\.venv/"]
+
+[[tool.mypy.overrides]]
+module = ["pyarrow", "pyarrow.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
