@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import shutil
 import sys
 import tempfile
@@ -46,11 +47,40 @@ JOBTECH_EXPECTED_COUNTRY = "SE"
 # filters the search server-side, so the handful of foreign ads that match a Swedish keyword never
 # reach an approved Sweden-only sweep instead of aborting it mid-collection.
 JOBTECH_SWEDEN_COUNTRY_CODE = "199"
+# JobTech's own Data/IT classification: 2,574 ads against the keyword scope's 624. It is a second
+# scope, never a replacement. Scope definitions are append-only, because an abandoned scope's
+# postings can never be closed and would keep rendering as active forever.
+JOBTECH_DATA_IT_FIELD = "apaJ_2ja_LuF"
 JOBTECH_FRESHNESS_THRESHOLD_HOURS = 48
 JOBTECH_COVERAGE_LIMITATIONS = (
     "Keyword-scoped Platsbanken postings filtered to Sweden; provider-default ordering is not "
     "a transactional snapshot."
 )
+JOBTECH_OCCUPATION_FIELD_LIMITATIONS = (
+    "Occupation-field-scoped Platsbanken postings filtered to Sweden; the source's own field "
+    "filter admits a few percent of adjacent occupations from other fields, and provider-default "
+    "ordering is not a transactional snapshot."
+)
+# The field filter is the source's, not an equality test on the field each ad reports: 97-100% of
+# a page matches and the rest are adjacent occupations the source counts as part of the query (a
+# Säkerhetsingenjör answers a Data/IT search). An ignored parameter looks nothing like that: the
+# misspelled camelCase name returned all 40,649 Swedish ads, of which Data/IT is 6%. A simple
+# majority separates the two with room to spare, and never aborts a sweep that was really
+# filtered — but only on a page large enough for the ratio to mean anything. On a two-row final
+# page one adjacent hit is exactly 50%, and because the failed checkpoint is resumable the sweep
+# would re-request that same page and refuse again, so a valid scope could never finish.
+JOBTECH_FILTER_MAJORITY_SHARE = 0.5
+JOBTECH_FILTER_MIN_SAMPLE = 10
+# Measured: the search API answers any offset above 2000 with HTTP 400, whatever the limit
+# (limit=1&offset=2099 is a 400; limit=100&offset=2000 is fine). So one query can never return
+# more than 2000 + page_size records, however many it reports as its total.
+JOBTECH_MAX_OFFSET = 2000
+# Concept ids are a fixed shape (apaJ_2ja_LuF, E7hm_BLq_fqZ, DJh5_yyF_hEM). Checking it offline is
+# the only defence against a typo, because a scope is append-only: a misspelled field the API
+# answers with zero hits publishes a complete, empty partition under a brand-new scope_hash, and
+# an empty page is exactly the case the filter guard cannot verify. That scope would then render
+# forever and could never be closed.
+JOBTECH_CONCEPT_ID = re.compile(r"[A-Za-z0-9]{4}_[A-Za-z0-9]{3}_[A-Za-z0-9]{3}")
 
 
 class PageTransport(Protocol):
@@ -102,15 +132,38 @@ def _canonical_json(value: Mapping[str, Any]) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
-def _search_params(query: str, page_size: int) -> dict[str, Any]:
+def _selector(query: str | None, occupation_field: str | None) -> tuple[str | None, str | None]:
+    """Reduce the two scope selectors to exactly one, defaulting to the keyword query."""
+    if query is not None and occupation_field is not None:
+        raise ValueError("a scope is either a query or an occupation field, not both")
+    if occupation_field is not None and not JOBTECH_CONCEPT_ID.fullmatch(occupation_field):
+        raise ValueError("occupation field must be a JobTech concept id, e.g. apaJ_2ja_LuF")
+    if query is None and occupation_field is None:
+        return DEFAULT_QUERY, None
+    return query, occupation_field
+
+
+def _search_params(
+    query: str | None, page_size: int, occupation_field: str | None
+) -> dict[str, Any]:
     """The one request a sweep sends, so the recorded scope cannot drift from the wire."""
-    return {"q": query, "limit": page_size, "country": JOBTECH_SWEDEN_COUNTRY_CODE}
+    if (query is None) == (occupation_field is None):
+        raise ValueError("search params need exactly one of query or occupation field")
+    chosen = {"q": query} if query is not None else {"occupation-field": occupation_field}
+    return {**chosen, "limit": page_size, "country": JOBTECH_SWEDEN_COUNTRY_CODE}
 
 
-def _scope(query: str, page_size: int) -> tuple[str, str, str]:
+def _coverage_limitations(occupation_field: str | None) -> str:
+    """Provenance must name the scope it describes; a Data/IT sweep is not keyword-scoped."""
+    if occupation_field is None:
+        return JOBTECH_COVERAGE_LIMITATIONS
+    return JOBTECH_OCCUPATION_FIELD_LIMITATIONS
+
+
+def _scope(query: str | None, page_size: int, occupation_field: str | None) -> tuple[str, str, str]:
     scope = {
         "endpoint": JOBTECH_SEARCH,
-        "params": _search_params(query, page_size),
+        "params": _search_params(query, page_size, occupation_field),
         "ordering": "provider-default",
         "country": JOBTECH_EXPECTED_COUNTRY,
         "language": "sv",
@@ -122,10 +175,13 @@ def _scope(query: str, page_size: int) -> tuple[str, str, str]:
 
 
 def collection_scope(
-    query: str = DEFAULT_QUERY, page_size: int = DEFAULT_PAGE_SIZE
+    query: str | None = None,
+    page_size: int = DEFAULT_PAGE_SIZE,
+    occupation_field: str | None = None,
 ) -> tuple[str, str, str]:
     """Return the stable identifier, hash, and canonical JSON for a sweep scope."""
-    return _scope(query, page_size)
+    resolved_query, resolved_field = _selector(query, occupation_field)
+    return _scope(resolved_query, page_size, resolved_field)
 
 
 def _key_version(key: bytes) -> str:
@@ -396,6 +452,52 @@ def _hits(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], hits)
 
 
+def _verify_scope_filter(hits: list[dict[str, Any]], occupation_field: str | None) -> None:
+    """Prove the requested filter was applied, because the API drops unknown params silently.
+
+    A camelCase `occupationField` returned all 40,649 Swedish ads with no error, so a typo in a
+    filter name would collect everything under a scope claiming to be narrow. `q` has no
+    wire-visible counterpart in a sanitized record; the country filter is verified hit by hit in
+    `normalize_jobtech_hit`. A page too short to carry a meaningful ratio proves nothing either
+    way, and an ignored parameter is guaranteed to show up on the full pages before it.
+    """
+    if occupation_field is None or len(hits) < JOBTECH_FILTER_MIN_SAMPLE:
+        return
+    matching = sum(
+        1
+        for hit in hits
+        if isinstance(field := hit.get("occupation_field"), dict)
+        and field.get("concept_id") == occupation_field
+    )
+    if matching <= len(hits) * JOBTECH_FILTER_MAJORITY_SHARE:
+        raise CollectionError(
+            f"JobTech did not apply the occupation-field filter: only {matching} of {len(hits)} "
+            f"hits report {occupation_field}"
+        )
+
+
+def _verify_reachable(total: int | None, page_size: int) -> None:
+    """Refuse a scope whose last row cannot be reached, because unseen rows read as removed.
+
+    Collecting the reachable prefix and calling it a complete sweep is the worst available
+    outcome: every posting past the cap would be closed as an inferred absence on the next sweep,
+    inventing removals that never happened and a duration for each. A scope larger than the
+    window has to be split into slices that are each individually complete.
+
+    Offsets only ever land on multiples of page_size, so the last usable offset is the largest
+    such multiple within the cap. Rounding up instead would let a non-divisor page size (30, say)
+    pass the check and then die at offset 2010 with 67 pages already checkpointed.
+    """
+    reachable = JOBTECH_MAX_OFFSET // page_size * page_size + page_size
+    if total is None or total <= reachable:
+        return
+    raise CollectionError(
+        f"scope reports {total} records but only {reachable} are reachable "
+        f"(offset cap {JOBTECH_MAX_OFFSET}, page size {page_size}); split the scope into slices "
+        f"that each fit, and never publish a truncated sweep as complete"
+    )
+
+
 def _acquire_lock(path: Path) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -475,8 +577,9 @@ def collect_jobtech_sweep(
     random_value: Callable[[], float] = random.random,
     resume: bool = False,
     sweep_id: str | None = None,
+    occupation_field: str | None = None,
 ) -> dict[str, Any]:
-    """Run or resume one serial, query-complete JobTech search sweep."""
+    """Run or resume one serial, scope-complete JobTech search sweep."""
     if len(key) < 32:
         raise ValueError("HMAC key must be at least 32 bytes")
     state_manifest: dict[str, Any] | None = None
@@ -488,13 +591,22 @@ def collect_jobtech_sweep(
             )
             saved_scope = cast(dict[str, Any], json.loads(str(state_manifest["scope_json"])))
             saved_params = cast(dict[str, Any], saved_scope["params"])
-            query = query if query is not None else str(saved_params["q"])
+            # Rehydrate whichever selector the saved scope carries: guessing "q" would resume an
+            # occupation-field sweep as a keyword sweep, under a scope_id that no longer matches.
+            if query is None and occupation_field is None:
+                query = str(saved_params["q"]) if "q" in saved_params else None
+                occupation_field = (
+                    str(saved_params["occupation-field"])
+                    if "occupation-field" in saved_params
+                    else None
+                )
             page_size = page_size if page_size is not None else int(saved_params["limit"])
             observed_at = observed_at or str(state_manifest["observed_at"])
-    query = query if query is not None else DEFAULT_QUERY
+    query, occupation_field = _selector(query, occupation_field)
     page_size = page_size if page_size is not None else DEFAULT_PAGE_SIZE
-    if not query.strip():
-        raise ValueError("query must not be empty")
+    selected = query if query is not None else occupation_field
+    if selected is None or not selected.strip():
+        raise ValueError("query or occupation field must not be empty")
     if page_size < 1 or page_size > 100:
         raise ValueError("page_size must be between 1 and 100")
     if policy.max_attempts < 1 or policy.deadline_s <= 0 or policy.timeout_s <= 0:
@@ -503,7 +615,7 @@ def collect_jobtech_sweep(
     references = load_references()
     _verify_key_identity(root, key, key_version)
     observed = _iso(observed_at or clock())
-    scope_id, scope_hash, scope_json = _scope(query, page_size)
+    scope_id, scope_hash, scope_json = _scope(query, page_size, occupation_field)
     effective_sweep_id = sweep_id or f"{_filename_timestamp(observed)}-{scope_hash[:12]}"
     if not effective_sweep_id.replace("-", "").isalnum():
         raise ValueError("sweep_id contains unsafe filename characters")
@@ -527,7 +639,7 @@ def collect_jobtech_sweep(
         "approval_status": JOBTECH_APPROVAL_STATUS,
         "expected_country": JOBTECH_EXPECTED_COUNTRY,
         "freshness_threshold_hours": JOBTECH_FRESHNESS_THRESHOLD_HOURS,
-        "coverage_limitations": JOBTECH_COVERAGE_LIMITATIONS,
+        "coverage_limitations": _coverage_limitations(occupation_field),
         **reference_provenance(references),
     }
     if final_manifest.exists():
@@ -603,6 +715,7 @@ def collect_jobtech_sweep(
             payload = json.loads(raw_path.read_text(encoding="utf-8"))
             page_total = _page_total(payload)
             page_hits = _hits(payload)
+            _verify_scope_filter(page_hits, occupation_field)
             if total is None:
                 total = page_total
             if page_total != total:
@@ -643,9 +756,10 @@ def collect_jobtech_sweep(
                 )
             all_rows.extend(safe_bytes.splitlines(keepends=True))
 
+        _verify_reachable(total, page_size)
         while total is None or page_index * page_size < total:
             offset = page_index * page_size
-            query_params = {**_search_params(query, page_size), "offset": offset}
+            query_params = {**_search_params(query, page_size, occupation_field), "offset": offset}
             url = f"{JOBTECH_SEARCH}?{urlencode(query_params)}"
             payload = _request_page(
                 url,
@@ -659,8 +773,10 @@ def collect_jobtech_sweep(
             )
             page_total = _page_total(payload)
             hits = _hits(payload)
+            _verify_scope_filter(hits, occupation_field)
             if total is None:
                 total = page_total
+                _verify_reachable(total, page_size)
             if page_total != total:
                 raise CollectionError("JobTech total changed during sweep")
             if len(hits) > page_size or (total > offset + len(hits) and len(hits) != page_size):
@@ -782,7 +898,14 @@ def main() -> int:
 
     sweep = subparsers.add_parser("sweep", help="collect one complete live JobTech search sweep")
     sweep.add_argument("--root", type=Path, default=ROOT / "data" / "raw")
-    sweep.add_argument("--query", default=None)
+    # Exactly one selector defines the scope, so argparse refuses the combination outright.
+    scope_selector = sweep.add_mutually_exclusive_group()
+    scope_selector.add_argument("--query", default=None)
+    scope_selector.add_argument(
+        "--occupation-field",
+        default=None,
+        help=f"JobTech occupation field concept id, e.g. Data/IT is {JOBTECH_DATA_IT_FIELD}",
+    )
     sweep.add_argument("--observed-at", default=None)
     sweep.add_argument("--sweep-id", default=None)
     sweep.add_argument("--page-size", type=int, default=None)
@@ -819,6 +942,7 @@ def main() -> int:
             policy=policy,
             resume=args.resume,
             sweep_id=args.sweep_id,
+            occupation_field=args.occupation_field,
         )
         print(
             f"sweep {manifest['status']}: {manifest['partition_id']} "
