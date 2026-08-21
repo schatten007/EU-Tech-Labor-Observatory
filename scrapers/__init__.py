@@ -8,6 +8,7 @@ from scrapers.base import (
     SweepWriter,
     utc_iso,
 )
+from scrapers.czech_mpsv import MPSVCollector
 from scrapers.poland_cbop import CBOPCollector, PolandCollector
 from scrapers.retry import RetryPolicy, with_backoff
 from scrapers.robots import PacingGate, RobotsRule
@@ -23,6 +24,7 @@ __all__ = [
     "utc_iso",
     "CBOPCollector",
     "PolandCollector",
+    "MPSVCollector",
     "RetryPolicy",
     "with_backoff",
     "PacingGate",

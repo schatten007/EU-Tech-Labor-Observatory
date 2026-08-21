@@ -60,6 +60,14 @@ result in `SCRAPER_FEASIBILITY.md` before the full sweep is enabled.
 - **Definition of Done:** Daily pull writes ≥5,000 observations with
   `region_mapping_status` populated; two consecutive daily runs show only new
   postings added and closed postings `removed_at`-stamped.
+- **Status:** **DONE 2026-08-22** — see `SCRAPER_FEASIBILITY.md` and
+  `SESSIONS.md`. Two consecutive daily sweeps (2026-08-22, 2026-08-23): each
+  wrote **38,903 observations, 1/1 pages, `status=complete`,
+  `expected_rows == row_count == 38,903`**, zero 4xx; region mapped on
+  **98.8%** of records via the MPSV codelist chain (kraj/okres/obec -> NUTS
+  2024) with `region_mapping_status` populated on 100% of rows; reconciliation
+  `integrity OK` with HMAC-only `closures.ndjson`; ESCO/skill mapping deferred
+  (as in Increment 1); `make check` green (113 tests).
 
 ## Increment 3: Adzuna (Germany — multi-country adapter)
 

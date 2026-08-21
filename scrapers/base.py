@@ -143,6 +143,10 @@ class BaseCollector(ABC):
         self.observed_at = observed_at
         self._client = httpx.AsyncClient(timeout=timeout)
         self._log = logger.bind(source=self.source, scope_id=self.scope_id, sweep_id=self.sweep_id)
+        #: Sweep progress counters, populated by each concrete collector's fetch().
+        self.total_elements = 0
+        self.total_pages = 0
+        self.completed_pages = 0
 
     @abstractmethod
     def fetch(self) -> AsyncIterator[RawRecord]:
