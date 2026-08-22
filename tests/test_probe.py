@@ -451,6 +451,84 @@ def test_requirement_reference_carries_the_live_vocabulary() -> None:
     assert "jobtech_requirement_labels.csv=" in provenance["reference_hashes"]
 
 
+def _render_dbt_sql(name: str) -> str:
+    """Strip dbt's config block and resolve refs, so a test can run the real model text.
+
+    The point is that the file is the source of truth: a copy of the SQL in a test would drift
+    from the model and prove nothing about what dbt actually builds.
+    """
+    path = next(Path("transform").rglob(f"{name}.sql"))
+    sql = re.sub(r"\{\{\s*config\(.*?\)\s*\}\}", "", path.read_text(encoding="utf-8"), flags=re.S)
+    return re.sub(r"\{\{\s*ref\('([a-z_]+)'\)\s*\}\}", r"\1", sql)
+
+
+def test_partitions_without_requirement_keys_publish_nothing(tmp_path: Path) -> None:
+    """The state seven of the eight live partitions are in permanently, which the sample cannot be.
+
+    Partitions are never rewritten, so every sweep collected before Increment 14 carries NULL in
+    all nine requirement columns forever. `make sample` builds every synthetic row through
+    `normalize_jobtech_hit`, which always writes the keys, so no committed fixture can express
+    that shape and `make check` would otherwise leave this path to `make live-site` - the step
+    that publishes, where a failure blocks every republish including an urgent fix.
+
+    Two things are pinned here. A sweep with none of the keys publishes nothing at all, rather
+    than inventing a `Not stated` row that would claim the source declined to state a value it
+    was never asked for. A sweep with only some of them is a half-migrated state that must fail
+    loudly, because its column would sum short of its own posting total.
+    """
+    connection = duckdb.connect(str(tmp_path / "legacy.duckdb"))
+    connection.execute(
+        "create table latest_complete_sweeps(source varchar, scope_id varchar, sweep_id varchar)"
+    )
+    connection.execute(
+        "insert into latest_complete_sweeps values ('jobtech', 'scope', 'sweep-legacy')"
+    )
+    connection.execute(
+        """
+        create table stg_postings(
+            source varchar, scope_id varchar, sweep_id varchar, observed_at timestamp,
+            source_id varchar,
+            employment_type_code varchar, employment_type_label varchar,
+            employment_type_mapping_status varchar,
+            working_hours_type_code varchar, working_hours_type_label varchar,
+            working_hours_type_mapping_status varchar,
+            duration_code varchar, duration_label varchar, duration_mapping_status varchar)
+        """
+    )
+    legacy = (
+        "insert into stg_postings values ('jobtech', 'scope', 'sweep-legacy', "
+        "timestamp '2026-08-20 09:00:00', 'pre-increment-14', "
+        "null, null, null, null, null, null, null, null, null)"
+    )
+    collected = (
+        "insert into stg_postings values ('jobtech', 'scope', 'sweep-legacy', "
+        "timestamp '2026-08-20 09:00:00', 'post-increment-14', "
+        "'kpPX_CNN_gDU', 'Permanent employment', 'mapped', "
+        "'6YE1_gAC_R2G', 'Full-time', 'mapped', 'a7uU_j21_mkL', 'Open-ended', 'mapped')"
+    )
+    connection.execute(legacy)
+    connection.execute(
+        f"create view requirement_demand_latest as {_render_dbt_sql('requirement_demand_latest')}"
+    )
+    totals = _render_dbt_sql("assert_requirement_totals")
+
+    assert connection.execute("select * from requirement_demand_latest").fetchall() == []
+    assert connection.execute(totals).fetchall() == []
+
+    # Half-migrated: one posting of two carries the keys, so the column sums short and the
+    # assertion has to catch it rather than publish a distribution missing a posting.
+    connection.execute(collected)
+    partial = connection.execute(totals).fetchall()
+    assert {row[3] for row in partial} == {"employment_type", "working_hours_type", "duration"}
+
+    # Control, so the test cannot pass by always failing: once every posting carries the keys the
+    # same assertion is silent.
+    connection.execute("delete from stg_postings where source_id = 'pre-increment-14'")
+    assert connection.execute(totals).fetchall() == []
+    assert len(connection.execute("select * from requirement_demand_latest").fetchall()) == 3
+    connection.close()
+
+
 def test_municipality_prefix_resolves_full_swedish_coverage() -> None:
     refs = enrich.load_references(FIXTURE_REFERENCE)
     goteborg = enrich.enrich_hit({"workplace_address": {"municipality_code": "1480"}}, refs)

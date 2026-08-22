@@ -589,4 +589,42 @@ than expanding the active increment.
   reference files, and the new one is absent from it for the same reason. Per-sweep provenance is
   unaffected - `reference_hashes` in every sweep manifest covers all five files - but the manifest
   should not be read as authoritative for hand-written references.
+- **Review pass over the published commit, three findings fixed in a follow-up.** All three were the
+  same shape - the page or a comment asserting an invariant no test enforced - which is the failure
+  class 13a shipped and the reason this increment exists in the form it does.
+  1. The definition text claimed `Not stated` meant "the source published the field but left its
+     value empty". `requirement_mapping` returns that bucket for three source shapes: an omitted
+     block, a block that is not an object, and an empty `concept_id`. The collector verifies none of
+     them, so a renamed source field would bake 100% `Not stated` into an immutable partition and
+     publish it under a sentence asserting the source left it blank - and nothing would fail: the
+     totals still reconcile at 628 = 628 and `release_check` never inspects values. Reworded to
+     "the source did not state a value for that field", which is true of all three shapes.
+  2. `value_code` was the one leg of writer -> `SAFE_FIELDS` -> `columns` map -> `select` that
+     nothing checked: it is nullable by design so a `Not stated` row invents no code, so a key
+     misspelt at any of those four points would have published a whole dimension with an empty
+     Source code column, permanently for that sweep, while the page kept promising the code is
+     printed beside every label. `assert_requirement_totals.sql` now pins both directions - a
+     resolved value carries its code, an unstated one does not - and passes on the live partitions,
+     which is also the first positive proof that the code leg survived the wire.
+  3. This commit created the repo's first heterogeneous partition history (7 partitions with none of
+     the nine keys, 1 with all of them), and no committed fixture could express the old shape, since
+     `make sample` builds every row through `normalize_jobtech_hit`. The `is not null` filter and
+     the empty-view path were therefore exercised only by `make live-site` - the step that publishes,
+     where a failure blocks every republish. A new test now runs the model's own SQL text against a
+     synthetic legacy-shaped `stg_postings`: an all-NULL sweep publishes nothing, a half-migrated
+     sweep fails the assertion on all three dimensions, and an all-collected sweep is silent again,
+     so the test cannot pass by always failing.
+- That new test earned its place immediately: it caught a stray ` to` line that an edit to the
+  model's comment block had split out of a `--` comment, which would have broken `dbt run` for
+  everyone. The gate found it before dbt did. `make check` is now **60 Python tests** / **dbt
+  PASS=187** (no new dbt resource - the code-leg check is another branch of the same assertion), and
+  `make live-site` 182 with `release_check` clean.
+- Left as accepted suggestions rather than fixed: the three near-identical CTEs are combined
+  positionally with `select *` and nothing pins which vocabulary belongs to which dimension (the
+  sibling `dimension_demand_latest` is protected from that mistake by `assert_mapping_outputs.sql`
+  pinning `taxonomy_version`); the page-level `Not stated` / `Unrecognised code` assertions are
+  satisfied by the definition prose rather than by a table row; `order by dimension, posting_count
+  desc, value_label` is not a total order once two unmapped codes share the `Unrecognised code`
+  label; and the status assertion compares against the five-value `enrich.STATUSES` while the model
+  contract pins three.
 

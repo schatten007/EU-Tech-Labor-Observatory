@@ -234,10 +234,17 @@ def requirement_mapping(dimension: str, block: Any, references: ReferenceTables)
     """Reduce one requirement block to the code/label/status triple that is published.
 
     Every posting must land in exactly one row per dimension, so this never returns nothing:
-    a null `concept_id` is `not_present` under `Not stated`, and a code the reference does not
-    carry is `unmapped` under `Unrecognised code` with its code kept. Dropping either would let
-    the published column stop summing to the sweep's posting count, and a vocabulary change
-    would arrive as a silently shrinking total instead of a visible row.
+    anything that does not state a usable concept_id is `not_present` under `Not stated`, and a
+    code the reference does not carry is `unmapped` under `Unrecognised code` with its code kept.
+    Dropping either would let the published column stop summing to the sweep's posting count, and
+    a vocabulary change would arrive as a silently shrinking total instead of a visible row.
+
+    `not_present` deliberately covers three source shapes -- a block the payload omits, a block
+    that is not an object, and a block whose concept_id is empty -- because none of them is a
+    value and the page cannot tell them apart honestly. That is why the published wording is "the
+    source did not state a value" rather than a claim about the field being present but empty: the
+    collector verifies neither, and a source that renamed the field would otherwise publish 100%
+    `Not stated` under a sentence asserting the source left it blank.
     """
     if dimension not in REQUIREMENT_DIMENSIONS:
         raise ValueError(f"unknown requirement dimension: {dimension!r}")

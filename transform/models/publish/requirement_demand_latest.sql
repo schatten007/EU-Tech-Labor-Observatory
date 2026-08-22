@@ -13,11 +13,11 @@
 -- Every posting in the latest sweep lands in exactly one row per dimension, so posting_count sums
 -- to the sweep's posting total in each of the three dimensions and the table reconciles by
 -- inspection with no denominator caveat. An unresolved value is published as a row, never dropped:
--- a null source concept_id becomes `Not stated` (not_present) and a code the reference does not
--- carry becomes `Unrecognised code` (unmapped) with its code kept. The alternative -- filtering to
--- mapped values and stating a denominator in prose -- is exactly the shape that let the truncated
--- occupation ranking in Increment 13a stop summing to its own stated denominator unnoticed.
--- assert_requirement_totals.sql is the machine-checkable form of that invariant.
+-- a value the source does not state becomes `Not stated` (not_present) and a code the reference
+-- does not carry becomes `Unrecognised code` (unmapped) with its code kept. The alternative --
+-- filtering to mapped values and stating a denominator in prose -- is exactly the shape that let
+-- the truncated occupation ranking in Increment 13a stop summing to its own stated denominator
+-- unnoticed. assert_requirement_totals.sql is the machine-checkable form of that invariant.
 --
 -- A NULL mapping_status is not a fourth bucket, it is a partition that predates the field, so those
 -- rows are excluded rather than rendered as `Not stated`: the source did not decline to state a

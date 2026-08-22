@@ -47,6 +47,20 @@ having count(*) > 1
 
 union all
 
+-- The code leg, which nothing else pins. `value_label` and `mapping_status` are `not_null` and
+-- `dimension` is a pinned vocabulary, but `value_code` is nullable by design so that a `Not stated`
+-- row has no code to invent -- which leaves the three `*_code` keys as the one part of the chain
+-- writer -> sanitize allowlist -> `columns` map -> `select` that no test can see. A key misspelt or
+-- omitted at any of those four points would publish a whole dimension with an empty Source code
+-- column, permanently for that sweep, while the page still promises the code is printed beside every
+-- label. Both directions: a resolved value must carry its code, and an unstated one must not.
+select source, scope_id, sweep_id, dimension
+from {{ ref('requirement_demand_latest') }}
+where (mapping_status <> 'not_present' and value_code is null)
+    or (mapping_status = 'not_present' and value_code is not null)
+
+union all
+
 -- All three dimensions or none. A sweep collected before the fields existed publishes nothing here
 -- and is not a fault; a sweep that published one dimension and lost another is, and the sum check
 -- above would never see the missing one because it joins on the dimension.
