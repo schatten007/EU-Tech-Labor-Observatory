@@ -44,3 +44,13 @@ def load_hmac_key() -> bytes:
     if len(key) < MIN_KEY_BYTES:
         raise RuntimeError(f"OBSERVATORY_HMAC_KEY must be at least {MIN_KEY_BYTES} characters")
     return key
+
+
+def read_dotenv_value(name: str) -> str | None:
+    """Read one ``KEY=VALUE`` from ``.env`` (whitespace-trimmed), or None.
+
+    Public wrapper over the private parser so other modules (e.g. the Adzuna
+    collector loading ``ADZUNA_APP_ID`` / ``ADZUNA_APP_KEY``) share one dotenv
+    reader instead of reimplementing it.
+    """
+    return _read_dotenv(name)

@@ -1,4 +1,4 @@
-.PHONY: check lint types test scrape scrape-cz reconcile reference-mpsv clean
+.PHONY: check lint types test scrape scrape-cz scrape-adzuna scrape-adzuna-nl reconcile reference-mpsv clean
 
 check: lint types test
 
@@ -19,6 +19,16 @@ scrape:
 # Wired to Increment 2: Úřad práce / MPSV Czechia (daily active-set dump).
 scrape-cz:
 	uv run --offline python main.py --source cz --date $(shell date -u +%Y-%m-%d)
+
+# Wired to Increment 3: Adzuna Germany (all active listings, free-tier budget).
+# Free tier caps at 250 hits/day; the collector's default page budget (240
+# pages x 50) keeps a plain sweep inside the daily quota.
+scrape-adzuna:
+	uv run --offline python main.py --source adzuna --country de --date $(shell date -u +%Y-%m-%d)
+
+# Wired to Increment 3: Adzuna Netherlands via the same collector (config only).
+scrape-adzuna-nl:
+	uv run --offline python main.py --source adzuna --country nl --date $(shell date -u +%Y-%m-%d)
 
 # NOT part of check. Stamps removed_at on postings closed between the two most
 # recent MPSV sweeps (compares HMAC source_ids only; writes closures.ndjson).

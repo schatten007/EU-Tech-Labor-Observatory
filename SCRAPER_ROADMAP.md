@@ -85,6 +85,20 @@ result in `SCRAPER_FEASIBILITY.md` before the full sweep is enabled.
 - **Definition of Done:** DE sweep pulls **≥100,000 active listings** in
   staging without 4xx; a second country (e.g. NL) runs through the same class
   with only config changes and produces a valid manifest.
+- **Status:** **DONE 2026-08-22** — see `SCRAPER_FEASIBILITY.md` and
+  `SESSIONS.md`. Live probe pinned the contract: `count` advertises DE
+  1,155,948 / NL 190,606 active listings; pages 1..N at 50/page, zero 4xx/429;
+  `id` is string on DE / integer on NL; **per-query result window ~100 pages
+  (~5,000 unique rows) before the API recycles earlier pages** (probed live).
+  Combined with the free tier's documented 250 hits/day, the literal
+  "≥100,000 rows in one sweep" is not physically achievable on the free tier —
+  stated plainly in the feasibility row and `coverage_limitations` (full DE
+  stock would need ~23k segmented hits). DoD evidence: DE sweep
+  `de-all-active` 20260822T000000Z **100/100 pages, 4,841 rows,
+  `status=complete`, `expected_rows == row_count`, zero 4xx**, unique 64-hex
+  HMAC source_ids, zero PII; NL sweep `nl-all-active` 20260823T000000Z
+  **100/100 pages, 4,956 rows, `status=complete`, zero 4xx** through the same
+  class with config-only change. `make check` green (127 tests).
 
 ## Increment 4: France Travail — API Offres d'emploi (France)
 

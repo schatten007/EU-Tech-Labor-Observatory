@@ -22,6 +22,13 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from scrapers.adzuna import (
+    ADZUNA_ADAPTERS,
+    ADZUNA_DE,
+    AdzunaCollector,
+    CountryAdapter,
+    adzuna_credentials,
+)
 from scrapers.base import BaseCollector, SweepWriter, utc_iso
 from scrapers.czech_mpsv import (
     MPSV_ACCESS_METHOD,
@@ -102,8 +109,38 @@ def _czech(
     )
 
 
-def source_config(source: str) -> SourceConfig:
-    """Manifest constants and collector factory per source slug."""
+def _adzuna(adapter: CountryAdapter) -> Callable[..., BaseCollector]:
+    """Factory for an Adzuna collector bound to one country adapter."""
+
+    def build(
+        scope_id: str,
+        sweep_id: str,
+        observed_at: _dt.datetime,
+        hmac_key: bytes,
+        max_pages: int | None,
+        **_: object,
+    ) -> BaseCollector:
+        app_id, app_key = adzuna_credentials()
+        return AdzunaCollector(
+            scope_id=scope_id,
+            sweep_id=sweep_id,
+            observed_at=observed_at,
+            hmac_key=hmac_key,
+            adapter=adapter,
+            app_id=app_id,
+            app_key=app_key,
+            max_pages=max_pages,
+        )
+
+    return build
+
+
+def source_config(source: str, country: str = "de") -> SourceConfig:
+    """Manifest constants and collector factory per source slug.
+
+    ``country`` selects the Adzuna ``CountryAdapter`` (``de`` default,
+    ``nl`` etc.); it is ignored for single-country sources.
+    """
     if source in ("cbop", "pl"):
         return SourceConfig(
             slug="cbop",
@@ -117,6 +154,21 @@ def source_config(source: str) -> SourceConfig:
             coverage_limitations=CBOP_COVERAGE_LIMITATIONS,
             reference_hashes="",
             build=_poland,
+        )
+    if source == "adzuna":
+        adapter = ADZUNA_ADAPTERS.get(country, ADZUNA_DE)
+        return SourceConfig(
+            slug="adzuna",
+            scope_id=adapter.scope_id,
+            scope_params=adapter.scope_params,
+            source_version=adapter.source_version,
+            licence_reference=adapter.licence_reference,
+            access_method=adapter.access_method,
+            expected_country=adapter.expected_country,
+            freshness_threshold_hours=adapter.freshness_threshold_hours,
+            coverage_limitations=adapter.coverage_limitations,
+            reference_hashes="",
+            build=_adzuna(adapter),
         )
     return SourceConfig(
         slug="mpsv",
@@ -137,9 +189,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run a collector sweep")
     parser.add_argument(
         "--source",
-        choices=("cbop", "pl", "mpsv", "cz"),
+        choices=("cbop", "pl", "mpsv", "cz", "adzuna"),
         default="pl",
-        help="source slug (pl/cbop = CBOP/ePraca Poland; cz/mpsv = Úřad práce Czechia)",
+        help="source slug (pl/cbop = CBOP/ePraca Poland; cz/mpsv = Úřad práce "
+        "Czechia; adzuna = Adzuna multi-country API)",
+    )
+    parser.add_argument(
+        "--country",
+        choices=tuple(ADZUNA_ADAPTERS),
+        default="de",
+        help="Adzuna country adapter (de, nl, ...); ignored for other sources",
     )
     parser.add_argument(
         "--date",
@@ -195,7 +254,7 @@ async def run_sweep(args: argparse.Namespace) -> int:
     run_id = utc_iso(_dt.datetime.now(_dt.UTC))
     started_at = _dt.datetime.now(_dt.UTC)
 
-    config = source_config(args.source)
+    config = source_config(args.source, country=args.country)
     collector = build_collector(
         config,
         scope_id=config.scope_id,
@@ -209,6 +268,14 @@ async def run_sweep(args: argparse.Namespace) -> int:
     async with collector:
         async for record in collector.collect():
             rows.append(record)
+
+    # Append the live advertised count to coverage_limitations (Adzuna).
+    coverage = config.coverage_limitations
+    if isinstance(collector, AdzunaCollector) and collector.advertised_count is not None:
+        coverage += (
+            f" Advertised count at sweep: {collector.advertised_count} active listings "
+            f"for {collector.expected_country}."
+        )
 
     validator = SchemaValidator()
     writer = SweepWriter(args.root)
@@ -230,7 +297,7 @@ async def run_sweep(args: argparse.Namespace) -> int:
         access_method=config.access_method,
         expected_country=config.expected_country,
         freshness_threshold_hours=config.freshness_threshold_hours,
-        coverage_limitations=config.coverage_limitations,
+        coverage_limitations=coverage,
         reference_hashes=config.reference_hashes,
     )
 

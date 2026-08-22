@@ -13,6 +13,7 @@ than expanding the active increment.
 | L0 | 2026-08-20 | Complete | Sterilize the worktree context: remove SOURCE_FEASIBILITY.md and main-project session history; add SCRAPERS.md charter, SCRAPER_FEASIBILITY.md checklist, lab Makefile, and scraper deps. | `make check` passed |
 | 1 | 2026-08-21 | Complete | CBOP/ePraca (PL): Collector Interface + writers, robots/pacing, retry/backoff, HMAC sanitize, PolandCollector, SchemaValidator, CLI + `make scrape`; feasibility gate; live canary and full DoD sweep. | `make check` passed (69 tests); full sweep complete |
 | 2 | 2026-08-22 | Complete | Úřad práce / MPSV (CZ): planning (feasibility gate green, live probe, written plan) **and** implementation — MPSVCollector, codelist->NUTS 2024 crosswalk reference, HMAC-only delta reconciliation, CLI + Makefile wiring, tests. | `make check` passed (113 tests); two consecutive daily sweeps complete |
+| 3 | 2026-08-22 | Complete | Adzuna (DE + NL, multi-country adapter): feasibility gate (robots + ToS + live contract probe), `AdzunaCollector` + `CountryAdapter` in `scrapers/adzuna.py`, dedupe on HMAC(source_id), PII isolation, CLI `--source adzuna --country` + `make scrape-adzuna[-nl]`, respx tests. | `make check` passed (127 tests); DE + NL live sweeps complete |
 
 ## Session Notes
 
@@ -158,3 +159,82 @@ than expanding the active increment.
   `data/raw/collections/mpsv/cz-all-active/2026082{2,3}T000000Z/`.
 - **Roadmap/feasibility updated:** Increment 2 marked **DONE 2026-08-22**;
   feasibility row records the live sweep evidence.
+
+### 2026-08-22 - Increment 3 (Adzuna — multi-country adapter) — IMPLEMENTATION
+
+- **Feasibility gate recorded in `SCRAPER_FEASIBILITY.md` (live):** `api.adzuna.com/robots.txt`
+  → `User-agent: * / Disallow: /` (blanket disallow on the API host, standard
+  keyed-API pattern; unauthenticated requests fail nginx 400); `adzuna.com` /
+  `www.adzuna.com` robots.txt → 405 (no robots handler on consumer hosts, never
+  touched). ToS (developer.adzuna.com/docs/terms_of_service): **allowed with
+  conditions** — "Permissible Use: 1. Publishing ad listings, 2. Jobsworth
+  salary estimates, 3. **Personal research**"; academic/org use permitted for a
+  14-day validation period, ongoing research needs written consent/licence;
+  mandatory attribution ("The Adzuna API" + link) wherever data is published.
+  Documented free-tier limits: **25 hits/min, 250 hits/day, 1000/week,
+  2500/month**; 429 + Retry-After honored. **Decision: implement.**
+- **Credentials:** `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` were absent from `.env`;
+  per the charter/task they were requested from the user (never hardcoded or
+  invented) before any live call. User added them to `.env`; verified present
+  (no values printed/logged).
+- **Live contract probe (STEP 4), DE + NL, 2.5 s pacing, ~30 hits:** envelope
+  `{__CLASS__, count, mean, results}`; `count` = DE 1,155,948 / NL 190,606
+  active listings; 50 results/page, pages 1..24 all 200, zero 4xx, zero 429.
+  Result fields: `id`, `adref` (JWT-style token embedding the same `id` —
+  verified base64 `"i":"NTgz..."`), `created` (ISO 8601 UTC), `category
+  {label,tag}`, `company {display_name}`, `location {area[], display_name}`,
+  `title`, `description`, `redirect_url`, `salary_*`, `latitude/longitude`.
+  **`id` type differs by country: string on DE, integer on NL** (model coerces
+  via field validator). **Per-query result window discovered live:** pages
+  beyond ~100 return listings already seen on earlier pages (`fresh_ids=0` at
+  pages 120–200) — one all-active query yields at most ~5,000 unique rows; the
+  `count` field advertises the total stock, not the query window.
+- **Honest cap finding (recorded plainly, no padding):** the free tier's
+  250 hits/day plus Adzuna's ~100-page per-query window make the roadmap's
+  "≥100,000 rows in one DE sweep" physically impossible (~23k segmented hits
+  for the 1.16M DE stock). Stated in the feasibility row and each manifest's
+  `coverage_limitations`; the collector pages correctly to any budget
+  (validated in mocked tests incl. >100k rows).
+- **`AdzunaCollector` + `CountryAdapter` (`scrapers/adzuna.py`):** one class,
+  all 18 country domains; `CountryAdapter` (country_code, expected_country,
+  locale, language, source_version, scope_id, scope_params, licence_reference,
+  access_method, freshness, coverage_limitations) shipped for DE + NL in an
+  `ADZUNA_ADAPTERS` registry. Pagination `.../search/{page}` with
+  `results_per_page=50`; pacing ≥2.5 s honoring the documented 25/min; retries
+  via `scrapers/retry.py` (429 + Retry-After); dedupe on HMAC source_id across
+  pages and optional segments/categories; `region_mapping_status=not_present`
+  (location free text only, NUTS crosswalk deferred); `occupation_mapping_status=
+  not_present` (category→ESCO deferred); `number_of_vacancies=1`;
+  `first_published` from `created`; `last_modified`/`removed_at` absent
+  (absence-based closure stamping deferred, MPSV reconcile stays MPSV-specific).
+  Source_id policy: HMAC of native `id` (stable ad ref; `adref` embeds the same
+  id — cross-board merge impossible from the search payload, recorded as a
+  coverage limitation).
+- **PII:** `title`, `description`, `company`, `redirect_url`, contacts and all
+  free text excluded by the allowlist-only parse + `NormalizedRecord(extra=
+  "forbid")`; PII-isolation test asserts none of the raw payload's private
+  tokens appear in output.
+- **CLI + Makefile:** `main.py --source adzuna --country de|nl` (source
+  registry + typed SourceConfig extended; credentials loaded via
+  `adzuna_credentials()` which raises before any network call when absent);
+  `make scrape-adzuna` / `make scrape-adzuna-nl`.
+- **Tests:** 14 new (pagination + normalization, PII isolation, 429 retry with
+  Retry-After, NL config-only differences, segment dedupe, category segments,
+  page budget, empty-page stop, missing/integer id, datetime, credentials
+  loading + missing-guard, native-id never in output). JobTech output-contract
+  tests pass unchanged. `make check` green at **127 tests** (ruff + mypy strict
+  clean).
+- **Live DoD sweeps:** DE `de-all-active` 20260822T000000Z — **100/100 pages,
+  4,841 rows, `status=complete`, `expected_rows == row_count`, zero 4xx**;
+  NL `nl-all-active` 20260823T000000Z — **100/100 pages, 4,956 rows,
+  `status=complete`, `expected_rows == row_count`, zero 4xx** (same class,
+  config-only change; NL ran under the next-day daily quota). Advertised counts
+  (DE 1,155,948 / NL 190,606) recorded in the manifests' `coverage_limitations`;
+  all source_ids unique 64-hex HMAC digests; zero PII tokens in the raw NDJSON
+  blobs; native ids never present. Partitions at
+  `data/raw/collections/adzuna/{de-all-active,nl-all-active}/`.
+- **Roadmap/feasibility updated:** Increment 3 marked **DONE 2026-08-22**;
+  feasibility row records robots/ToS verdict, the true free-tier + per-query
+  caps, and the live sweep evidence. The written manifests carry the
+  pre-refinement coverage text (240-page constant); the adapter ships the
+  corrected text (100-page budget) for future sweeps.
