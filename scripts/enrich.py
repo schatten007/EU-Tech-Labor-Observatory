@@ -18,6 +18,15 @@ STATUSES = {"mapped", "ambiguous", "low_confidence", "unmapped", "not_present"}
 # candidate, and a refusing row names none; `not_present` is excluded because it would deny
 # source data that demonstrably exists. Anything else is a typo and must not pass silently.
 MANUAL_STATUSES = {"mapped", "ambiguous", "unmapped"}
+# The requirement dimensions carried as a `{concept_id,label,legacy_ams_taxonomy_id}` block on
+# every JobTech hit. Named after the source fields so the mapping key cannot drift from the wire.
+REQUIREMENT_DIMENSIONS = ("employment_type", "working_hours_type", "duration")
+# Two different facts, kept apart deliberately. A null concept_id means the source left the field
+# empty; a code absent from the reference means our vocabulary is out of date. Collapsing them
+# would hide a taxonomy change behind ordinary missing data, and dropping either would make the
+# published column stop summing to the sweep's posting count.
+NOT_STATED_LABEL = "Not stated"
+UNRECOGNISED_LABEL = "Unrecognised code"
 
 
 @dataclass(frozen=True)
@@ -50,6 +59,7 @@ class ReferenceTables:
     occupations: dict[str, tuple[MappingCandidate, ...]]
     skills: dict[str, tuple[MappingCandidate, ...]]
     manual: dict[tuple[str, str], ManualReview]
+    requirements: dict[tuple[str, str], str]
     hashes: dict[str, str]
 
 
@@ -77,7 +87,8 @@ def load_references(root: Path = REFERENCE_ROOT) -> ReferenceTables:
     occupation_path = root / "jobtech_occupation_esco_1.2.1.csv"
     skill_path = root / "jobtech_skill_esco_1.2.1.csv"
     review_path = root / "manual_reviews.csv"
-    paths = (geography_path, occupation_path, skill_path, review_path)
+    requirement_path = root / "jobtech_requirement_labels.csv"
+    paths = (geography_path, occupation_path, skill_path, review_path, requirement_path)
     if not all(path.exists() for path in paths):
         missing = ", ".join(path.name for path in paths if not path.exists())
         raise ValueError(f"missing reference file(s): {missing}")
@@ -117,8 +128,24 @@ def load_references(root: Path = REFERENCE_ROOT) -> ReferenceTables:
             raise ValueError(f"conflicting manual review: {key}")
         manual[key] = review
 
+    requirements: dict[tuple[str, str], str] = {}
+    for row in _rows(requirement_path):
+        dimension = row["dimension"]
+        if dimension not in REQUIREMENT_DIMENSIONS:
+            raise ValueError(f"unknown requirement dimension: {dimension!r}")
+        label = row["label_en"].strip()
+        if not label:
+            raise ValueError(f"requirement label must not be empty: {dimension}/{row['label_en']}")
+        # A published label that reads as an unresolved bucket would make the two invisible.
+        if label in (NOT_STATED_LABEL, UNRECOGNISED_LABEL):
+            raise ValueError(f"requirement label must not shadow a bucket label: {label!r}")
+        requirement_key = (dimension, row["source_concept_id"])
+        if requirement_key in requirements and requirements[requirement_key] != label:
+            raise ValueError(f"conflicting requirement label: {requirement_key}")
+        requirements[requirement_key] = label
+
     hashes = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}
-    return ReferenceTables(geography, occupations, skills, manual, hashes)
+    return ReferenceTables(geography, occupations, skills, manual, requirements, hashes)
 
 
 def _mapping(
@@ -203,6 +230,26 @@ def _mapping(
     }
 
 
+def requirement_mapping(dimension: str, block: Any, references: ReferenceTables) -> dict[str, Any]:
+    """Reduce one requirement block to the code/label/status triple that is published.
+
+    Every posting must land in exactly one row per dimension, so this never returns nothing:
+    a null `concept_id` is `not_present` under `Not stated`, and a code the reference does not
+    carry is `unmapped` under `Unrecognised code` with its code kept. Dropping either would let
+    the published column stop summing to the sweep's posting count, and a vocabulary change
+    would arrive as a silently shrinking total instead of a visible row.
+    """
+    if dimension not in REQUIREMENT_DIMENSIONS:
+        raise ValueError(f"unknown requirement dimension: {dimension!r}")
+    concept_id = block.get("concept_id") if isinstance(block, dict) else None
+    if not isinstance(concept_id, str) or not concept_id:
+        return {"code": None, "label": NOT_STATED_LABEL, "status": "not_present"}
+    label = references.requirements.get((dimension, concept_id))
+    if label is None:
+        return {"code": concept_id, "label": UNRECOGNISED_LABEL, "status": "unmapped"}
+    return {"code": concept_id, "label": label, "status": "mapped"}
+
+
 def enrich_hit(hit: dict[str, Any], references: ReferenceTables | None = None) -> dict[str, Any]:
     refs = references or load_references()
     address = hit.get("workplace_address")
@@ -246,7 +293,16 @@ def enrich_hit(hit: dict[str, Any], references: ReferenceTables | None = None) -
     ]
     if not skill_results:
         skill_results = [_mapping("skill", None, refs.skills, refs)]
-    return {"region": region_result, "occupation": occupation_result, "skills": skill_results}
+    requirements = {
+        dimension: requirement_mapping(dimension, hit.get(dimension), refs)
+        for dimension in REQUIREMENT_DIMENSIONS
+    }
+    return {
+        "region": region_result,
+        "occupation": occupation_result,
+        "skills": skill_results,
+        "requirements": requirements,
+    }
 
 
 def reference_provenance(references: ReferenceTables | None = None) -> dict[str, str]:

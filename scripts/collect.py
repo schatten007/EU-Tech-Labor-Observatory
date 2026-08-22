@@ -267,6 +267,7 @@ def normalize_jobtech_hit(
     region = enrichment["region"]
     occupation = enrichment["occupation"]
     skills = enrichment["skills"]
+    requirements = enrichment["requirements"]
     record: dict[str, Any] = {
         "source": "jobtech",
         "source_id": source_id,
@@ -291,6 +292,18 @@ def normalize_jobtech_hit(
         "lang": "sv",
         "skill_uris": sorted(skill["uri"] for skill in skills if skill["uri"]),
         "skill_mappings": skills,
+        # The contract a posting offers, from three closed-vocabulary source fields. Written as
+        # nine flat keys rather than a nested block because stg_postings' `columns` map is the
+        # schema gate downstream, and a flat key is the shape it can type-check.
+        "employment_type_code": requirements["employment_type"]["code"],
+        "employment_type_label": requirements["employment_type"]["label"],
+        "employment_type_mapping_status": requirements["employment_type"]["status"],
+        "working_hours_type_code": requirements["working_hours_type"]["code"],
+        "working_hours_type_label": requirements["working_hours_type"]["label"],
+        "working_hours_type_mapping_status": requirements["working_hours_type"]["status"],
+        "duration_code": requirements["duration"]["code"],
+        "duration_label": requirements["duration"]["label"],
+        "duration_mapping_status": requirements["duration"]["status"],
         "number_of_vacancies": hit.get("number_of_vacancies"),
     }
     if scope_id is not None:

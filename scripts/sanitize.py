@@ -39,6 +39,18 @@ SAFE_FIELDS = (
     "lang",
     "skill_uris",
     "skill_mappings",
+    # Requirement dimensions: JobTech's own closed-vocabulary concept ids (12 values across three
+    # fields), our English labels for them, and the mapping status. No free text, no employer, no
+    # geography, and nothing an individual posting could be recognised by.
+    "employment_type_code",
+    "employment_type_label",
+    "employment_type_mapping_status",
+    "working_hours_type_code",
+    "working_hours_type_label",
+    "working_hours_type_mapping_status",
+    "duration_code",
+    "duration_label",
+    "duration_mapping_status",
     "number_of_vacancies",
 )
 

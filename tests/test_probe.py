@@ -339,6 +339,7 @@ def test_manual_reviews_refuse_unreadable_rows(tmp_path: Path) -> None:
             "geography_nuts_2024.csv",
             "jobtech_occupation_esco_1.2.1.csv",
             "jobtech_skill_esco_1.2.1.csv",
+            "jobtech_requirement_labels.csv",
         ):
             (root / name).write_text(
                 (FIXTURE_REFERENCE / name).read_text(encoding="utf-8"), encoding="utf-8"
@@ -350,6 +351,104 @@ def test_manual_reviews_refuse_unreadable_rows(tmp_path: Path) -> None:
             assert expected in str(error), (row, str(error))
         else:
             raise AssertionError(f"{row!r} must not load")
+
+
+def test_requirement_dimensions_account_for_every_posting() -> None:
+    """Each dimension must yield exactly one triple per posting, including the unresolved cases.
+
+    The published column sums to the sweep's posting count only if nothing is ever dropped, so a
+    null source concept_id and a code the reference does not carry are two visible rows rather
+    than two silences - and they stay distinct, because one is the source declining to state a
+    value and the other is our vocabulary being out of date.
+    """
+    refs = enrich.load_references(FIXTURE_REFERENCE)
+    stated = enrich.enrich_hit(
+        {
+            "employment_type": {"concept_id": "emp-permanent", "label": "Tillsvidareanställning"},
+            "working_hours_type": {"concept_id": "hours-part", "label": "Deltid"},
+            "duration": {"concept_id": "duration-open", "label": "Tills vidare"},
+        },
+        refs,
+    )["requirements"]
+    empty = enrich.enrich_hit(
+        {
+            "employment_type": {"concept_id": None, "label": None},
+            "duration": {},
+        },
+        refs,
+    )["requirements"]
+    unknown = enrich.enrich_hit({"employment_type": {"concept_id": "emp-invented"}}, refs)[
+        "requirements"
+    ]
+
+    assert set(stated) == set(enrich.REQUIREMENT_DIMENSIONS)
+    assert stated["employment_type"] == {
+        "code": "emp-permanent",
+        "label": "Permanent employment",
+        "status": "mapped",
+    }
+    assert stated["working_hours_type"]["label"] == "Part-time"
+    assert stated["duration"]["label"] == "Open-ended"
+    # A missing block, a present block with a null concept_id, and an absent field are one fact.
+    for triple in (empty["employment_type"], empty["duration"], empty["working_hours_type"]):
+        assert triple == {"code": None, "label": "Not stated", "status": "not_present"}
+    # The unrecognised code is kept, so a vocabulary change is legible rather than merely counted.
+    assert unknown["employment_type"] == {
+        "code": "emp-invented",
+        "label": "Unrecognised code",
+        "status": "unmapped",
+    }
+    # No fourth status: the requirement triples reuse the published vocabulary.
+    assert {triple["status"] for triple in (*stated.values(), *unknown.values())} <= enrich.STATUSES
+    try:
+        enrich.requirement_mapping("salary_type", {"concept_id": "x"}, refs)
+    except ValueError as error:
+        assert "unknown requirement dimension" in str(error)
+    else:
+        raise AssertionError("a dimension outside the published three must not map")
+
+
+def test_requirement_reference_carries_the_live_vocabulary() -> None:
+    """Every code observed live must map, and the file must be hashed into sweep provenance.
+
+    A code absent from this file is published as `Unrecognised code`, which is visible but is not
+    information. A file absent from reference_hashes is worse: the reference could change and no
+    stored manifest would record it.
+    """
+    import csv as _csv
+
+    with (Path("data/reference") / "jobtech_requirement_labels.csv").open(
+        encoding="utf-8"
+    ) as handle:
+        rows = list(_csv.DictReader(handle))
+    codes = {(row["dimension"], row["source_concept_id"]): row["label_en"] for row in rows}
+    # Measured across all seven retained sweeps in Increment 13a/14; nothing outside these sets has
+    # ever been observed. The taxonomy declares a fifth employment type that is still unobserved.
+    observed = {
+        ("employment_type", "PFZr_Syz_cUq"),
+        ("employment_type", "kpPX_CNN_gDU"),
+        ("employment_type", "sTu5_NBQ_udq"),
+        ("employment_type", "1paU_aCR_nGn"),
+        ("working_hours_type", "6YE1_gAC_R2G"),
+        ("working_hours_type", "947z_JGS_Uk2"),
+        ("duration", "a7uU_j21_mkL"),
+        ("duration", "qQUd_4qe_NDT"),
+        ("duration", "gJRb_akA_95y"),
+        ("duration", "Xj7x_7yZ_jEn"),
+        ("duration", "9RGe_UxD_FZw"),
+        ("duration", "Sy9J_aRd_ALx"),
+    }
+    assert observed <= set(codes)
+    assert len(codes) == len(rows)
+    for (dimension, code), label in codes.items():
+        assert dimension in enrich.REQUIREMENT_DIMENSIONS
+        # The fixture placeholders are not concept ids, so this also keeps them out of the
+        # committed file the way the ESCO placeholder guard does.
+        assert collect.JOBTECH_CONCEPT_ID.fullmatch(code), code
+        assert label and label not in (enrich.NOT_STATED_LABEL, enrich.UNRECOGNISED_LABEL)
+        assert label.isascii(), label
+    provenance = enrich.reference_provenance()
+    assert "jobtech_requirement_labels.csv=" in provenance["reference_hashes"]
 
 
 def test_municipality_prefix_resolves_full_swedish_coverage() -> None:
@@ -1151,6 +1250,28 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
     )
     connection.execute(
         """
+        create table requirement_demand_latest as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'sweep-one'::varchar as sweep_id, timestamp '2026-08-06 09:00:00' as observed_at,
+               'employment_type'::varchar as dimension, 'kpPX_CNN_gDU'::varchar as value_code,
+               'Permanent employment (probationary period possible)'::varchar as value_label,
+               'mapped'::varchar as mapping_status, 2::bigint as posting_count
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', timestamp '2026-08-06 09:00:00',
+               'employment_type', 'zzzz_zzz_zzz', 'Unrecognised code', 'unmapped', 1::bigint
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', timestamp '2026-08-06 09:00:00',
+               'working_hours_type', '6YE1_gAC_R2G', 'Full-time', 'mapped', 2::bigint
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', timestamp '2026-08-06 09:00:00',
+               'working_hours_type', cast(null as varchar), 'Not stated', 'not_present', 1::bigint
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', timestamp '2026-08-06 09:00:00',
+               'duration', 'a7uU_j21_mkL', 'Open-ended', 'mapped', 3::bigint
+        """
+    )
+    connection.execute(
+        """
         create table posting_flows as
         select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
                'day'::varchar as grain,
@@ -1325,6 +1446,32 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
         in page
     )
     assert "%" not in page.split('class="denominator"')[1].split("</p>")[0]
+    # Iteration 14: the three requirement dimensions, each accounting for every posting in the
+    # sweep. Unresolved values are rows, not omissions, and the two unresolved kinds stay apart.
+    assert '<h2 id="requirements-heading">Requirements</h2>' in page
+    for caption in (
+        "Latest postings by employment type",
+        "Latest postings by working-hours type",
+        "Latest postings by contract duration",
+    ):
+        assert caption in page
+    assert "Permanent employment (probationary period possible)" in page
+    assert "Unrecognised code" in page
+    assert "Not stated" in page
+    assert 'data-dimension="employment_type"' in page
+    assert "our English translations of the Swedish taxonomy labels" in page
+    assert "kpPX_CNN_gDU" in page
+    # Every column reconciles by inspection, so no requirement table carries - or needs - a
+    # denominator sentence, and the two that do are still the two rankings.
+    requirements = page.split('id="requirements"')[1].split("</section>")[0]
+    assert 'class="denominator"' not in requirements
+    for identifier, total in (
+        ("table-requirements-employment-type", 3),
+        ("table-requirements-working-hours-type", 3),
+        ("table-requirements-duration", 3),
+    ):
+        body = page.split(f'id="{identifier}"')[1].split("</tbody>")[0]
+        assert sum(int(cell) for cell in re.findall(r'class="count">(\d+)<', body)) == total
     problems = release_check.check_page(page)
     # This fixture writes posting_flows directly, so its small counts never pass through the dbt
     # mask and the disclosure rule has to see them. Every other release rule must pass.
@@ -1429,6 +1576,14 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path, monkeypatch: Monkey
     )
     connection.execute(
         """
+        create table requirement_demand_latest(
+            source varchar, scope_id varchar, sweep_id varchar, observed_at timestamp,
+            dimension varchar, value_code varchar, value_label varchar, mapping_status varchar,
+            posting_count bigint)
+        """
+    )
+    connection.execute(
+        """
         create table posting_flows(
             source varchar, scope_id varchar, grain varchar, bucket_start timestamp,
             is_suppressed boolean, openings bigint, closures bigint, active_postings bigint,
@@ -1490,7 +1645,28 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path, monkeypatch: Monkey
     assert page.count('class="denominator"') == 2
     assert "so this occupation ranking has no stated denominator" in page
     assert "so this skill ranking has no stated denominator" in page
+    # A sweep collected before the requirement fields existed publishes no row for them, and the
+    # section says so rather than inventing a `Not stated` bucket the source never reported.
+    assert "No employment type results" in page
+    assert "No working-hours type results" in page
+    assert "No contract duration results" in page
     assert release_check.check_page(page) == []
+
+
+def test_methodology_version_covers_the_requirement_dimensions() -> None:
+    """The version is the only handle a saved CSV has on the rules that produced it.
+
+    1.1 published no requirement dimension at all. Publishing three of them under 1.1 would make
+    two files named `...-methodology-1-1.csv` carry figures from two different definition sets,
+    which is exactly the traceability hole Increment 13a found and closed.
+    """
+    assert publish.METHODOLOGY_VERSION == "1.2"
+    assert [slug for slug, _heading in publish.SECTIONS if slug == "requirements"] == [
+        "requirements"
+    ]
+    assert [slug for slug, _heading, _noun in publish.REQUIREMENT_SECTIONS] == list(
+        enrich.REQUIREMENT_DIMENSIONS
+    )
 
 
 def test_publish_refuses_to_pool_two_collecting_scopes() -> None:

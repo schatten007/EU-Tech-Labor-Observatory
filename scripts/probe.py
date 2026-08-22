@@ -22,6 +22,19 @@ RAW_PROBES = ROOT / "data" / "raw" / "probe"
 SAMPLE = ROOT / "data" / "sample" / "postings_sample.ndjson"
 SAMPLE_MANIFESTS = ROOT / "data" / "sample" / "sweeps_sample.ndjson"
 
+# Requirement blocks in the shape the live payload carries them, plus the two unresolved cases the
+# offline gate must exercise: a block whose concept_id is null (published as `Not stated`), and a
+# code no reference row carries (published as `Unrecognised code`). Codes are the real closed
+# vocabulary; the unrecognised one is deliberately not a taxonomy id at all.
+FULL_TIME = {"concept_id": "6YE1_gAC_R2G", "label": "Heltid"}
+PART_TIME = {"concept_id": "947z_JGS_Uk2", "label": "Deltid"}
+HOURS_NOT_STATED: dict[str, Any] = {"concept_id": None, "label": None}
+PERMANENT = {"concept_id": "kpPX_CNN_gDU", "label": "Tillsvidareanställning"}
+FIXED_TERM = {"concept_id": "sTu5_NBQ_udq", "label": "Tidsbegränsad anställning"}
+OPEN_ENDED = {"concept_id": "a7uU_j21_mkL", "label": "Tills vidare"}
+THREE_TO_SIX_MONTHS = {"concept_id": "Xj7x_7yZ_jEn", "label": "3 månader – upp till 6 månader"}
+UNRECOGNISED_EMPLOYMENT = {"concept_id": "zzzz_zzz_zzz", "label": "Synthetic unknown type"}
+
 EURES = "https://europa.eu/eures/api/jv-searchengine/public"
 JOBTECH = "https://jobsearch.api.jobtechdev.se"
 JOBTECH_HIST = "https://historical.api.jobtechdev.se"
@@ -182,6 +195,9 @@ def build_sample() -> None:
                 "workplace_address": {"municipality_code": "0180"},
                 "occupation": {"concept_id": "CZkP_hCz_KM8"},
                 "must_have": {"skills": [{"concept_id": "jBKc_5Yx_Y6T"}]},
+                "employment_type": PERMANENT,
+                "working_hours_type": FULL_TIME,
+                "duration": OPEN_ENDED,
                 "number_of_vacancies": 1,
             },
         ),
@@ -196,6 +212,10 @@ def build_sample() -> None:
                 "workplace_address": {"region_code": "14"},
                 "occupation": {"concept_id": "GDHs_eoz_uKx"},
                 "nice_to_have": {"skills": [{"concept_id": "qfkh_ZRK_w4W"}]},
+                "employment_type": FIXED_TERM,
+                # The source published the block and left the value empty: `Not stated`, counted.
+                "working_hours_type": HOURS_NOT_STATED,
+                "duration": THREE_TO_SIX_MONTHS,
                 "number_of_vacancies": 1,
             },
         ),
@@ -208,6 +228,11 @@ def build_sample() -> None:
                 "country_code": "SE",
                 "workplace_address": {"region_code": "99"},
                 "occupation": {"concept_id": "3vry_gaE_yfQ"},
+                # A code the reference does not carry: `Unrecognised code`, published with its
+                # code so a taxonomy change cannot arrive as a silently shrinking total.
+                "employment_type": UNRECOGNISED_EMPLOYMENT,
+                "working_hours_type": PART_TIME,
+                "duration": OPEN_ENDED,
                 "number_of_vacancies": 1,
             },
         ),
@@ -221,6 +246,9 @@ def build_sample() -> None:
                 "workplace_address": {"municipality_code": "1480"},
                 "occupation": {"concept_id": "71Ji_irM_rSJ"},
                 "must_have": {"skills": [{"concept_id": "yNm8_krX_usR"}]},
+                "employment_type": PERMANENT,
+                "working_hours_type": FULL_TIME,
+                "duration": OPEN_ENDED,
                 "number_of_vacancies": 1,
             },
         ),
@@ -239,6 +267,9 @@ def build_sample() -> None:
                     "workplace_address": {"municipality_code": "0180"},
                     "occupation": {"concept_id": "CZkP_hCz_KM8"},
                     "must_have": {"skills": [{"concept_id": "jBKc_5Yx_Y6T"}]},
+                    "employment_type": PERMANENT,
+                    "working_hours_type": FULL_TIME if index % 2 else PART_TIME,
+                    "duration": OPEN_ENDED,
                     "number_of_vacancies": vacancies,
                 },
             )
@@ -279,6 +310,12 @@ def build_sample() -> None:
                     "workplace_address": {"municipality_code": "0180"},
                     "occupation": {"concept_id": "CZkP_hCz_KM8"},
                     "must_have": {"skills": [{"concept_id": "jBKc_5Yx_Y6T"}]},
+                    # This is the sole posting in the latest complete sweep, so it is the one row
+                    # every publish view renders from: it carries resolved values so the offline
+                    # page shows a real distribution rather than three `Not stated` rows.
+                    "employment_type": PERMANENT,
+                    "working_hours_type": FULL_TIME,
+                    "duration": OPEN_ENDED,
                 },
                 "2026-08-08T09:00:00Z",
                 scope_id=scope_id,

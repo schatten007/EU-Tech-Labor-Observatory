@@ -73,6 +73,17 @@ models:
       - {name: jobtech_taxonomy_version, data_type: varchar}
       - {name: esco_version, data_type: varchar}
       - {name: skill_mappings, data_type: json}
+      # No not_null on any of the nine: the seven partitions collected before Increment 14 have
+      # no such key and are NULL there permanently, because a stored partition is never rewritten.
+      - {name: employment_type_code, data_type: varchar}
+      - {name: employment_type_label, data_type: varchar}
+      - {name: employment_type_mapping_status, data_type: varchar}
+      - {name: working_hours_type_code, data_type: varchar}
+      - {name: working_hours_type_label, data_type: varchar}
+      - {name: working_hours_type_mapping_status, data_type: varchar}
+      - {name: duration_code, data_type: varchar}
+      - {name: duration_label, data_type: varchar}
+      - {name: duration_mapping_status, data_type: varchar}
       - {name: lang, data_type: varchar}
       - {name: number_of_vacancies, data_type: bigint}
 

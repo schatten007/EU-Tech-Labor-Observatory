@@ -29,6 +29,17 @@ select
     cast(postings.jobtech_taxonomy_version as varchar) as jobtech_taxonomy_version,
     cast(postings.esco_version as varchar) as esco_version,
     postings.skill_mappings as skill_mappings,
+    try_cast(postings.employment_type_code as varchar) as employment_type_code,
+    try_cast(postings.employment_type_label as varchar) as employment_type_label,
+    try_cast(postings.employment_type_mapping_status as varchar)
+        as employment_type_mapping_status,
+    try_cast(postings.working_hours_type_code as varchar) as working_hours_type_code,
+    try_cast(postings.working_hours_type_label as varchar) as working_hours_type_label,
+    try_cast(postings.working_hours_type_mapping_status as varchar)
+        as working_hours_type_mapping_status,
+    try_cast(postings.duration_code as varchar) as duration_code,
+    try_cast(postings.duration_label as varchar) as duration_label,
+    try_cast(postings.duration_mapping_status as varchar) as duration_mapping_status,
     cast(postings.lang as varchar) as lang,
     cast(postings.number_of_vacancies as bigint) as number_of_vacancies
 from read_json(
@@ -51,7 +62,17 @@ from read_json(
          esco_occupation_label: 'varchar', occupation_mapping_status: 'varchar',
          occupation_mapping_confidence: 'varchar', occupation_mapping_method: 'varchar',
          source_language: 'varchar', jobtech_taxonomy_version: 'varchar', esco_version: 'varchar',
-         skill_mappings: 'json', lang: 'varchar', number_of_vacancies: 'bigint'
+         skill_mappings: 'json',
+         -- The seven partitions collected before Increment 14 carry none of these keys, so they
+         -- read as NULL forever: partitions are never rewritten. Listed here regardless, because
+         -- a key absent from this map is invisible downstream with no error at all.
+         employment_type_code: 'varchar', employment_type_label: 'varchar',
+         employment_type_mapping_status: 'varchar',
+         working_hours_type_code: 'varchar', working_hours_type_label: 'varchar',
+         working_hours_type_mapping_status: 'varchar',
+         duration_code: 'varchar', duration_label: 'varchar',
+         duration_mapping_status: 'varchar',
+         lang: 'varchar', number_of_vacancies: 'bigint'
     }
 ) as postings
 inner join {{ ref('stg_collection_manifests') }} as sweeps

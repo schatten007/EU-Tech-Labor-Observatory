@@ -1,0 +1,13 @@
+dimension,source_concept_id,source_label_sv,label_en
+employment_type,PFZr_Syz_cUq,Vanlig anställning,Regular employment
+employment_type,kpPX_CNN_gDU,Tillsvidareanställning (inkl. eventuell provanställning),Permanent employment (probationary period possible)
+employment_type,sTu5_NBQ_udq,Tidsbegränsad anställning,Fixed-term employment
+employment_type,1paU_aCR_nGn,Behovsanställning,On-demand employment
+working_hours_type,6YE1_gAC_R2G,Heltid,Full-time
+working_hours_type,947z_JGS_Uk2,Deltid,Part-time
+duration,a7uU_j21_mkL,Tills vidare,Open-ended
+duration,Sy9J_aRd_ALx,11 dagar - upp till 3 månader,11 days up to 3 months
+duration,Xj7x_7yZ_jEn,3 månader – upp till 6 månader,3 months up to 6 months
+duration,gJRb_akA_95y,6 månader – upp till 12 månader,6 months up to 12 months
+duration,qQUd_4qe_NDT,6 månader eller längre,6 months or longer
+duration,9RGe_UxD_FZw,12 månader - upp till 2 år,12 months up to 2 years

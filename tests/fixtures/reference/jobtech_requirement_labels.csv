@@ -1,0 +1,7 @@
+dimension,source_concept_id,source_label_sv,label_en
+employment_type,emp-permanent,Tillsvidareanställning,Permanent employment
+employment_type,emp-fixed,Tidsbegränsad anställning,Fixed-term employment
+working_hours_type,hours-full,Heltid,Full-time
+working_hours_type,hours-part,Deltid,Part-time
+duration,duration-open,Tills vidare,Open-ended
+duration,duration-short,11 dagar - upp till 3 månader,11 days up to 3 months

@@ -21,6 +21,7 @@ than expanding the active increment.
 | 12 | 2026-08-20 | Collector complete; second scope blocked by the source | Add occupation-field scopes beside the keyword scope, verify on the wire that the source actually applied the requested filter, and refuse a scope whose rows cannot all be reached. The Data/IT scope is refused: 2589 records against a 2100-record traversal window. | `make check && make sweep && make live-site && make release-check` passed |
 | 13 | 2026-08-21 | Complete; live effect measured but not yet published | Accept a sole `exact-match` when the crosswalk offers several candidates, and publish the posting denominator beside every ranking. Measured on the latest sweep's retained raw pages: occupation `mapped` 65 to 510 of 615. The stored partitions are immutable, so the page shows it only after the next sweep. | `make check && make live-site && make release-check` passed |
 | 13a | 2026-08-22 | Complete; rule audited, one concept vetoed, figures published | Audit the exact-match tiebreak over 100% of its live population (29 concepts): 24 `same`, 4 `narrower-or-broader`, 1 `wrong`. The `wrong` concept had no correct ESCO URI to redirect to, so a reviewed refusal was added to `manual_reviews.csv` and `load_references` was taught to honour one. Published from a fresh 627-row sweep: occupation `mapped` 65 of 615 to 519 of 627. | `make check && make sweep && make live-site && make release-check && make sample` passed |
+| 14 | 2026-08-22 | Complete; three dimensions published, one taxonomy code still unobserved | Publish employment type, working-hours type, and contract duration from three structured fields that are 100% present, mapped through a new hand-written reference to English labels. Every posting lands in exactly one row per dimension, so each published column sums to the sweep's 628 postings and `Not stated` is a visible row rather than a caveat; a new untagged assertion pins that on live partitions. Methodology version bumped to 1.2. | `make check && make sweep && make live-site && make release-check && make sample` passed |
 
 
 ## Session Notes
@@ -500,4 +501,92 @@ than expanding the active increment.
   precision once, by hand, at a single point in time; nothing repeats that automatically. The
   collision census above is the cheapest candidate for a standing offline check, provided it is
   reported rather than enforced.
+
+### 2026-08-22 - Increment 14
+
+- **Coverage, measured on the 627-posting sweep of 13a and confirmed on the 628-posting sweep
+  published here.** All three source blocks are present as an object on **627 of 627** and then
+  **628 of 628** postings - better than the parent plan's recorded 98%/97%. The nullability sits in
+  the `concept_id`, not the block: `employment_type` 0 null, `working_hours_type` **12**, `duration`
+  **11**. Distinct codes are 4, 2 and 6, unchanged across all eight retained sweeps, and this sweep
+  published **zero `Unrecognised code` rows**, so the vocabulary held on an eighth independent
+  observation.
+- **Published distributions, 628 postings each.** Employment type: Regular employment 428 ·
+  Permanent employment (probationary period possible) 160 · Fixed-term employment 27 · On-demand
+  employment 13. Working hours: Full-time 610 · Part-time 6 · **Not stated 12**. Duration:
+  Open-ended 543 · 6 months or longer 40 · 6 months up to 12 months 20 · **Not stated 11** ·
+  3 months up to 6 months 8 · 12 months up to 2 years 5 · 11 days up to 3 months **1**. Every
+  column sums to 628 by inspection, which is the whole point of the row shape below.
+- **The design deviates from the parent plan's `dimension / value_uri / value_label /
+  posting_count` shape, deliberately.** Every posting lands in exactly one row per dimension: a null
+  source `concept_id` is published as **`Not stated`** (`not_present`) and a code the reference does
+  not carry as **`Unrecognised code`** (`unmapped`), with its code kept. 13a shipped a bug where the
+  occupation column silently stopped summing to its own denominator once the ranking truncated, and
+  `release_check` could not see it because its rule is that a denominator sentence exists, not that
+  the two agree. A closed vocabulary of at most six values cannot truncate, so the honest move is to
+  publish the unresolved buckets as rows and drop the denominator caveat entirely. The two
+  unresolved kinds stay apart because they are two different facts: the source left the field empty,
+  versus our vocabulary is out of date.
+- `transform/tests/assert_requirement_totals.sql` is the machine-checkable form of that: each
+  dimension's `posting_count` sums to the sweep's posting total, the grain is unique per
+  dimension and value, and a sweep publishes all three dimensions or none. Deliberately
+  **untagged**, so it ran against the live partitions under `make live-site` and passed. Its teeth
+  were checked rather than assumed - re-run against a view with one dimension filtered out it
+  reports `incomplete-dimensions`, and against a duplicated bucket both the sum and the grain
+  branch fire.
+- **The absent durations are informative, not missing at random.** Measured in 13a: all 11 postings
+  without a `duration.concept_id` are `Behovsanställning` (on-demand employment), 11 of that type's
+  13. That is exactly why `Not stated` is published as its own row instead of being dropped from a
+  denominator - dropping it would delete the only signal that one employment type does not carry a
+  duration at all.
+- **The fifth employment type could not be established offline, and was not guessed.** The taxonomy
+  declares 5 employment types; 4 have ever been observed, across eight sweeps. There is no taxonomy
+  snapshot in the repo (`build_reference.py` only fetches over the network, and `working-hours-type`
+  is not a valid taxonomy type - it returns 0 concepts), so `jobtech_requirement_labels.csv` carries
+  the **12 measured rows**. This is a known gap, and it is safe rather than silent: an unobserved
+  code arrives as a visible, counted `Unrecognised code` row. Whoever next runs `make reference`
+  should add it. `test_requirement_reference_carries_the_live_vocabulary` pins the 12 observed codes
+  as a subset, not an equality, so adding the fifth does not break the gate.
+- **Open item, created knowingly: the page now mixes label languages.** The requirement dimensions
+  publish our English labels (`Permanent employment`, `Full-time`, `Open-ended`) because
+  "Tillsvidareanställning (inkl. eventuell provanställning)" is not usable text on an English page
+  and this is a 12-row vocabulary under our control. The occupation and skill rankings publish
+  Swedish ESCO labels, because ESCO 1.2.1 was pulled in the Swedish locale (13a's correction). So
+  one page carries both, and the definition text says which is which rather than leaving a reader to
+  infer it. Recorded here instead of being discovered later; not fixed in this increment, because
+  re-pulling ESCO is a reference change with its own blast radius.
+- `salary_type` is 100% present with 3 codes but only 89.6% single-valued (the parent plan's 94% is
+  corrected), and `scope_of_work` is a `{min,max}` object that is null on all 627 - so both stay
+  excluded, one for low information and one for having none.
+- The nine new keys are `varchar` in the `read_json` `columns` map, in the `select`, and in
+  `schema.yml`, with **no `not_null` on any of them**: the seven partitions collected before this
+  increment have no such key and are NULL there permanently, because a stored partition is never
+  rewritten. `requirement_demand_latest` therefore excludes a NULL status rather than rendering it
+  as `Not stated` - a partition that predates the field is not the source declining to state a
+  value, and inventing that row would be a lie about what was collected. Until a sweep lands the
+  section is legitimately empty; a sweep carrying the status on only some of its postings would sum
+  short and fail the assertion instead of publishing.
+- `METHODOLOGY_VERSION` is **1.2**, pinned by a test. 1.1 published no requirement dimension at all,
+  and two files named `...-methodology-1-1.csv` must not carry figures from two different definition
+  sets. Same lesson as 13a, applied before the fact this time.
+- The new sweep is `20260822T201202Z-f5cf1d409aa5`: **628 rows, 7 pages**, eighth partition, keyword
+  scope. Denominators moved with it: region 598 of 627 to **599 of 628**, occupation 519 of 627 to
+  **520 of 628**, skill 47 of 627 to **48 of 628** with 61 carrying a structured skill. The
+  occupation ranking still truncates at 25 and still says so, accounting for 515 of its 520 mapped
+  postings.
+- `make sample` produced the diff it had to: `reference_hashes` is stamped into every manifest, so
+  the new reference file rewrote all 5 rows of `sweeps_sample.ndjson`, and the nine keys rewrote
+  every row of `postings_sample.ndjson`. The fixture now exercises both unresolved paths offline -
+  one ad with a null `working_hours_type.concept_id` and one with a code no reference row carries -
+  so `not_present` and `unmapped` are covered by the gate rather than only by the live page.
+- `make check` green at **59 Python tests** (three added: the requirement triple across all three
+  statuses, the reference vocabulary plus its presence in `reference_hashes`, and the methodology
+  pin) and **dbt PASS=187**, up 12: the view, its eight `not_null` tests, two pinned vocabularies,
+  and the totals assertion. `make live-site` runs 182 and `release_check` is clean on the live page.
+- Noticed, pre-existing, not fixed here: `data/reference/reference_manifest.json` records
+  `manual_reviews.csv` as `f7d72a98…` while the committed file hashes to `4898e357…`. That manifest
+  is only ever written by the networked `make reference`, so it is stale for the two hand-maintained
+  reference files, and the new one is absent from it for the same reason. Per-sweep provenance is
+  unaffected - `reference_hashes` in every sweep manifest covers all five files - but the manifest
+  should not be read as authoritative for hand-written references.
 

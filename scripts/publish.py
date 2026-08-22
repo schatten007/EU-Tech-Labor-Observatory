@@ -38,10 +38,18 @@ SECTIONS = (
     ("status", "Status"),
     ("countries", "Countries"),
     ("occupations", "Occupations and skills"),
+    ("requirements", "Requirements"),
     ("survival", "Survival"),
     ("quality", "Data quality"),
     ("methodology", "Methodology"),
     ("governance", "Governance"),
+)
+# The three requirement dimensions, in the order they are published: slug, heading, and the noun
+# used in the caption. Mirrors REQUIREMENT_DIMENSIONS in scripts/enrich.py.
+REQUIREMENT_SECTIONS = (
+    ("employment_type", "Employment type", "employment type"),
+    ("working_hours_type", "Working hours", "working-hours type"),
+    ("duration", "Contract duration", "contract duration"),
 )
 WORKFLOW = (
     "Select a country or NUTS region and technology occupation.",
@@ -54,7 +62,10 @@ WORKFLOW = (
 # every CSV download so a saved file can be traced back to the definitions that produced it.
 # 1.1: a sole exact match now resolves a multi-candidate crosswalk concept, so figures published
 # under 1.0 came from a stricter mapping rule and the two are not one series.
-METHODOLOGY_VERSION = "1.1"
+# 1.2: three requirement dimensions are published from a new reference file, mapped by rules this
+# version claims to cover. 13a's lesson was exactly this: a mapping change under a stale version
+# breaks the traceability the version exists to provide.
+METHODOLOGY_VERSION = "1.2"
 # Mirrors the offline default in transform/models/staging/stg_postings.sql.
 SAMPLE_OBSERVATIONS = "data/sample/postings_sample.ndjson"
 SOURCE_TERMS = {
@@ -97,10 +108,12 @@ PRIVACY = (
     "secret is not published, so a pseudonym cannot be resolved back to a source record from here.",
     "Only aggregates are published. Native identifiers, source URLs, employer names, and posting "
     "text are absent by construction rather than removed after the fact.",
-    "Residual risk, stated plainly: latest-sweep counts by country, region, occupation, and skill "
-    "are published in full, so a rare combination can be a small number. Those cells count "
-    "postings, carry no employer, no geography finer than a NUTS region, and no text, so a small "
-    "count cannot single out a person.",
+    "Residual risk, stated plainly: latest-sweep counts by country, region, occupation, skill, and "
+    "the three requirement dimensions are published in full, so a rare combination can be a small "
+    "number. Those cells count postings, carry no employer, no geography finer than a NUTS region, "
+    "and no text, and each table is a single-dimension distribution rather than a cross-tabulation, "
+    "so no combination of two dimensions is available to a reader and a small count cannot single "
+    "out a person.",
 )
 ARCHITECTURE = (
     (
@@ -110,8 +123,8 @@ ARCHITECTURE = (
     ),
     (
         "2. Enrich",
-        "scripts/enrich.py maps structured geography, occupation, and skill fields onto pinned "
-        "NUTS, JobTech Taxonomy, and ESCO reference data. Free text is never classified.",
+        "scripts/enrich.py maps structured geography, occupation, skill, and requirement fields "
+        "onto pinned NUTS, JobTech Taxonomy, and ESCO reference data. Free text is never classified.",
     ),
     (
         "3. Sanitize",
@@ -137,6 +150,9 @@ CoverageRow = tuple[
     str, str, str | None, datetime, int, int, str, str, float | None, str | None, int | None
 ]
 DimensionRow = tuple[str, str, str, int]
+# (dimension, value_label, value_code, mapping_status, posting_count): the code is nullable because
+# a `Not stated` row is a posting whose source field was empty and so has no code to publish.
+RequirementRow = tuple[str, str, str | None, str, int]
 MappingRow = tuple[str, str, int]
 # (source, scope_id, dimension, postings_total, postings_with_source_value, postings_mapped):
 # the scope keys are carried so the single-scope guard and the denominators read the same rows.
@@ -699,6 +715,19 @@ def _query_mapping(connection: duckdb.DuckDBPyConnection) -> list[MappingRow]:
     return rows
 
 
+def _query_requirements(connection: duckdb.DuckDBPyConnection) -> list[RequirementRow]:
+    """Three closed-vocabulary distributions. No limit: at most six values cannot truncate, and a
+    truncated distribution would stop summing to the sweep it was drawn from."""
+    rows: list[RequirementRow] = connection.execute(
+        """
+        select dimension, value_label, value_code, mapping_status, posting_count
+        from requirement_demand_latest
+        order by dimension, posting_count desc, value_label
+        """
+    ).fetchall()
+    return rows
+
+
 def _query_mapping_coverage(
     connection: duckdb.DuckDBPyConnection,
 ) -> list[MappingCoverageRow]:
@@ -1193,6 +1222,51 @@ def _render_occupations(
     )
 
 
+def _render_requirements(requirements: Sequence[RequirementRow]) -> str:
+    """Three closed-vocabulary distributions, each accounting for every posting in the sweep.
+
+    Unlike the rankings above, nothing here is filtered to mapped values and nothing is truncated,
+    so no denominator sentence is needed: a null source value is published as `Not stated` and a
+    code the reference does not carry as `Unrecognised code`, both counted, and each column
+    therefore sums to the sweep's posting count by inspection.
+    """
+    tables = "".join(
+        f"<h3>{escape(heading)}</h3>"
+        + _table(
+            f"Latest postings by {noun}",
+            (("Value", False), ("Source code", False), ("Postings", True)),
+            "".join(
+                f"<tr{_attrs(dimension=dimension, value=label)}>"
+                f"<td>{escape(label)}</td><td>{escape(code or '—')}</td>"
+                f'<td class="count">{count:,}</td></tr>'
+                for dimension, label, code, _status, count in requirements
+                if dimension == slug
+            ),
+            name=f"requirements-{slug.replace('_', '-')}",
+            empty=f"No {noun} results",
+        )
+        for slug, heading, noun in REQUIREMENT_SECTIONS
+    )
+    return (
+        '<p class="lede">What the postings in the latest sweep actually offer: permanent or '
+        "fixed-term, full or part time, and for how long.</p>"
+        + _definition(
+            "Read from three structured JobTech Taxonomy v30 fields on each posting — employment "
+            "type, working-hours type, and duration — never from free text. The values are the "
+            "source's own closed vocabularies; the labels shown are our English translations of "
+            "the Swedish taxonomy labels, and the source concept id is printed beside each one so "
+            "a label can be traced back. Every posting in the sweep appears in exactly one row of "
+            "each table, so each Postings column sums to that sweep's posting count. Not stated "
+            "means the source published the field but left its value empty, and is counted rather "
+            "than dropped; Unrecognised code means the source used a value this reference does not "
+            "carry yet, and it is published with its code so a vocabulary change cannot pass "
+            "unseen. Counts are per posting, not per advertised vacancy, and are published in "
+            "full without small-count suppression, as the other latest-sweep counts are."
+        )
+        + tables
+    )
+
+
 def _render_survival(
     survival: Sequence[SurvivalRow],
     flows: Sequence[FlowRow],
@@ -1404,8 +1478,8 @@ def _render_methodology(provenance: Sequence[ProvenanceRow]) -> str:
             f"In the posting-flow and survival tables, groups of 1 to {SUPPRESSION_THRESHOLD - 1} "
             "postings are suppressed to avoid singling out an individual posting, and the vacancy "
             "and duration figures of a suppressed group are masked with it. A true zero posting "
-            "count stays visible, and latest-sweep counts by country, region, occupation, and "
-            "skill are published in full.",
+            "count stays visible, and latest-sweep counts by country, region, occupation, skill, "
+            "employment type, working hours, and contract duration are published in full.",
         ),
     )
     body = "".join(
@@ -1520,7 +1594,9 @@ def _render_governance(provenance: Sequence[ProvenanceRow]) -> str:
             "always stays visible. Vacancy and duration figures are masked together with the group "
             "they describe, so they read as suppressed or as a dash whenever their posting count "
             "does. No other view on this page is suppressed: latest-sweep counts by country, "
-            "region, occupation, and skill are published exactly as observed."
+            "region, occupation, skill, employment type, working hours, and contract duration are "
+            "published exactly as observed, and each of those tables is a single-dimension "
+            "distribution, never a cross-tabulation."
         )
         + "<h3>Architecture overview</h3>"
         + f'<dl class="definitions">{steps}</dl>'
@@ -1552,6 +1628,7 @@ def build_site(database: Path, target: Path) -> int:
         skills = _query_skills(connection)
         mapping = _query_mapping(connection)
         mapping_coverage = _query_mapping_coverage(connection)
+        requirements = _query_requirements(connection)
         flows = _query_flows(connection)
         survival = _query_survival(connection)
         frequency = _query_frequency(connection)
@@ -1569,6 +1646,7 @@ def build_site(database: Path, target: Path) -> int:
         "status": _render_status(coverage, frequency, built),
         "countries": _render_countries(demand, regions),
         "occupations": _render_occupations(occupations, skills, mapping, mapping_coverage),
+        "requirements": _render_requirements(requirements),
         "survival": _render_survival(survival, flows, countries),
         "quality": _render_quality(coverage, frequency, mapping, countries),
         "methodology": _render_methodology(provenance),

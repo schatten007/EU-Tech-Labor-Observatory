@@ -99,6 +99,24 @@ models:
     config: {contract: {enforced: true}}
     columns: *dimension_columns
 
+  - name: requirement_demand_latest
+    description: Latest posting counts by employment type, working-hours type, and contract duration, with every posting in exactly one row per dimension.
+    config: {contract: {enforced: true}}
+    columns:
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: sweep_id, data_type: varchar, data_tests: [not_null]}
+      - {name: observed_at, data_type: timestamp, data_tests: [not_null]}
+      # Both vocabularies are pinned, because 13a's lesson is that an unpinned vocabulary cannot be
+      # audited: a renamed dimension or a typo'd status in scripts/enrich.py would publish silently.
+      - {name: dimension, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [employment_type, working_hours_type, duration]}}]}
+      # Nullable on purpose: the `Not stated` row is a posting whose source concept_id was empty,
+      # so it has no code to publish. Its label and status carry the fact instead.
+      - {name: value_code, data_type: varchar}
+      - {name: value_label, data_type: varchar, data_tests: [not_null]}
+      - {name: mapping_status, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [mapped, unmapped, not_present]}}]}
+      - {name: posting_count, data_type: bigint, data_tests: [not_null]}
+
   - name: mapping_quality_latest
     description: Latest mapping outcome counts by dimension and status.
     config: {contract: {enforced: true}}
