@@ -177,6 +177,26 @@ separate surfaces in `SCRAPER_FEASIBILITY.md`.
   staging, **zero 4xx**, manifest `expected_pages == completed_pages`, region
   mapped to NUTS 2024 on the bulk of rows, and the gap between rows collected
   and the advertised 232,944 stated plainly in `coverage_limitations`.
+- **Status:** **DONE 2026-08-22** — see `SCRAPER_FEASIBILITY.md` and
+  `SESSIONS.md`. Contract re-verified live before the build (robots.txt
+  unchanged at 3,564 bytes with `/api/vindeenjob/` still disallowed; the
+  no-pagination contract re-probed: `?limit`/`?page`/`?start` returned the
+  identical 28 ids and `/2` answered 404). Region is **fully mapped, not
+  deferred:** the pinned `vdab_postcode_nuts_2024.csv` (**528 rows**, 529
+  postcodes enumerated from Basisregisters Vlaanderen × Eurostat GISCO NUTS
+  2024, **0 unmatched**, all **22 Flemish NUTS 3** codes present) resolves the
+  landing-page slug's postcode. Coverage is breadth-based by design: landing
+  pages are breadth-ordered so one page per distinct Flemish postcode comes
+  first, which is why 500 pages dropped only 5 duplicates. **DoD evidence:**
+  sweep `be-flanders-all-active` 20260822T000000Z — **500/500 landing pages,
+  12,282 rows** (12,287 tiles, 5 duplicates dropped on HMAC `source_id`),
+  `status=complete`, `expected_pages == completed_pages`,
+  `expected_rows == row_count == NDJSON lines`, **zero 4xx**, unique 64-hex HMAC
+  source_ids, region **`mapped` 100%** across all **22 Flemish NUTS 3
+  arrondissements**, `first_published` on 100% of rows, zero PII (0 e-mails,
+  0 URLs, 0 postcodes, 0 native ids). Honest gap in `coverage_limitations`:
+  **12,282 of the advertised 232,944** (5.3%) — 28 tiles per page with no
+  pagination. `make check` green (215 tests).
 
 ## Increment 6: NAV stillings-feed (Norway)
 

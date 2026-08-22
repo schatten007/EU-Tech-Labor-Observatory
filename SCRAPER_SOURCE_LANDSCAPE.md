@@ -378,6 +378,12 @@ doeleinden"*, with the VDAB name/logo protected as trademarks.
   separate PES: Le Forem, Actiris, no open API found).
 - Region is resolvable to NUTS 3 2024 through Basisregisters Vlaanderen, whose
   `postinfo/{postcode}` payload returns `nuts3` directly (`9000` → `BE234`).
+  Built 2026-08-22: **529 postcodes listed → 528 mapped, 0 unmatched against
+  Eurostat GISCO NUTS 2024, all 22 Flemish arrondissements covered**.
+- **Implemented as Increment 5 (DONE 2026-08-22):** `scrapers/vdab.py`. A live
+  500-page breadth sweep yielded **12,282 rows with region `mapped` on 100%** and
+  zero 4xx, i.e. **5.3% of the advertised stock** — the 28-tiles-per-page ceiling
+  is the binding constraint, not the request budget.
 
 ### 12. AMS — alle jobs / Open Data (AT)
 

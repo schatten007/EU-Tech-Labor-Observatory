@@ -1,4 +1,4 @@
-.PHONY: check lint types test scrape scrape-cz scrape-adzuna scrape-adzuna-nl scrape-ft reconcile reference-mpsv reference-ft clean
+.PHONY: check lint types test scrape scrape-cz scrape-adzuna scrape-adzuna-nl scrape-ft scrape-vdab reconcile reference-mpsv reference-ft reference-vdab clean
 
 check: lint types test
 
@@ -38,6 +38,16 @@ scrape-adzuna-nl:
 scrape-ft:
 	uv run --offline python main.py --source ft --date $(shell date -u +%Y-%m-%d)
 
+# Wired to Increment 5: VDAB public job-search website (Belgium - Flanders).
+# HTML surface only: the Vacature API v4 is blocked (partnership + signed
+# agreement) and /api/vindeenjob/ is robots-disallowed, so neither is touched.
+# Landing pages carry 28 tiles each and have no pagination, so coverage is
+# breadth-based: the default 500-page budget walks one landing page per distinct
+# Flemish postcode (~10 min at 1.2 s pacing), reaches all 22 Flemish NUTS 3
+# arrondissements and clears the DoD's 5,000 rows. Add --max-pages N to shorten.
+scrape-vdab:
+	uv run --offline python main.py --source be --date $(shell date -u +%Y-%m-%d)
+
 # NOT part of check. Stamps removed_at on postings closed between the two most
 # recent MPSV sweeps (compares HMAC source_ids only; writes closures.ndjson).
 reconcile:
@@ -53,6 +63,14 @@ reference-mpsv:
 # network, needs FRANCE_TRAVAIL_* credentials; the CSV is committed).
 reference-ft:
 	uv run --offline python -m scrapers.reference_francetravail
+
+# NOT part of check. Rebuilds the pinned VDAB postcode -> NUTS 2024 crosswalk
+# (Basisregisters Vlaanderen postinfo/{postcode}.nuts3 x Eurostat GISCO NUTS
+# 2024; opt-in network, no credentials). Walks 529 Flemish postcodes at the 1 s
+# charter floor: ~9 minutes. Restartable - an interrupted run resumes from the
+# partial CSV; use --fresh to start over. The CSV is committed for the gate.
+reference-vdab:
+	uv run --offline python -m scrapers.reference_vdab
 
 clean:
 	rm -rf .mypy_cache .ruff_cache .pytest_cache

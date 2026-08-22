@@ -4,6 +4,7 @@ Usage:
     python main.py --source pl --date 2026-08-21
     python main.py --source cz --date 2026-08-22
     python main.py --source ft --date 2026-08-22 --max-pages 120
+    python main.py --source be --date 2026-08-22 --max-pages 500
     python main.py --source pl --date 2026-08-21 --max-pages 1   # canary
 
 Writes ``data/raw/collections/<source>/<scope_id>/<sweep_id>/`` with
@@ -68,6 +69,20 @@ from scrapers.poland_cbop import (
 )
 from scrapers.sanitize import load_hmac_key
 from scrapers.validate import SchemaValidator
+from scrapers.vdab import (
+    VDAB_ACCESS_METHOD,
+    VDAB_ADVERTISED_FLANDERS_STOCK,
+    VDAB_COVERAGE_LIMITATIONS,
+    VDAB_FRESHNESS_THRESHOLD_HOURS,
+    VDAB_LICENCE_REFERENCE,
+    VDAB_SCOPE_ID,
+    VDAB_SCOPE_PARAMS,
+    VDAB_SOURCE_VERSION,
+    VDABCollector,
+)
+from scrapers.vdab import (
+    crosswalk_reference_hashes as vdab_crosswalk_reference_hashes,
+)
 
 DEFAULT_ROOT = Path("data")
 DEFAULT_REFERENCE = Path("data/reference")
@@ -140,6 +155,24 @@ def _france_travail(
         hmac_key=hmac_key,
         client_id=client_id,
         client_secret=client_secret,
+        reference_dir=DEFAULT_REFERENCE,
+        max_pages=max_pages,
+    )
+
+
+def _vdab(
+    scope_id: str,
+    sweep_id: str,
+    observed_at: _dt.datetime,
+    hmac_key: bytes,
+    max_pages: int | None,
+    **_: object,
+) -> BaseCollector:
+    return VDABCollector(
+        scope_id=scope_id,
+        sweep_id=sweep_id,
+        observed_at=observed_at,
+        hmac_key=hmac_key,
         reference_dir=DEFAULT_REFERENCE,
         max_pages=max_pages,
     )
@@ -220,6 +253,20 @@ def source_config(source: str, country: str = "de") -> SourceConfig:
             reference_hashes=ft_crosswalk_reference_hashes(DEFAULT_REFERENCE),
             build=_france_travail,
         )
+    if source in ("vdab", "be"):
+        return SourceConfig(
+            slug="vdab",
+            scope_id=VDAB_SCOPE_ID,
+            scope_params=VDAB_SCOPE_PARAMS,
+            source_version=VDAB_SOURCE_VERSION,
+            licence_reference=VDAB_LICENCE_REFERENCE,
+            access_method=VDAB_ACCESS_METHOD,
+            expected_country="BE",
+            freshness_threshold_hours=VDAB_FRESHNESS_THRESHOLD_HOURS,
+            coverage_limitations=VDAB_COVERAGE_LIMITATIONS,
+            reference_hashes=vdab_crosswalk_reference_hashes(DEFAULT_REFERENCE),
+            build=_vdab,
+        )
     return SourceConfig(
         slug="mpsv",
         scope_id=MPSV_SCOPE_ID,
@@ -239,11 +286,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run a collector sweep")
     parser.add_argument(
         "--source",
-        choices=("cbop", "pl", "mpsv", "cz", "adzuna", "francetravail", "ft", "fr"),
+        choices=("cbop", "pl", "mpsv", "cz", "adzuna", "francetravail", "ft", "fr", "vdab", "be"),
         default="pl",
         help="source slug (pl/cbop = CBOP/ePraca Poland; cz/mpsv = Úřad práce "
         "Czechia; adzuna = Adzuna multi-country API; ft/fr/francetravail = "
-        "France Travail Offres d'emploi v2)",
+        "France Travail Offres d'emploi v2; be/vdab = VDAB public job-search "
+        "website, Belgium/Flanders)",
     )
     parser.add_argument(
         "--country",
@@ -337,6 +385,23 @@ async def run_sweep(args: argparse.Namespace) -> int:
             coverage += (
                 f" Advertised national stock at sweep: {collector.advertised_count} "
                 "active offers (FR)."
+            )
+
+    if isinstance(collector, VDABCollector):
+        coverage += (
+            f" Sweep breadth: {collector.completed_pages}/{collector.total_pages} landing pages "
+            f"fetched (of {collector.landing_pages_available} Flemish-postcode landing pages "
+            f"discovered in the keyword sitemaps), {collector.failed_pages} non-200; "
+            f"{collector.tiles_seen} tiles parsed, {collector.duplicates_dropped} cross-page "
+            f"duplicates dropped on HMAC source_id, {collector.tiles_without_id} tiles without a "
+            f"resolvable id. Rows collected: {len(rows)} of the "
+            f"{VDAB_ADVERTISED_FLANDERS_STOCK} active Flemish vacancies the search page "
+            "advertises — a breadth sample, not a complete snapshot."
+        )
+        if collector.max_advertised_total is not None:
+            coverage += (
+                f" Largest per-segment total advertised by a fetched landing page: "
+                f"{collector.max_advertised_total} jobs."
             )
 
     validator = SchemaValidator()

@@ -16,6 +16,7 @@ than expanding the active increment.
 | 3 | 2026-08-22 | Complete | Adzuna (DE + NL, multi-country adapter): feasibility gate (robots + ToS + live contract probe), `AdzunaCollector` + `CountryAdapter` in `scrapers/adzuna.py`, dedupe on HMAC(source_id), PII isolation, CLI `--source adzuna --country` + `make scrape-adzuna[-nl]`, respx tests. | `make check` passed (127 tests); DE + NL live sweeps complete |
 | 4 | 2026-08-22 | Complete | France Travail (FR, Offres d'emploi v2): feasibility gate (robots on 3 hosts + full Licence Offres d'emploi review + live OAuth2/pagination probe), `FranceTravailCollector` with client-credentials auth, TTL reuse and 401 refresh, département-segmented `range` windows, pinned département->NUTS 2024 crosswalk (`scrapers/reference_francetravail.py`), PII isolation, CLI `--source ft` + `make scrape-ft` / `make reference-ft`, respx tests. | `make check` passed (170 tests); DoD sweep complete (17,406 rows) |
 | 5 | 2026-08-22 | Gate only | VDAB (BE-Flanders) **feasibility gate + re-scope, no code**: Vacature API v4 found to require an approved partnership + signed samenwerkingsovereenkomst -> recorded **blocked**, not routed around; public vdab.be job-search HTML assessed instead (robots-permitted, disclaimer allows informational re-use) and its **canary passed** (12 pages, 1.2 s, 12/12 HTTP 200, 189 unique ids); roadmap/landscape/feasibility corrected and the Increment 5 kickoff prompt rewritten. | docs only; `make check` unchanged (170 tests) |
+| 5 | 2026-08-22 | Complete | VDAB (BE-Flanders) **implementation** on the re-scoped public HTML surface: `VDABCollector` with a per-URL `robots.txt` gate (hard failure, `/api/vindeenjob/` never requested), keyword-sitemap discovery + breadth ordering by postcode, allowlist-only BeautifulSoup/lxml tile parsing, Dutch date parser, HMAC dedupe, pinned postcode->NUTS 2024 crosswalk (`scrapers/reference_vdab.py`, 528 rows), CLI `--source be` + `make scrape-vdab` / `make reference-vdab`, 45 new respx tests. | `make check` passed (215 tests); DoD sweep complete (12,282 rows, 500/500 pages, zero 4xx) |
 
 ## Session Notes
 
@@ -441,3 +442,124 @@ code existed.
   `SCRAPER_SOURCE_LANDSCAPE.md` VDAB entry split into the two surfaces and its
   volume tier corrected M → L (~233k); `.kilo/plans/increment-5-vdab-prompt.md`
   rewritten for the public-site scope.
+
+### 2026-08-22 - Increment 5 build (VDAB BE-Flanders public site)
+
+Implementation session for the re-scoped Surface B. The blocked Vacature API was
+not touched and not worked around, and the robots-disallowed `/api/vindeenjob/`
+was never requested — that prohibition is now enforced in code and covered by
+tests.
+
+- **Contract re-verified live before writing anything** (cheap re-probe, not a
+  re-derivation): `robots.txt` still 3,564 bytes with six advertised sitemaps, no
+  `Crawl-Delay` for `*`, and `/api/vindeenjob/` still `Disallow`ed
+  (`RobotsRule.can_fetch` → False); keyword sitemap index still 4 children;
+  `keyword-0.xml` still 10,000 URLs of which **2,251 are postcode-prefixed**;
+  4 landing pages **4/4 HTTP 200**, 28 tiles each, `Online sinds` + contract
+  label on 100% of tiles, 112 tiles → 55 unique ids. The **no-pagination
+  contract was re-probed**: `?limit=100`, `?page=2` and `?start=15` each returned
+  the identical 28 ids and `/2` answered 404, so the collector sends **no**
+  pagination parameter at all. One drift: the `Server` header now reads
+  `Kestrel` (was `envoy`); still no Cloudflare/Akamai/Incapsula header, no
+  challenge.
+- **`scrapers/reference_vdab.py`** (opt-in network, `make reference-vdab`,
+  Increment 4's builder shape): enumerates postcodes from
+  `api.basisregisters.vlaanderen.be/v2/postinfo?limit=500` across the `volgende`
+  links, then reads `postinfo/{postcode}` for the `nuts3` field the list payload
+  omits, validating every value against Eurostat GISCO `NUTS_AT_2024.csv`.
+  Live build: **529 postcodes enumerated → 528 rows, 1 skipped (no `nuts3`),
+  0 unmatched against GISCO**, 23 distinct NUTS 3 codes = **all 22 Flemish
+  arrondissements** plus `BE100` for the single non-geographic postcode `0612`
+  (unreachable from any landing-page slug). Brussels' `1000` answered
+  `410 Verwijderde postcode`, as the gate predicted, and is absent. The walk is
+  **restartable** (rows flushed every 50 postcodes, an existing CSV is resumed,
+  `--fresh` starts over) and took ~9 minutes at the 1 s floor.
+  `data/reference/vdab_postcode_nuts_2024.csv` + `reference_manifest_vdab.json`
+  are committed so the offline gate keeps working.
+- **`scrapers/vdab.py` (`VDABCollector`)** on the existing Collector Interface —
+  `base.py`, `robots.py`, `retry.py`, `sanitize.py` and `validate.py` were reused
+  unchanged:
+  - **robots.txt is a gate, not a formality.** It is fetched and parsed once per
+    sweep *before any other URL*, and `assert_allowed()` is called on **every**
+    URL before it is requested; a disallowed URL raises `RobotsDisallowedError`
+    instead of being skipped quietly. A `Crawl-Delay` longer than the configured
+    pace would replace the pacer. Every sweep logs `api_path_allowed=False`,
+    i.e. the live proof that the Angular API stays off-limits.
+  - **Discovery** reads the keyword sitemap index and only as many child sitemaps
+    as the page budget needs (`keyword-0.xml` alone yields **1,926**
+    Flemish-postcode landing pages), filters to `<postcode>-<gemeente>` slugs and
+    drops postcodes absent from the crosswalk (Brussels `1000`, foreign
+    `1011-amsterdam`).
+  - **Breadth ordering** (`order_by_postcode_breadth`): sitemap order is
+    postcode-ascending with several slug variants per postcode, so a budgeted
+    prefix would sample one corner of Flanders. Round-robining over postcodes
+    puts one page per postcode first. Measured effect: **500 pages produced only
+    5 duplicate ids** (0.04%) versus the canary's 26% overlap, and the sweep
+    reached all 22 NUTS 3 codes.
+  - **Allowlist-only parse** with BeautifulSoup + lxml (the lab's first HTML
+    source): exactly two things are read per `div.product-tile` — the numeric id
+    from the `/vindeenjob/vacatures/<id>/<slug>` href and the `Online sinds`
+    label. The title, employer, city, description snippet, logo and tracking
+    parameters in the same markup are never read; `VacancyTile(extra="forbid")`
+    and `NormalizedRecord(extra="forbid")` are the backstops. Tiles without a
+    resolvable id are counted, never given a fabricated identifier.
+  - **Dutch date parser** (`parse_dutch_date`) covering all twelve abbreviations
+    (`jan`…`dec`, including `mrt.`, `mei`, `okt.`) plus full names, total by
+    construction: garbage, English, relative phrases (`vandaag`) and impossible
+    dates (`31 feb.`) return `None` rather than a guess.
+  - **SAFE_FIELDS:** `source=vdab`, `country=BE`, `lang`/`source_language=nl`,
+    `number_of_vacancies=1`, `first_published` from the tile date,
+    `last_modified=None`, `removed_at=None`, region from the pinned crosswalk,
+    occupation `not_present` / `not_available_vdab_html` (there is no source
+    occupation code at all — unlike Increment 4's `unmapped`, where `romeCode`
+    existed).
+  - **`last_modified` deliberately skipped.** The weekly vacancy sitemaps do
+    carry a per-URL `<lastmod>`, but re-probing showed they are historic ISO-week
+    slices (214 children from week 25/2024; the newest holds 872 URLs dated
+    Feb/Mar 2026), so their ids largely do not intersect the current tiles. A
+    join would cost 214 extra requests for a partial, sitemap-generation
+    timestamp. Documented in the collector docstring, the feasibility row and
+    every manifest's `coverage_limitations`.
+- **Wiring:** `main.py` gains a typed `SourceConfig` for `vdab`/`be` (scope
+  `be-flanders-all-active`, `reference_hashes` from the new crosswalk) and
+  appends the live breadth/dedupe/coverage numbers to `coverage_limitations`;
+  the Makefile gains `make scrape-vdab` and `make reference-vdab`. Nothing in
+  the existing sources was restructured.
+- **Tests: 45 new** (`tests/test_vdab.py`, `tests/test_vdab_crosswalk.py`), all
+  respx-mocked against hand-written synthetic markup (no real employer, person or
+  vacancy text in the repo): robots fetched first, every disallowed path raising,
+  a sweep proving `/api/vindeenjob/` and `/rest/vindeenjob` are never requested,
+  absent-robots allow-all, sitemap discovery + Flemish filtering + child-budget
+  stop, breadth ordering, tile parsing, malformed/id-less tiles, missing totals,
+  the full Dutch month table and garbage input, cross-page dedupe, page budget,
+  a failed page breaking reconciliation on purpose, the "no pagination params"
+  contract, the SAFE_FIELDS record shape, non-Flemish postcodes staying
+  `unmapped`, crosswalk hit/miss/empty/missing-file, content-addressed reference
+  hashes, HMAC determinism, PII isolation (record **and** intermediate
+  `RawRecord`), 429 + transport-error retries and a fatal sitemap 500. The
+  JobTech output-contract tests pass unchanged.
+- **Live DoD sweep** `vdab/be-flanders-all-active/20260822T000000Z`:
+  **500/500 landing pages, zero 4xx / zero non-200**, 12,287 tiles → **12,282
+  rows** (5 duplicates dropped on HMAC `source_id`, 0 tiles without an id),
+  `status=complete`, `expected_pages == completed_pages`,
+  `expected_rows == row_count == NDJSON lines == 12,282`, 9.7 MB, ~10 minutes at
+  1.2 s pacing. All source_ids unique 64-hex HMAC digests; region **`mapped` on
+  100%** of rows across **all 22 Flemish NUTS 3 arrondissements** (largest BE241
+  Halle-Vilvoorde 1,499); `first_published` on **100%** of rows (2011-02-28 …
+  2026-08-22). PII scan of the raw NDJSON: **0 e-mails, 0 URLs, 0 `vindeenjob`
+  strings, 0 postcodes** (checked against all 528 crosswalk postcodes outside the
+  timestamp/id fields), exactly the 25 allowlist fields, and the only non-id
+  string values are the enums, `NUTS-2024`, `nl`, `BE`, the 22 NUTS codes and
+  their labels. The string `vdab` appears only as the mandatory `source` slug and
+  in two method names — no brand content, employer name or logo, as the
+  disclaimer's trademark clause requires.
+- **Honest coverage gap, unpadded:** 12,282 rows is **5.3% of the advertised
+  232,944** active Flemish vacancies. Each landing page renders at most its first
+  28 tiles and has no pagination, so full coverage would need a large share of
+  the 34,903 published landing pages (a multi-hour sweep). Stated in
+  `coverage_limitations` on the manifest, in the roadmap status and in the
+  feasibility row — not glossed as a snapshot.
+- **Roadmap/feasibility updated:** Increment 5 marked **DONE 2026-08-22** with
+  the DoD evidence; the feasibility row gains the mini-canary result, the built
+  crosswalk row and a `DONE — live DoD evidence` row. Surface A stays **blocked**
+  and unbuilt.
