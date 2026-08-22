@@ -137,16 +137,46 @@ result in `SCRAPER_FEASIBILITY.md` before the full sweep is enabled.
 
 ## Increment 5: VDAB (Belgium — Flanders)
 
-- **Priority Score:** **High** — Low/Low complexity, sanctioned open data, M
-  volume; cheap regional coverage that Adzuna's BE domain does not fully carry.
-- **Access Method:** **API** — official open-data portal
-  (`developer.vdab.be/opendata`), free API key via app registration
-  (`X-IBM-Client-Id` header), Vacature API v4.
-- **Implementation Effort:** **S** — key hurdle is Flemish-only coverage
-  (Wallonia `Le Forem` / Brussels `Actiris` are separate, out of scope here).
-- **Deliverable:** `scrapers/vdab.py` (`VDABCollector`).
-- **Definition of Done:** Pull of Flanders vacancies ≥5,000 records in staging,
-  zero 4xx, manifest `expected_pages == completed_pages`.
+**Re-scoped 2026-08-22 after the feasibility gate.** The original plan (free
+`X-IBM-Client-Id` key via self-service app registration → Vacature API v4) is
+wrong: VDAB's own documentation requires *"een partnership … en na het
+ondertekenen van een samenwerkingsovereenkomst"* (an approved partnership plus a
+signed cooperation agreement), professional use only, with a VDAB-side
+added-value test. The **API is therefore blocked and is not routed around**. The
+implemented surface is instead VDAB's **public job-search website**, which is
+robots-permitted and whose disclaimer explicitly allows copying and using the
+information for informational purposes. Both verdicts are recorded as two
+separate surfaces in `SCRAPER_FEASIBILITY.md`.
+
+- **Priority Score:** **High** — sanctioned public surface, M–L volume; cheap
+  regional coverage that Adzuna's BE domain does not fully carry.
+- **Access Method:** **HTML** — server-rendered SEO landing pages
+  `www.vdab.be/vindeenjob/jobs/<postcode>-<gemeente>` (28 vacancy tiles each,
+  with per-segment totals), discovered through the six sitemaps VDAB advertises
+  in its own `robots.txt` (34,903 landing pages; 214 weekly vacancy sitemaps
+  carrying ids + `lastmod`). **The Angular app's internal JSON API
+  (`/api/vindeenjob/`) is robots-DISALLOWED and must not be used** — that is the
+  path the public third-party scrapers take, and it is off-limits here.
+  ~232,944 active Flanders vacancies advertised on the search page.
+- **Implementation Effort:** **S–M** — key hurdles are breadth-based coverage
+  (no in-page pagination: `?limit`/`?page`/`?start` are ignored, `/2` 404s, so
+  each segment yields its first 28 tiles only) and the postcode → NUTS 3
+  crosswalk.
+- **Deliverable:** `scrapers/vdab.py` (`VDABCollector`) +
+  `scrapers/reference_vdab.py` (pinned postcode → NUTS 2024 crosswalk built from
+  Basisregisters Vlaanderen, whose `postinfo/{postcode}` payload returns `nuts3`
+  directly — verified live: `9000` → `BE234`).
+- **Mandatory Canary Test:** ≤100 records, 1s+ pacing, robots.txt verified, zero
+  4xx/block recorded in `SCRAPER_FEASIBILITY.md` before the full sweep.
+  **Already PASSED 2026-08-22:** 12 landing pages at 1.2 s → 12/12 HTTP 200,
+  zero 4xx, zero challenges, 189 unique ids from 255 tiles, dates and
+  contract labels on 100% of tiles. (Deviation on purpose: user-agents are **not**
+  randomized — identity-obscuring contradicts the charter, and a single honest
+  UA drew zero blocks.)
+- **Definition of Done:** pull of Flanders vacancies **≥5,000 records** in
+  staging, **zero 4xx**, manifest `expected_pages == completed_pages`, region
+  mapped to NUTS 2024 on the bulk of rows, and the gap between rows collected
+  and the advertised 232,944 stated plainly in `coverage_limitations`.
 
 ## Increment 6: NAV stillings-feed (Norway)
 
@@ -271,6 +301,7 @@ result in `SCRAPER_FEASIBILITY.md` before the full sweep is enabled.
 | StepStone | ToS-prohibited + Akamai Bot Manager |
 | Indeed | ToS-prohibited + Cloudflare + litigation history |
 | Jobnet (DK) | Restricted B2B agreement only |
+| VDAB Vacature API v4 | Requires a VDAB-approved partnership + signed *samenwerkingsovereenkomst* (verified 2026-08-22). Only implementable as an access-request task, not a scraper. **The public vdab.be job-search site remains in scope as Increment 5** (robots-permitted, disclaimer allows informational re-use). |
 
 ---
 
@@ -282,7 +313,7 @@ result in `SCRAPER_FEASIBILITY.md` before the full sweep is enabled.
 | 2 | MPSV CZ | Low (open data) | Low | Low (official daily feed) | **Low** |
 | 3 | Adzuna DE | Low (API ToS) | Med (rate limits, board dedupe) | Med (aggregator quality) | **Low-Med** |
 | 4 | France Travail | Low (contract) | Med (onboarding latency) | Low (official) | **Low-Med** |
-| 5 | VDAB BE | Low (open data) | Low | Med (Flanders only) | **Low** |
+| 5 | VDAB BE (public site) | Low-Med (robots-permitted HTML; API surface blocked and dropped) | Med (no in-page pagination, breadth-based coverage) | Med (Flanders only, no occupation code) | **Low-Med** |
 | 6 | NAV NO | Low (agreement) | Med (feed reconciliation) | Low-Med (Finn.no excluded) | **Med** |
 | 7 | Finland TMT | Low (agreement) | Med (NDJSON, credentials) | Low (ESCO-native) | **Low-Med** |
 | 8 | Kimeta DE | **High** (grey) | **High** (HTML, dedupe) | Med (aggregator) | **High** |
@@ -310,7 +341,9 @@ feasibility gate.
 - **Increments 8–10 (Kimeta / Joblift / Stellenanzeigen)** must **not**
   overlap each other: each is a grey/HTML source requiring its own Canary Test
   and canary result recording before full deployment. Run serially, spaced by
-  at least one clean-sweep session each.
+  at least one clean-sweep session each. **Increment 5 (VDAB) joined this
+  HTML-canary class when it was re-scoped to the public site**, so it does not
+  overlap 8–10 either; its canary already passed (2026-08-22).
 - **Increments 11–13 are fillers** — slot into any idle cycle; they share no
   moving parts with the critical path.
 - **Recommended team shape:** one lane on the sequential backbone (1→2→3),

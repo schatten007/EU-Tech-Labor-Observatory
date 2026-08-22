@@ -15,6 +15,7 @@ than expanding the active increment.
 | 2 | 2026-08-22 | Complete | Úřad práce / MPSV (CZ): planning (feasibility gate green, live probe, written plan) **and** implementation — MPSVCollector, codelist->NUTS 2024 crosswalk reference, HMAC-only delta reconciliation, CLI + Makefile wiring, tests. | `make check` passed (113 tests); two consecutive daily sweeps complete |
 | 3 | 2026-08-22 | Complete | Adzuna (DE + NL, multi-country adapter): feasibility gate (robots + ToS + live contract probe), `AdzunaCollector` + `CountryAdapter` in `scrapers/adzuna.py`, dedupe on HMAC(source_id), PII isolation, CLI `--source adzuna --country` + `make scrape-adzuna[-nl]`, respx tests. | `make check` passed (127 tests); DE + NL live sweeps complete |
 | 4 | 2026-08-22 | Complete | France Travail (FR, Offres d'emploi v2): feasibility gate (robots on 3 hosts + full Licence Offres d'emploi review + live OAuth2/pagination probe), `FranceTravailCollector` with client-credentials auth, TTL reuse and 401 refresh, département-segmented `range` windows, pinned département->NUTS 2024 crosswalk (`scrapers/reference_francetravail.py`), PII isolation, CLI `--source ft` + `make scrape-ft` / `make reference-ft`, respx tests. | `make check` passed (170 tests); DoD sweep complete (17,406 rows) |
+| 5 | 2026-08-22 | Gate only | VDAB (BE-Flanders) **feasibility gate + re-scope, no code**: Vacature API v4 found to require an approved partnership + signed samenwerkingsovereenkomst -> recorded **blocked**, not routed around; public vdab.be job-search HTML assessed instead (robots-permitted, disclaimer allows informational re-use) and its **canary passed** (12 pages, 1.2 s, 12/12 HTTP 200, 189 unique ids); roadmap/landscape/feasibility corrected and the Increment 5 kickoff prompt rewritten. | docs only; `make check` unchanged (170 tests) |
 
 ## Session Notes
 
@@ -363,3 +364,80 @@ than expanding the active increment.
 - **Roadmap/feasibility updated:** Increment 4 marked **DONE 2026-08-22**; the
   feasibility row carries the robots reading, the full licence analysis, the
   probed caps, the auth/licence timeline and the sweep evidence.
+
+### 2026-08-22 - Increment 5 gate (VDAB BE-Flanders: API blocked, public site re-scoped)
+
+Gate-only session: no collector was written. The roadmap's premise for
+Increment 5 turned out to be wrong, so the increment was re-scoped before any
+code existed.
+
+- **Surface A — Vacature API v4: BLOCKED.** The roadmap and landscape both
+  described "free API key via app registration (`X-IBM-Client-Id`)". VDAB's own
+  documentation says otherwise: *"Je mag de Vacature API gebruiken, **nadat VDAB
+  een partnership met jou heeft goedgekeurd en na het ondertekenen van een
+  samenwerkingsovereenkomst**. Je mag de Vacature API enkel voor professionele
+  doeleinden gebruiken. De data-uitwisseling via de API moet een toegevoegde
+  waarde hebben voor VDAB en voor je organisatie."*
+  (`extranet.vdab.be/api-center-excellence-coe/vacatures-ophalen-met-de-vacatures-api`),
+  and the access PDF confirms *"stelt VDAB, waar nodig, een contract op. Nadat je
+  dit contract hebt ondertekend, kan je het gewenste API-product aanvragen"*.
+  The portal's own `tsandcs` page is a stub. Recorded as **blocked** and **not
+  routed around** (charter feasibility gate); re-openable only as an
+  access-request task, like BA Jobsuche's HR-BA-XML route.
+- **Surface B — public job-search site: PERMITTED, and it is the new scope.**
+  `www.vdab.be/robots.txt` (3,564 bytes, no `Crawl-Delay` for `*`) **advertises
+  six sitemaps** and allows `/vindeenjob/jobs/<slug>`, `/vindeenjob/vacatures`
+  and `/vindeenjob/vacatures/<id>/<slug>`. The vdab.be disclaimer grants re-use
+  in as many words: *"Je mag informatie op onze website kopiëren, afdrukken en
+  gebruiken voor informatieve doeleinden"*, with the VDAB name/logo protected as
+  trademarks (never reproduced in output). Employer terms note that published
+  vacancies "can also get a place on other jobsites and in Google results", so
+  onward publication is contemplated.
+- **The important robots finding.** `/api/vindeenjob/` — the Angular app's own
+  JSON API — is **`Disallow`ed**, along with `/vacatures/`, `/include/vacature/`,
+  `/zoeken/` and `/vindeenjob/prive/`. That is precisely the path the public
+  third-party scrapers use ("intercepts VDAB's Angular API responses"), so the
+  easy route is **off-limits here** even though it works; an undocumented
+  `/rest/vindeenjob/v2/vacatures/zoek` also answered **403** live. The collector
+  will read only the server-rendered landing pages and the advertised sitemaps.
+- **Data surface probed.** `/vindeenjob/jobs/<postcode>-<gemeente>` renders **28
+  vacancy tiles** server-side (title, employer, contract type, `Online sinds`
+  date, `/vindeenjob/vacatures/<id>/<slug>` link) and advertises its own segment
+  total (`<strong>1627</strong><span>jobs gevonden`). **No in-page pagination
+  exists:** `?limit=100`, `?page=2` and `?start=15` all return the byte-identical
+  28-tile page and `/2` 404s. The SPA routes (`/vindeenjob/vacatures`, every
+  detail URL) return the same 46,339-byte Angular shell with **0** `ld+json`
+  blocks — there is no server-rendered detail page to parse. Sitemaps give the
+  second axis: `sitemap/vindeenjob/vacatures/index.xml` → 214 weekly child
+  sitemaps (295–1,898 vacancy URLs each, **with `<lastmod>`**),
+  `vindeenjob/jobs/nc/sitemap/*` → **34,903** landing pages, plus 513 gemeente
+  and 451 employer pages. Search page advertises **232,944** active jobs.
+- **Canary test PASSED** (mandatory for HTML sources): 12 postcode landing pages,
+  serial, **1.2 s pacing**, 189 records (≤100-record rule respected per page):
+  **12/12 HTTP 200, zero 4xx, zero blocks, no Cloudflare/Akamai headers** (server
+  is `envoy`); 189 unique ids from 255 tiles — overlap is real (`1000-brussel`,
+  `-stad`, `-gombe-kinshasa` share one result set), so HMAC dedupe is mandatory;
+  `Online sinds` date and contract label on **100%** of tiles. **Deliberate
+  deviation from the roadmap's canary recipe:** user-agents were **not**
+  randomized — obscuring identity contradicts the charter's ethical stance, and a
+  single honest contactable UA drew zero blocks.
+- **Region mapping decision (better than expected).** Basisregisters Vlaanderen —
+  the Flemish government's authoritative address register, open JSON-LD, no
+  robots file — returns NUTS 3 **directly**: `api.basisregisters.vlaanderen.be/v2/postinfo/9000`
+  → `{"gemeente": {...\"Gent\"}, "nuts3": "BE234"}`. `nuts3` is on the detail
+  payload only (not the 500-per-page list), so a pinned builder walks the Flemish
+  postcodes once (`make reference-vdab`, same shape as Increments 2 and 4).
+  Eurostat GISCO `NUTS_AT_2024.csv` supplies the validation set: Belgium has 44
+  NUTS 3 codes, **22 Flemish** (`BE21x`–`BE25x`). Occupation stays
+  `not_present`: the public tiles carry no ROME/C2/ISCO code.
+- **Honest coverage statement.** ≥5,000 rows is comfortable (28 tiles ×
+  ~180–400 landing pages at 1 s ≈ 3–7 min), but the full 232,944-vacancy stock is
+  **not** reachable this way without walking a large share of the 34,903 landing
+  pages; that gap must be stated in `coverage_limitations` on every manifest.
+- **Docs updated:** `SCRAPER_FEASIBILITY.md` gains an Increment 5 entry with
+  **both surfaces** recorded (A blocked, B implement); `SCRAPER_ROADMAP.md`
+  Increment 5 re-scoped to HTML with the canary result, VDAB's API added to
+  "Not planned", the risk-matrix row and the canary-serialization note adjusted;
+  `SCRAPER_SOURCE_LANDSCAPE.md` VDAB entry split into the two surfaces and its
+  volume tier corrected M → L (~233k); `.kilo/plans/increment-5-vdab-prompt.md`
+  rewritten for the public-site scope.

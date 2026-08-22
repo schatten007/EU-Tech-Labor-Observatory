@@ -41,7 +41,7 @@ anti-bot makes them a non-starter for this lab.
 | 8 | Jobnet | DK | SOAP/webservice (B2B only) | formal agreement | High | High | M | **restricted** |
 | 9 | UWV werk.nl / Open Match | NL | Aggregates (CSV) + HTML portal | none | Medium | Medium | L (~273k) | grey |
 | 10 | France Travail API | FR | JSON REST (official) | API key (apply) | Low | Medium | XL (9.3M/yr) | allowed (agreement) |
-| 11 | VDAB | BE (Flanders) | JSON REST (official open data) | API key (apply) | Low | Low | M | allowed |
+| 11 | VDAB | BE (Flanders) | Public HTML landing pages (API v4 exists but is partnership-gated) | none for HTML; contract for API | Low-Med | Low | L (~233k) | HTML allowed (disclaimer); **API restricted (contract)** |
 | 12 | AMS alle jobs / Open Data | AT | Aggregates (CSV) + HTML portal | none | Medium | Medium | M | grey (open data OK) |
 | 13 | SEPE / Empléate | ES | HTML portal (JS) | none | Medium | Medium | S–M | grey |
 | 14 | ANPAL / Cliclavoro | IT | HTML portal; no open offers API | login | High | High | S–M | grey |
@@ -349,14 +349,35 @@ Pôle emploi). **~9.3M offers published over the last 12 months** nationally.
 
 ### 11. VDAB (BE — Flanders)
 
-Flemish PES open-data API portal (`developer.vdab.be/opendata`). Vacature API
-v4 (`GET /vacatures`), JSON, API-key via free app registration
-(`X-IBM-Client-Id`), subscription-based. Structured fields incl. `jobdomein`
-(C2 occupation codes), postcode, region.
+Flemish PES. Two surfaces, opposite verdicts (verified live 2026-08-22, see
+`SCRAPER_FEASIBILITY.md` Increment 5):
 
-- **Build:** Low. **Run:** Low. **Volume:** **M** (Flanders only; Wallonia and
-  Brussels are separate PES: Le Forem, Actiris — no open API found).
-- **ToS:** allowed (open data, free key). Good candidate for a Belgium slice.
+**(a) Vacature API v4** — developer portal `developer.vdab.be/opendata`,
+`GET /vacatures`, JSON, `X-IBM-Client-Id` header, structured fields incl.
+`jobdomein` (C2 occupation codes), postcode, region. **Correction to the
+earlier note that this is a "free app registration":** VDAB's own extranet
+documentation requires *"een partnership … en na het ondertekenen van een
+samenwerkingsovereenkomst"* — an approved partnership plus a signed cooperation
+agreement, professional use only, with a VDAB-side added-value test. **ToS:
+restricted (contract).** Not implementable as a scraper; only as an
+access-request task.
+
+**(b) Public job-search website** — `www.vdab.be/vindeenjob/jobs/<slug>`,
+server-rendered SEO landing pages with 28 vacancy tiles each (title, employer,
+contract type, `Online sinds` date, deep link), discovered via the six sitemaps
+advertised in `robots.txt` (34,903 landing pages; 214 weekly vacancy sitemaps
+with ids + `lastmod`). **~232,944 active vacancies** advertised on the search
+page. No in-page pagination (`?limit`/`?page`/`?start` ignored). The Angular
+app's internal JSON API `/api/vindeenjob/` is **robots-disallowed** and off-limits
+(also 403 in practice). **ToS: allowed** — the vdab.be disclaimer states *"Je mag
+informatie op onze website kopiëren, afdrukken en gebruiken voor informatieve
+doeleinden"*, with the VDAB name/logo protected as trademarks.
+
+- **Build:** Low-Med (HTML tiles, breadth-based coverage). **Run:** Low.
+  **Volume:** **L** (~233k advertised; Flanders only — Wallonia and Brussels are
+  separate PES: Le Forem, Actiris, no open API found).
+- Region is resolvable to NUTS 3 2024 through Basisregisters Vlaanderen, whose
+  `postinfo/{postcode}` payload returns `nuts3` directly (`9000` → `BE234`).
 
 ### 12. AMS — alle jobs / Open Data (AT)
 
@@ -470,8 +491,8 @@ shape. Clean open-data contract.
 | Tier | Sources |
 | --- | --- |
 | **XL (300k+)** | BA Jobsuche (1.9M), EURES (1.8M), France Travail (9.3M/yr), Kimeta (~1.5–1.8M), Indeed (blocked) |
-| **L (50–300k)** | JobTech SE, NAV NO, UWV NL (273k), CBOP PL, Adzuna DE (100k+), StepStone (blocked), Joblift |
-| **M (5–50k)** | Interamt (~90k/yr), Meinestadt, Työmarkkinatori FI, Jobnet DK, VDAB BE, AMS AT, MPSV CZ, Stellenanzeigen.de (~10k+) |
+| **L (50–300k)** | JobTech SE, NAV NO, UWV NL (273k), CBOP PL, Adzuna DE (100k+), VDAB BE (~233k), StepStone (blocked), Joblift |
+| **M (5–50k)** | Interamt (~90k/yr), Meinestadt, Työmarkkinatori FI, Jobnet DK, AMS AT, MPSV CZ, Stellenanzeigen.de (~10k+) |
 | **S (<5k)** | IEFP PT, JobsIreland IE, SEPE ES active, ANPAL IT, Baltic PES, Arbeitnow (tech/remote niche) |
 
 ## Targetable countries — shortlist
@@ -483,9 +504,9 @@ priority ranking for choosing the lab's first scrapers.
 | --- | --- | --- | --- |
 | 1 | **Poland** | National PES coverage, sanctioned batch API, no anti-bot, L volume | CBOP/ePraca JSON + SOAP |
 | 2 | **Sweden** | Already live in the main project; reference implementation | JobTech API |
-| 3 | **France** | XL volume, official API; one contract signing | France Travail API Offres d'emploi |
+| 3 | **France** | XL volume, official API; one licence acceptance (click-through, not a signed contract) | France Travail API Offres d'emploi |
 | 4 | **Czechia** | Open-data JSON, daily, documented; easy | MPSV data.gov.cz |
-| 5 | **Belgium (Flanders)** | Official open API, low run cost | VDAB open data |
+| 5 | **Belgium (Flanders)** | L volume on a robots-permitted public site; the API needs a partnership contract | VDAB public job-search HTML (not the API) |
 | 6 | **Norway** | Feed API, ~1k new/day; consumer registration | NAV stillings-feed |
 | 7 | **Finland** | ESCO-native NDJSON; onboarding is a form | Työmarkkinatori |
 | 8 | **Germany** | Highest value, hardest access — see below | Adzuna (best sanctioned), else Kimeta/Joblift/Stellenanzeigen, else BA agreement |
@@ -508,9 +529,13 @@ priority ranking for choosing the lab's first scrapers.
 ## Feasibility quick read
 
 - **Cleanest builds (Low/Low, sanctioned access):** JobTech SE (done), CBOP PL,
-  VDAB BE, MPSV CZ, France Travail FR (contract), NAV NO (apply), Työmarkkinatori
+  MPSV CZ, France Travail FR (licence acceptance), NAV NO (apply), Työmarkkinatori
   FI (apply), Arbeitnow (keyless), **Adzuna** (free key, covers DE). These are
   the lab's natural first targets.
+- **Sanctioned but only via the public website:** VDAB BE — its Vacature API
+  needs an approved partnership + signed agreement, while the public
+  job-search HTML is robots-permitted and covered by a disclaimer that allows
+  informational re-use (canary passed 2026-08-22).
 - **High value but legally blocked or grey:** BA Jobsuche (largest DE source,
   ToS-prohibited — would need a BA agreement), EURES (~1.8M but undocumented
   API + needs a data arrangement), Meinestadt (Akamai + ToS-ban), StepStone
