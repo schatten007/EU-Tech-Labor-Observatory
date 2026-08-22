@@ -14,6 +14,7 @@ than expanding the active increment.
 | 1 | 2026-08-21 | Complete | CBOP/ePraca (PL): Collector Interface + writers, robots/pacing, retry/backoff, HMAC sanitize, PolandCollector, SchemaValidator, CLI + `make scrape`; feasibility gate; live canary and full DoD sweep. | `make check` passed (69 tests); full sweep complete |
 | 2 | 2026-08-22 | Complete | Úřad práce / MPSV (CZ): planning (feasibility gate green, live probe, written plan) **and** implementation — MPSVCollector, codelist->NUTS 2024 crosswalk reference, HMAC-only delta reconciliation, CLI + Makefile wiring, tests. | `make check` passed (113 tests); two consecutive daily sweeps complete |
 | 3 | 2026-08-22 | Complete | Adzuna (DE + NL, multi-country adapter): feasibility gate (robots + ToS + live contract probe), `AdzunaCollector` + `CountryAdapter` in `scrapers/adzuna.py`, dedupe on HMAC(source_id), PII isolation, CLI `--source adzuna --country` + `make scrape-adzuna[-nl]`, respx tests. | `make check` passed (127 tests); DE + NL live sweeps complete |
+| 4 | 2026-08-22 | Complete | France Travail (FR, Offres d'emploi v2): feasibility gate (robots on 3 hosts + full Licence Offres d'emploi review + live OAuth2/pagination probe), `FranceTravailCollector` with client-credentials auth, TTL reuse and 401 refresh, département-segmented `range` windows, pinned département->NUTS 2024 crosswalk (`scrapers/reference_francetravail.py`), PII isolation, CLI `--source ft` + `make scrape-ft` / `make reference-ft`, respx tests. | `make check` passed (170 tests); DoD sweep complete (17,406 rows) |
 
 ## Session Notes
 
@@ -238,3 +239,127 @@ than expanding the active increment.
   caps, and the live sweep evidence. The written manifests carry the
   pre-refinement coverage text (240-page constant); the adapter ships the
   corrected text (100-page budget) for future sweeps.
+
+### 2026-08-22 - Increment 4 (France Travail FR: API Offres d'emploi v2)
+
+- **Feasibility gate (STEP 3), all live.** robots.txt on every host the work
+  touches: `api.francetravail.io` → `User-Agent: * / Disallow: /` (blanket
+  disallow on the keyed API host, the same pattern as `api.adzuna.com` in
+  Increment 3 — it governs *unauthenticated* crawling, and every unauthenticated
+  request answers 401; OAuth2 access under the accepted licence is the API's only
+  and documented access mode); `francetravail.io` (portal) allows everything
+  except `*utm_campaign*`, `/api-peio/`, `*api-peio*`, `*oauth2*` (none were
+  requested); `entreprise.francetravail.fr` (token host) 308-redirects its robots
+  to `pro.francetravail.fr/robots.txt` → `Disallow:` (allow all). Legacy
+  `api.pole-emploi.io` refuses connections; legacy `entreprise.pole-emploi.fr`
+  token host still answers identically.
+- **Licence review (14 articles).** The **Licence de réutilisation de la base de
+  données des offres d'emploi de France Travail** cedes free, non-exclusive
+  extraction and reuse rights (Art. 1.1). Conditions recorded and satisfied:
+  Art. 4 attribution (source + last-update date + licence link → manifest
+  `licence_reference`), Art. 5.2 call the API ≥ once/24 h and preserve
+  publication/update dates, **Art. 7 anonymization of a derived database — drop
+  employer name/description/URL, contact name and coordinates, phone numbers,
+  offer URLs and the postcode, INSEE code and commune label of the workplace**
+  (exactly what SAFE_FIELDS already excludes; the location identifiers are used
+  transiently to derive NUTS 3 and never persisted), Art. 8 GDPR
+  purpose-compatibility + EU storage, Art. 3 no sub-licensing, Art. 10 licence
+  lapses after 12 months of inactivity, Art. 13 audit right. **Roadmap
+  correction:** the API is in the "API en accès libre" tier — a self-service
+  account plus click-through licence acceptance, not a counter-signed contract.
+- **Credentials / auth state.** `FRANCE_TRAVAIL_CLIENT_ID` /
+  `FRANCE_TRAVAIL_CLIENT_SECRET` were present in `.env` and correctly shaped
+  (`PAR_<21-char slug>_<64 hex>` / 64 hex) but the token endpoint answered
+  `400 {"error":"invalid_client"}` for **every** documented variant (body creds,
+  Basic auth, with/without scope, `application_<id>` scope prefix, legacy host,
+  swapped id/secret); `realm=/individu` answered `Invalid realm`, proving the
+  request parsed and the credential pair itself was rejected. Reported to the
+  user instead of guessing or inventing keys (charter Rule 5 / task STEP 3): the
+  account existed but **the Licence Offres d'emploi had not been accepted**.
+  After acceptance the identical request returned `200 {token_type: Bearer,
+  expires_in: 1499, scope: "api_offresdemploiv2 o2dsoffre"}`. No credential
+  value was printed or logged at any point.
+- **Live contract probe (STEP 4).** `GET /partenaire/offresdemploi/v2/offres/
+  search?range=a-b` answers **`206 Partial Content`** with
+  `Content-Range: offres a-b/503356` and `accept-range: 150`. Hard caps probed:
+  window > 150 items → `400 "La plage de résultats demandée est trop
+  importante."`; start > 3000 → `400 "La position de début doit être inférieure
+  ou égale à 3000."` ⇒ **3,150 offers per query** against a **~503–504k**
+  national active stock. Deep windows return fresh ids (no Adzuna-style
+  recycling: windows 0/150/1000/1150/2000/3000 each yielded `fresh=150`).
+  Rate limits: documented 10 appels/seconde, confirmed by
+  `x-ratelimit-replenish-rate-clientidlimiter: 10` headers. Invalid/expired
+  token → **401 with empty body** + `WWW-Authenticate: Bearer`. Field shapes
+  (300-offer sample): `id` (7 chars), `dateCreation` / `dateActualisation` /
+  `nombrePostes` / `romeCode` **100%**, `lieuTravail.commune` 95.0%,
+  `codePostal` 95.3%, `libelle` 100% (`"<dép> - <commune>"`). Référentiels:
+  `departements` 101, `metiers` 1,911, `regions` 18, `communes` 35,015.
+- **Region mapping decision (the increment's real hurdle).** France exposes no
+  NUTS codes, so `scrapers/reference_francetravail.py` builds a pinned crosswalk
+  from FT `referentiel/departements` × Eurostat GISCO **NUTS 2024**
+  (`NUTS_AT_2024.csv`, FR level 3 = 101 codes) joined on the département name
+  (accent/case/punctuation-insensitive): **101/101 matched, zero leftovers, zero
+  manual overrides** →
+  `data/reference/francetravail_departements_nuts_2024.csv` (+ hashed
+  reference manifest, `make reference-ft`). Resolution chain at normalize time:
+  `commune` INSEE → `mapped`, `codePostal` → `low_confidence` (Corsican `20xxx`
+  cannot separate 2A/2B → `ambiguous`), `libelle` prefix → `low_confidence`,
+  otherwise `unmapped`. **Occupation:** `romeCode` is present on every offer but
+  no pinned ROME → ESCO 1.2.1 crosswalk exists, so the status is `unmapped` with
+  method `deferred_rome_to_esco` — deliberately *not* `not_present` as in
+  Increments 1–3, where the source exposed no occupation code at all.
+- **`FranceTravailCollector` (`scrapers/france_travail.py`).** OAuth2
+  client-credentials with lazy minting, TTL reuse (`expires_in` minus a 60 s
+  skew) and a single refresh-and-replay on 401; `range`-window pagination inside
+  the 150-item / 3000-start caps; segmentation over the 101 départements plus one
+  unsegmented query that records the national advertised total; dedupe on HMAC
+  `source_id` across segments; pacing at the charter's 1 s floor (10× inside the
+  documented 10 req/s) with `Retry-After`/429 backoff from `scrapers/retry.py`;
+  `first_published`=`dateCreation`, `last_modified`=`dateActualisation`,
+  `number_of_vacancies`=`nombrePostes`, `removed_at` absent (absence-based
+  closures across sweeps). Reused `base.py`, `robots.py`, `retry.py`,
+  `sanitize.py`, `validate.py` unchanged.
+- **PII.** `description`, `intitule`, `entreprise`, `contact`, `origineOffre`,
+  `agence`, `salaire` and the `lieuTravail` identifiers are simply not declared
+  on the payload models (`extra="ignore"`), with `NormalizedRecord(extra=
+  "forbid")` as the backstop; the PII-isolation test asserts none of the raw
+  private tokens — including postcode and INSEE code, per licence Art. 7 —
+  appear in a dumped record.
+- **CLI + Makefile.** `main.py --source ft|fr|francetravail` (typed
+  `SourceConfig` entry, scope `fr-all-active`, credentials via
+  `france_travail_credentials()` which raises before any network call);
+  `make scrape-ft` and `make reference-ft`.
+- **Tests.** 43 new respx tests: documented token-request body, token minted once
+  and reused, TTL expiry re-mint (injected clock), 401 refresh-and-replay,
+  persistent 401, token without `access_token`, `range` window pagination, the
+  3000-start cap (21 windows = 3,150 offers), short/empty/204 windows, page
+  budget, segment dedupe, default segments covering every département, 429 with
+  `Retry-After`, 500 propagation, PII isolation, unique source_ids, missing id,
+  `nombrePostes` edge cases, ROME present/absent statuses, date and
+  `Content-Range` parsing, the full region-resolution chain (commune/postcode/
+  libellé/Corsica/foreign/region-only), crosswalk loader errors and hashes,
+  short HMAC key, missing credentials. JobTech output-contract tests pass
+  unchanged. `make check` green at **170 tests** (ruff + mypy strict clean).
+- **Live DoD sweeps.** `fr-all-active` **20260822T000000Z** — **120/120 windows,
+  17,406 rows** (594 cross-segment duplicates dropped), `status=complete`,
+  `expected_rows == row_count == NDJSON lines`, **zero 4xx/401**; region
+  **mapped 98.1%** (17,081), low_confidence 294, unmapped 31, **100 distinct
+  NUTS 3 codes**; dates on 100% of rows; unique 64-hex HMAC source_ids; PII scan
+  found 0 e-mails, 0 URLs, 0 postcodes, 0 INSEE codes, 0 native ids (the only
+  string fields are the allowlist's enums/timestamps/NUTS codes). Second
+  consecutive daily sweep **20260823T000000Z** — **1500/1500 windows, 217,455
+  rows**, `status=complete`, reconciled, zero 4xx/401, region mapped 98.1%,
+  177.8 MB; **token TTL honored live: 2 token requests for 1,500 API calls**,
+  the second minted 1,439 s after the first (TTL-driven, not 401-driven).
+  Cross-sweep continuity: 17,181/17,406 (98.7%) source_ids reappear, 225 absent
+  (closure candidates; budgets differed, so indicative only).
+- **Honest cap statement.** ≥10,000 offers per sweep is easy, but a *complete*
+  national snapshot is impossible in one pass: 3,150 offers/query × 101
+  départements ⇒ ≤ ~318k of the ~503k active stock, and offers whose
+  `lieuTravail` carries no département (region-only or foreign, ~2% of the
+  sample) are reachable only through the unsegmented query and stay
+  region-unmapped. Recorded in the feasibility row and in every manifest's
+  `coverage_limitations`.
+- **Roadmap/feasibility updated:** Increment 4 marked **DONE 2026-08-22**; the
+  feasibility row carries the robots reading, the full licence analysis, the
+  probed caps, the auth/licence timeline and the sweep evidence.

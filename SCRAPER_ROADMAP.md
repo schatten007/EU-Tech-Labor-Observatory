@@ -104,14 +104,36 @@ result in `SCRAPER_FEASIBILITY.md` before the full sweep is enabled.
 
 - **Priority Score:** **High** — XL volume (9.3M offers/yr), official API; the
   contract onboarding can run in parallel with earlier increments.
-- **Access Method:** **API** — official REST; **requires signing a licence
-  contract** to obtain credentials (free; application → credentials).
+- **Access Method:** **API** — official REST; **requires accepting the "Licence
+  de réutilisation de la base de données des offres d'emploi"** to obtain
+  credentials (free, self-service click-through on francetravail.io — verified
+  live 2026-08-22; not a counter-signed bilateral contract as first assumed).
 - **Implementation Effort:** **M** — key hurdle is onboarding latency (contract)
   and mapping French ROME/codes to ESCO + NUTS.
 - **Deliverable:** `scrapers/france_travail.py` (`FranceTravailCollector`).
 - **Definition of Done:** First sweep pulls **≥10,000 active offers** with no
   4xx/401 after credentials land; contract + auth state recorded in
   `SCRAPER_FEASIBILITY.md`.
+- **Status:** **DONE 2026-08-22** — see `SCRAPER_FEASIBILITY.md` and
+  `SESSIONS.md`. Live probe pinned the contract: OAuth2 client-credentials
+  (`expires_in` 1499 s, opaque bearer, 401 + empty body when stale), `range`
+  windows answered `206` + `Content-Range: offres a-b/503356`, **hard caps of
+  150 items per window and start position ≤ 3000 ⇒ 3,150 offers per query**
+  against a **~504k** national active stock, so the sweep segments by
+  département (101 codes from a new pinned crosswalk) plus one unsegmented
+  query, deduped on HMAC `source_id`; documented and header-confirmed limit
+  10 req/s (collector paces at the charter's 1 s floor). **Region is fully
+  mapped, not deferred:** the pinned `francetravail_departements_nuts_2024.csv`
+  (101 rows, FT `referentiel/departements` × Eurostat GISCO NUTS 2024, 101/101
+  bijective name join) resolved **98.1% `mapped`** (commune INSEE), 1.7%
+  `low_confidence`, 0.2% `unmapped` across 100 distinct NUTS 3 codes.
+  ROME → ESCO deferred as `occupation_mapping_status=unmapped` (the source does
+  expose `romeCode`, unlike Increments 1–3). **DoD evidence:** sweep
+  `fr-all-active` 20260822T000000Z — **120/120 windows, 17,406 rows,
+  `status=complete`, `expected_rows == row_count == NDJSON lines`, zero
+  4xx/401**, unique 64-hex HMAC source_ids, zero PII (no e-mail, URL, postcode,
+  INSEE code or native id in the output), `first_published`/`last_modified`
+  populated on 100% of rows. `make check` green (170 tests).
 
 ## Increment 5: VDAB (Belgium — Flanders)
 

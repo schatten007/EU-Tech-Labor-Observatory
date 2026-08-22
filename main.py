@@ -3,6 +3,7 @@
 Usage:
     python main.py --source pl --date 2026-08-21
     python main.py --source cz --date 2026-08-22
+    python main.py --source ft --date 2026-08-22 --max-pages 120
     python main.py --source pl --date 2026-08-21 --max-pages 1   # canary
 
 Writes ``data/raw/collections/<source>/<scope_id>/<sweep_id>/`` with
@@ -40,6 +41,20 @@ from scrapers.czech_mpsv import (
     MPSV_SOURCE_VERSION,
     MPSVCollector,
     crosswalk_reference_hashes,
+)
+from scrapers.france_travail import (
+    FT_ACCESS_METHOD,
+    FT_COVERAGE_LIMITATIONS,
+    FT_FRESHNESS_THRESHOLD_HOURS,
+    FT_LICENCE_REFERENCE,
+    FT_SCOPE_ID,
+    FT_SCOPE_PARAMS,
+    FT_SOURCE_VERSION,
+    FranceTravailCollector,
+    france_travail_credentials,
+)
+from scrapers.france_travail import (
+    crosswalk_reference_hashes as ft_crosswalk_reference_hashes,
 )
 from scrapers.poland_cbop import (
     CBOP_ACCESS_METHOD,
@@ -109,6 +124,27 @@ def _czech(
     )
 
 
+def _france_travail(
+    scope_id: str,
+    sweep_id: str,
+    observed_at: _dt.datetime,
+    hmac_key: bytes,
+    max_pages: int | None,
+    **_: object,
+) -> BaseCollector:
+    client_id, client_secret = france_travail_credentials()
+    return FranceTravailCollector(
+        scope_id=scope_id,
+        sweep_id=sweep_id,
+        observed_at=observed_at,
+        hmac_key=hmac_key,
+        client_id=client_id,
+        client_secret=client_secret,
+        reference_dir=DEFAULT_REFERENCE,
+        max_pages=max_pages,
+    )
+
+
 def _adzuna(adapter: CountryAdapter) -> Callable[..., BaseCollector]:
     """Factory for an Adzuna collector bound to one country adapter."""
 
@@ -170,6 +206,20 @@ def source_config(source: str, country: str = "de") -> SourceConfig:
             reference_hashes="",
             build=_adzuna(adapter),
         )
+    if source in ("francetravail", "ft", "fr"):
+        return SourceConfig(
+            slug="francetravail",
+            scope_id=FT_SCOPE_ID,
+            scope_params=FT_SCOPE_PARAMS,
+            source_version=FT_SOURCE_VERSION,
+            licence_reference=FT_LICENCE_REFERENCE,
+            access_method=FT_ACCESS_METHOD,
+            expected_country="FR",
+            freshness_threshold_hours=FT_FRESHNESS_THRESHOLD_HOURS,
+            coverage_limitations=FT_COVERAGE_LIMITATIONS,
+            reference_hashes=ft_crosswalk_reference_hashes(DEFAULT_REFERENCE),
+            build=_france_travail,
+        )
     return SourceConfig(
         slug="mpsv",
         scope_id=MPSV_SCOPE_ID,
@@ -189,10 +239,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run a collector sweep")
     parser.add_argument(
         "--source",
-        choices=("cbop", "pl", "mpsv", "cz", "adzuna"),
+        choices=("cbop", "pl", "mpsv", "cz", "adzuna", "francetravail", "ft", "fr"),
         default="pl",
         help="source slug (pl/cbop = CBOP/ePraca Poland; cz/mpsv = Úřad práce "
-        "Czechia; adzuna = Adzuna multi-country API)",
+        "Czechia; adzuna = Adzuna multi-country API; ft/fr/francetravail = "
+        "France Travail Offres d'emploi v2)",
     )
     parser.add_argument(
         "--country",
@@ -276,6 +327,17 @@ async def run_sweep(args: argparse.Namespace) -> int:
             f" Advertised count at sweep: {collector.advertised_count} active listings "
             f"for {collector.expected_country}."
         )
+    if isinstance(collector, FranceTravailCollector):
+        coverage += (
+            f" Sweep budget: {collector.completed_pages} windows fetched "
+            f"({collector.planned_pages} implied by the advertised segment totals), "
+            f"{collector.token_requests} token request(s)."
+        )
+        if collector.advertised_count is not None:
+            coverage += (
+                f" Advertised national stock at sweep: {collector.advertised_count} "
+                "active offers (FR)."
+            )
 
     validator = SchemaValidator()
     writer = SweepWriter(args.root)
