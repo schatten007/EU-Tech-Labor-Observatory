@@ -20,6 +20,7 @@ than expanding the active increment.
 | 11a | 2026-08-19 | Complete | First real collection: fix the collector's country assumption against the live JobTech payload, filter the sweep to Sweden at the source, and scope sample-only dbt tests out of `live-site`. | `make check && make sweep && make live-site` passed |
 | 12 | 2026-08-20 | Collector complete; second scope blocked by the source | Add occupation-field scopes beside the keyword scope, verify on the wire that the source actually applied the requested filter, and refuse a scope whose rows cannot all be reached. The Data/IT scope is refused: 2589 records against a 2100-record traversal window. | `make check && make sweep && make live-site && make release-check` passed |
 | 13 | 2026-08-21 | Complete; live effect measured but not yet published | Accept a sole `exact-match` when the crosswalk offers several candidates, and publish the posting denominator beside every ranking. Measured on the latest sweep's retained raw pages: occupation `mapped` 65 to 510 of 615. The stored partitions are immutable, so the page shows it only after the next sweep. | `make check && make live-site && make release-check` passed |
+| 13a | 2026-08-22 | Complete; rule audited, one concept vetoed, figures published | Audit the exact-match tiebreak over 100% of its live population (29 concepts): 24 `same`, 4 `narrower-or-broader`, 1 `wrong`. The `wrong` concept had no correct ESCO URI to redirect to, so a reviewed refusal was added to `manual_reviews.csv` and `load_references` was taught to honour one. Published from a fresh 627-row sweep: occupation `mapped` 65 of 615 to 519 of 627. | `make check && make sweep && make live-site && make release-check && make sample` passed |
 
 
 ## Session Notes
@@ -418,4 +419,85 @@ than expanding the active increment.
   urgent privacy fix — until per-scope sections land. Not reachable today: `make sweep-datait` is
   refused by `_verify_reachable` before it can open the scope. Whoever lands the slicing decision
   should either ship per-scope sections with it or add a narrow single-scope escape hatch.
+
+### 2026-08-22 - Iteration 13a
+
+- **The audit covered 100% of the rule's live population, not a sample of it.** The tiebreak reaches
+  277 of 2179 occupation and 820 of 5962 skill concepts in the pinned reference, but only **13
+  occupation** and **16 skill** concepts occur in the 615-posting sweep it was measured on. All 29
+  were audited by descending live impact, covering 445 of 445 delta postings and 43 of 43 delta skill
+  mappings. There was no "next 15 by impact" to fall back on, because there is no tail.
+- Task 1 reproduced the published old-rule distribution exactly before anything else was believed:
+  occupation 456/63/65/31 and skill 108/76/33/558/3 over 615 postings, re-enriched offline from the
+  retained raw pages of `20260820T235159Z-f5cf1d409aa5`.
+- Verdicts: **24 `same`, 4 `narrower-or-broader`, 1 `wrong`.** Impact is extremely concentrated -
+  `fg7B_yov_smw` `Systemutvecklare/Programmerare` alone is 350 of the 445 delta postings (78.7%) and
+  is `same`; nine of the 13 occupation concepts move exactly one posting each.
+- The one `wrong`: **`9yMK_8ep_D1K` `IT-säkerhetstekniker` → `riskanalytiker, cybersäkerhet`**. Not a
+  judgement call - the crosswalk declares that same ESCO URI an `exact-match` for
+  `FHwx_yXu_FAd` `IT-säkerhetsanalytiker` as well, and the analyst is plainly the owner. A security
+  technician implements controls; a cybersecurity risk analyst quantifies risk. 1 posting of 615.
+- The four `narrower-or-broader`: `TU7g_mwa_VzB` `Testutvecklare` → `IKT-testanalytiker`,
+  `XZaM_BRb_3mM` `Infrastrukturarkitekt` → `it-nätverksarkitekt`, `iXzD_6DF_sL4` `Brandväggar` →
+  `installera och uppdatera brandvägg` (a knowledge concept mapped to an action, because ESCO offers
+  no bare firewall concept), and `uvcb_DuX_NW8` `Tekniska beräkningar/MATLAB` → `MATLAB`. In all four
+  the pick is the best candidate the reference contains; none was forced to `same` to flatter the
+  rule. 9 further postings of 615.
+- **Correction to a standing assumption: the crosswalk's `target_label` is Swedish, not English.**
+  ESCO 1.2.1 was pulled in the Swedish locale (221 of a 400-label sample carry å/ä/ö), so the audit
+  is a Swedish-to-Swedish comparison. Any future audit should not budget for translation.
+- **The decision rule's 1-2-`wrong` branch could not be executed as written, for two factual
+  reasons, and this was reported before acting rather than papered over.** There is no correct ESCO
+  URI for an IT security technician anywhere in the reference - the only neighbours are
+  `säkerhetstekniker för inbyggda system` (embedded-specific) and `it-säkerhetsansvarig` (a manager,
+  already owned by two other source concepts) - so a redirect could only trade one wrong mapping for
+  another. And `load_references` skipped every manual row whose `status != "mapped"`, so a reviewer
+  could redirect but never refuse.
+- **Remedy: the veto the previous session predicted would be needed.** `ManualReview` now carries a
+  status and an optional candidate; a row naming no target refuses the mapping outright. The refusal
+  still publishes `method = "manual_review"`, so the pinned eight-value `mapping_method` vocabulary
+  did not grow and `assert_mapping_outputs.sql` was untouched. Two invariants came with it: a status
+  the loader cannot express is now an **error** rather than a silent skip (a dropped review reads
+  exactly like no review), and a refusing row that also names a target is rejected as two
+  contradictory intentions. `occupation,9yMK_8ep_D1K,,,,ambiguous,,13a-audit,2026-08-22` is the first
+  such row. Effect on the measured sweep: occupation `mapped` 510 → **509**, `ambiguous` 11 → **12**,
+  `exact_match_tiebreak` 445 → **444**. Skill untouched.
+- **A collision guard was measured as the alternative remedy and deliberately rejected.** Requiring
+  the sole exact match to be the only source concept claiming that URI is a systematic test - the
+  defect it detects affects **34 of 277** tiebroken occupation concepts (12.3%) and **102 of 820**
+  skill concepts (12.4%), closely matching the 2-of-13 and 2-of-16 rates the audit saw live. But on
+  this sweep it would have refused 5 live concepts of which only 1 is `wrong`: it also kills
+  `Xnmr_kYS_YKY` `SQL, frågespråk` → `SQL` (the rival claimant is *SQLite*) and `xZLY_ZU5_E1q`
+  `Elektronikkonstruktion` → `designa elektroniska system` (the rival is the near-synonym
+  `Elektronikutveckling`), both judged `same`. Collisions arise as often from duplicated source
+  concepts as from mis-assertions, so it is a good diagnostic and a bad rule. Recorded here so the
+  measurement is not repeated: it is the obvious narrowing and it does not work.
+- **The occupation ranking hit `DIMENSION_LIMIT = 25` for the first time, and the denominator stopped
+  reconciling.** 519 mapped postings, but the visible 25 rows sum to 514. `release_check` reported
+  zero problems, because its rule is that a ranked table has a denominator sentence, not that the
+  two agree. `_denominator` now takes the listed rows for a one-row-per-posting ranking and publishes
+  the shortfall: "Only the 25 most frequent occupations are listed below, accounting for 514 of those
+  mapped postings; the rest sit in an unlisted tail." Counts only, no percentage. The clause appears
+  only when it is true, and never on the skill ranking, whose column legitimately exceeds its
+  denominator because a posting is counted in each of its skills' rows.
+- Published from a fresh sweep `20260822T160021Z-f5cf1d409aa5`: **627 rows, 7 pages**, seventh
+  partition, keyword scope. Denominators moved region 589 of 615 → 598 of 627, occupation **65 of 615
+  → 519 of 627** (all 627 carry a structured occupation, so the remaining loss is entirely in
+  mapping), skill 25 of 615 → **47 of 627** with only 60 carrying a structured skill. Occupation
+  outcomes on the page: `mapped` 519, `unmapped` 34, `low_confidence` 62, `ambiguous` **12** - the
+  vetoed concept is one of those 12. The ranked occupation table went from 18 rows to 25 (truncated),
+  and its long tail of single-posting occupations is now the bulk of the distribution.
+- `make sample` produced the diff Iteration 13 did not: `reference_hashes` is stamped into every
+  manifest, so the new `manual_reviews.csv` rewrote all 5 rows of `data/sample/sweeps_sample.ndjson`.
+  Correct, committed. `postings_sample.ndjson` did not move, and neither did the evaluation: none of
+  the pinned concepts (`CZkP_hCz_KM8`, `71Ji_irM_rSJ`, `3vry_gaE_yfQ`, `jBKc_5Yx_Y6T`,
+  `qfkh_ZRK_w4W`) is tiebroken at all, so occupation stays 1.0/1.0 and skill 1.0/0.75.
+- `make check` green at **56 Python tests** (three added: the veto, its rejected-row invariants, and
+  the truncation clause) and **dbt PASS=175** unchanged, since no dbt resource was added.
+  `make live-site` runs 170 and `release_check` is clean on the live page.
+- Still open, and now sharper: `scripts/evaluate.py` remains a three-row sample, and it is the only
+  precision metric behind a rule that decides most postings. The audit measured this rule's live
+  precision once, by hand, at a single point in time; nothing repeats that automatically. The
+  collision census above is the cheapest candidate for a standing offline check, provided it is
+  reported rather than enforced.
 

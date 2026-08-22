@@ -1,3 +1,4 @@
 dimension,source_concept_id,target_uri,target_label,relation,status,confidence,reviewer,reviewed_at
 occupation,occ-manual,http://data.europa.eu/esco/occupation/fixture-manual,web developer,manual-review,mapped,high,fixture,2026-08-15
 skill,skill-manual,http://data.europa.eu/esco/skill/fixture-manual,version control systems,manual-review,mapped,high,fixture,2026-08-15
+occupation,occ-vetoed,,,,ambiguous,,fixture,2026-08-22

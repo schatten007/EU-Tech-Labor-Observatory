@@ -8,3 +8,5 @@ occ-tiebreak,Mjukvaruarkitekt,http://data.europa.eu/esco/occupation/fixture-tieb
 occ-tiebreak,Mjukvaruarkitekt,http://data.europa.eu/esco/occupation/fixture-tiebreak-broad,ICT professional,broad-match,low
 occ-two-exact,Testledare,http://data.europa.eu/esco/occupation/fixture-two-exact-a,software tester,exact-match,high
 occ-two-exact,Testledare,http://data.europa.eu/esco/occupation/fixture-two-exact-b,test manager,exact-match,high
+occ-vetoed,IT-säkerhetstekniker,http://data.europa.eu/esco/occupation/fixture-vetoed-exact,cybersecurity risk analyst,exact-match,high
+occ-vetoed,IT-säkerhetstekniker,http://data.europa.eu/esco/occupation/fixture-vetoed-narrow,embedded security technician,narrow-match,low

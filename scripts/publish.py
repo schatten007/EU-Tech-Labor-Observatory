@@ -1081,12 +1081,23 @@ def _render_countries(demand: Sequence[DemandRow], regions: Sequence[DimensionRo
     )
 
 
-def _denominator(coverage: Sequence[MappingCoverageRow], dimension: str, noun: str) -> str:
+def _denominator(
+    coverage: Sequence[MappingCoverageRow],
+    dimension: str,
+    noun: str,
+    *,
+    listed: Sequence[DimensionRow] | None = None,
+) -> str:
     """State what a ranking is drawn from, so a top-25 list is never read as the whole sweep.
 
     Three counts, no ratio: a percentage invites a coverage trend that a single sweep cannot
     support. The class is on the paragraph so scripts/release_check.py can insist the sentence is
     still there next to each ranked table.
+
+    Pass `listed` for a ranking whose rows are one-per-posting, where the column is supposed to
+    account for every mapped posting. It stops doing so the moment the ranking truncates at
+    DIMENSION_LIMIT, and a reader who adds the column then gets a smaller number than the
+    sentence above it states. The shortfall is published rather than left to be discovered.
     """
     row = next((entry for entry in coverage if entry[2] == dimension and entry[3] > 0), None)
     if row is None:
@@ -1100,6 +1111,14 @@ def _denominator(coverage: Sequence[MappingCoverageRow], dimension: str, noun: s
             f"Ranked from {mapped:,} mapped posting(s) of {total:,} in the latest sweep; "
             f"{with_source_value:,} carry a structured {noun}."
         )
+        if listed is not None:
+            shown = sum(entry[3] for entry in listed)
+            if shown < mapped:
+                text += (
+                    f" Only the {len(listed):,} most frequent {noun}s are listed below, "
+                    f"accounting for {shown:,} of those mapped postings; the rest sit in "
+                    "an unlisted tail."
+                )
     return f'<p class="denominator">{escape(text)}</p>'
 
 
@@ -1135,7 +1154,7 @@ def _render_occupations(
             "not-present values are excluded from mapped demand and shown separately as mapping "
             "quality."
         )
-        + _denominator(coverage, "occupation", "occupation")
+        + _denominator(coverage, "occupation", "occupation", listed=occupations)
         + _table(
             "Ranked mapped demand by ESCO occupation",
             columns,

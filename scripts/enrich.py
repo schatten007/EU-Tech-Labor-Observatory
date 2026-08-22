@@ -14,6 +14,10 @@ NUTS_VERSION = "NUTS-2024"
 JOBTECH_TAXONOMY_VERSION = "30"
 ESCO_VERSION = "1.2.1"
 STATUSES = {"mapped", "ambiguous", "low_confidence", "unmapped", "not_present"}
+# What a reviewer is allowed to record. `low_confidence` is excluded because it describes a
+# candidate, and a refusing row names none; `not_present` is excluded because it would deny
+# source data that demonstrably exists. Anything else is a typo and must not pass silently.
+MANUAL_STATUSES = {"mapped", "ambiguous", "unmapped"}
 
 
 @dataclass(frozen=True)
@@ -25,11 +29,27 @@ class MappingCandidate:
 
 
 @dataclass(frozen=True)
+class ManualReview:
+    """A reviewed decision: either a confirmed mapping, or a refusal that names no target.
+
+    Refusal exists because a redirect cannot express every review outcome. The crosswalk
+    sometimes states one ESCO concept to be the exact equivalent of two different source
+    concepts, and for the losing one there is often no correct URI anywhere in the reference to
+    redirect to -- so a reviewer able only to redirect can merely trade one wrong mapping for
+    another. A refusal instead restores the outcome the rule produced before it was widened, for
+    that one audited concept, and leaves the rule untouched everywhere else.
+    """
+
+    status: str
+    candidate: MappingCandidate | None
+
+
+@dataclass(frozen=True)
 class ReferenceTables:
     geography: dict[tuple[str, str], tuple[str, str]]
     occupations: dict[str, tuple[MappingCandidate, ...]]
     skills: dict[str, tuple[MappingCandidate, ...]]
-    manual: dict[tuple[str, str], MappingCandidate]
+    manual: dict[tuple[str, str], ManualReview]
     hashes: dict[str, str]
 
 
@@ -72,15 +92,30 @@ def load_references(root: Path = REFERENCE_ROOT) -> ReferenceTables:
 
     occupations = _group(_rows(occupation_path))
     skills = _group(_rows(skill_path))
-    manual: dict[tuple[str, str], MappingCandidate] = {}
+    manual: dict[tuple[str, str], ManualReview] = {}
     for row in _rows(review_path):
         key = (row["dimension"], row["source_concept_id"])
-        if row["status"] != "mapped":
-            continue
-        candidate = _candidate(row)
-        if key in manual and manual[key] != candidate:
+        status = row["status"]
+        # Previously any non-mapped row was skipped, which silently discarded the one review
+        # outcome that cannot be expressed as a redirect. A status this loader does not
+        # understand is now an error, because a dropped review reads exactly like no review.
+        if status not in MANUAL_STATUSES:
+            raise ValueError(f"unsupported manual review status for {key}: {status!r}")
+        review: ManualReview
+        if status == "mapped":
+            review = ManualReview(status, _candidate(row))
+        else:
+            named = tuple(
+                field
+                for field in ("target_uri", "target_label", "relation", "confidence")
+                if row[field]
+            )
+            if named:
+                raise ValueError(f"refusing manual review for {key} must not name {named}")
+            review = ManualReview(status, None)
+        if key in manual and manual[key] != review:
             raise ValueError(f"conflicting manual review: {key}")
-        manual[key] = candidate
+        manual[key] = review
 
     hashes = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}
     return ReferenceTables(geography, occupations, skills, manual, hashes)
@@ -105,13 +140,27 @@ def _mapping(
         }
     manual = references.manual.get((dimension, source_id))
     if manual is not None:
+        # A review wins over the crosswalk in both directions. A human looked at this concept
+        # and the reference did not, so a refusal is evidence just as much as a redirect is.
+        if manual.candidate is None:
+            return {
+                "uri": None,
+                "label": None,
+                "status": manual.status,
+                "confidence": None,
+                "method": "manual_review",
+                "relation": None,
+                "source_language": "sv",
+                "jobtech_taxonomy_version": JOBTECH_TAXONOMY_VERSION,
+                "esco_version": ESCO_VERSION,
+            }
         return {
-            "uri": manual.uri,
-            "label": manual.label,
+            "uri": manual.candidate.uri,
+            "label": manual.candidate.label,
             "status": "mapped",
-            "confidence": manual.confidence,
+            "confidence": manual.candidate.confidence,
             "method": "manual_review",
-            "relation": manual.relation,
+            "relation": manual.candidate.relation,
             "source_language": "sv",
             "jobtech_taxonomy_version": JOBTECH_TAXONOMY_VERSION,
             "esco_version": ESCO_VERSION,

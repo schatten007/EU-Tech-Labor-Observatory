@@ -289,6 +289,69 @@ def test_sole_exact_match_resolves_a_multi_candidate_concept() -> None:
     assert no_exact["occupation"]["status"] == "ambiguous"
 
 
+def test_a_reviewed_refusal_overrides_a_bad_tiebreak() -> None:
+    """A reviewer must be able to refuse a tiebreak, not only redirect it.
+
+    The audit in Increment 13a found the crosswalk asserting one ESCO concept to be the exact
+    equivalent of two different source concepts. The losing concept has no correct URI anywhere
+    in the reference, so a redirect-only override could merely swap one wrong mapping for
+    another. Refusing puts that single concept back where the narrower rule would have left it.
+    """
+    refs = enrich.load_references(FIXTURE_REFERENCE)
+    vetoed = enrich.enrich_hit({"occupation": {"concept_id": "occ-vetoed"}}, refs)
+
+    assert vetoed["occupation"]["status"] == "ambiguous"
+    assert vetoed["occupation"]["uri"] is None
+    assert vetoed["occupation"]["label"] is None
+    assert vetoed["occupation"]["confidence"] is None
+    # Still manual_review, so the eight-value published vocabulary does not grow and the
+    # decision stays attributable to a reviewer rather than to the rule.
+    assert vetoed["occupation"]["method"] == "manual_review"
+    # The refusal must beat the tiebreak, not merely coexist with it.
+    assert refs.manual[("occupation", "occ-vetoed")].candidate is None
+    exact = [
+        option for option in refs.occupations["occ-vetoed"] if option.relation == "exact-match"
+    ]
+    assert len(exact) == 1
+
+
+def test_manual_reviews_refuse_unreadable_rows(tmp_path: Path) -> None:
+    """A review this loader cannot express must fail, because a skipped row reads as no row."""
+    header = (
+        "dimension,source_concept_id,target_uri,target_label,relation,"
+        "status,confidence,reviewer,reviewed_at\n"
+    )
+    cases = {
+        # A status the loader has no representation for used to be silently dropped.
+        "occupation,occ-x,,,,low_confidence,,fixture,2026-08-22\n": "unsupported manual review",
+        "occupation,occ-x,,,,not_present,,fixture,2026-08-22\n": "unsupported manual review",
+        "occupation,occ-x,,,,mappd,,fixture,2026-08-22\n": "unsupported manual review",
+        # A refusal that also names a target has two contradictory intentions.
+        (
+            "occupation,occ-x,http://data.europa.eu/esco/occupation/x,x,"
+            "manual-review,ambiguous,,fixture,2026-08-22\n"
+        ): "must not name",
+    }
+    for row, expected in cases.items():
+        root = tmp_path / str(abs(hash(row)))
+        root.mkdir()
+        for name in (
+            "geography_nuts_2024.csv",
+            "jobtech_occupation_esco_1.2.1.csv",
+            "jobtech_skill_esco_1.2.1.csv",
+        ):
+            (root / name).write_text(
+                (FIXTURE_REFERENCE / name).read_text(encoding="utf-8"), encoding="utf-8"
+            )
+        (root / "manual_reviews.csv").write_text(header + row, encoding="utf-8")
+        try:
+            enrich.load_references(root)
+        except ValueError as error:
+            assert expected in str(error), (row, str(error))
+        else:
+            raise AssertionError(f"{row!r} must not load")
+
+
 def test_municipality_prefix_resolves_full_swedish_coverage() -> None:
     refs = enrich.load_references(FIXTURE_REFERENCE)
     goteborg = enrich.enrich_hit({"workplace_address": {"municipality_code": "1480"}}, refs)
@@ -319,6 +382,7 @@ def test_committed_reference_has_no_placeholder_uris() -> None:
         "occ-low",
         "occ-tiebreak",
         "occ-two-exact",
+        "occ-vetoed",
         "skill-python",
         "skill-manual",
         "skill-cloud",
@@ -1266,6 +1330,37 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
     # mask and the disclosure rule has to see them. Every other release rule must pass.
     assert [problem for problem in problems if "suppression threshold" not in problem] == []
     assert any("table-survival-flows publishes 1" in problem for problem in problems)
+
+
+def test_truncated_occupation_ranking_states_what_it_leaves_out() -> None:
+    """A one-row-per-posting ranking must not silently stop summing to its own denominator.
+
+    Increment 13 widened occupation mapping enough that the ranking hit DIMENSION_LIMIT for the
+    first time, so the visible column stopped accounting for every mapped posting. A reader who
+    adds it up gets a smaller number than the sentence above it states, and nothing said why.
+    """
+    coverage = [("jobtech", "scope", "occupation", 627, 627, 519)]
+    listed = [
+        ("occupation", f"occ-{index}", "1.2.1", 1) for index in range(publish.DIMENSION_LIMIT)
+    ]
+    truncated = publish._denominator(coverage, "occupation", "occupation", listed=listed)
+    assert "Ranked from 519 mapped posting(s) of 627" in truncated
+    assert f"Only the {publish.DIMENSION_LIMIT} most frequent occupations are listed" in truncated
+    assert "accounting for 25 of those mapped postings" in truncated
+    assert "%" not in truncated
+
+    # A complete ranking must stay silent: an unnecessary caveat is its own kind of dishonesty.
+    whole = publish._denominator(
+        coverage,
+        "occupation",
+        "occupation",
+        listed=[("occupation", "occ", "1.2.1", 519)],
+    )
+    assert "unlisted tail" not in whole
+    # The skill ranking counts postings per skill, so its column legitimately exceeds the
+    # denominator and must never gain a shortfall clause.
+    skills = publish._denominator(coverage, "skill", "skill")
+    assert "unlisted tail" not in skills
 
 
 def test_publish_handles_zero_only_aggregate(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
