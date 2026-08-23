@@ -302,6 +302,67 @@ separate surfaces in `SCRAPER_FEASIBILITY.md`.
   held and 0 postings were retrieved**. The DoD sweep waits for the key; the
   increment is **not** claimed as DONE. `make check` green (**367 tests**).
 
+## Germany — ACTIVE LANE (user reorder 2026-08-23)
+
+Germany is the highest-value market and the least covered (Adzuna DE 4,841 of
+~1.16M advertised = 0.4%), so it becomes the active lane. The roadmap's German
+increments are re-sequenced below **on live evidence, not on the original
+assumptions**; the serial-only grey rule still holds, and Increment 7 (Finland)
+stays parked-BLOCKED (build complete, key + IP opening absent) rather than being
+dropped.
+
+**Coverage stack — every German surface assessed live 2026-08-23:**
+
+| Source | Advertised | Access reality (verified) | Role in the plan |
+| --- | --- | --- | --- |
+| BA Jobsuche | ~1.9M | Portal robots allow-all; the **Jobsuche data is ToS-agreement-only** (HR-BA-XML / explicit BA arrangement). Never scraped. | Full national coverage — **access track** (parallel) |
+| Kimeta (Inc 8) | ~1.5–1.8M | **robots.txt: `User-agent: *` → `Disallow: /`** (6,257 B, verified with `RobotsRule`: DENY on `/jobs/berlin`, `/search`, `/api/job-pdf`). No key exists to serve as operative permission (the Adzuna reading does not apply to a public HTML site). | **Tertiary — gate will record prohibited** unless a named-UA exception or agreement appears; not routed around |
+| Adzuna DE (Inc 3) | ~1.16M | Sanctioned API, free key, DONE (free-tier cap ≈ 4,841 rows/sweep). | **Sanctioned base — keep running daily** |
+| EURES DE slice (Inc 12) | ~1.8M EU | Arrangement-gated; ESCO-native; carries the German PES feed. | National + ESCO — **access track** (parallel) |
+| Stellenanzeigen.de (Inc 10) | ~10k+ active | **robots-PERMITTED** (772 B: `/job/*` and `/suche/*` ALLOW, `/stabi/` etc. DENY); three sitemaps advertised; detail pages carry `JobPosting` JSON-LD (`datePosted`, `validThrough`, `employmentType`, `postalCode`/`addressLocality`); Cloudflare present but reported *"passive, no active challenge"* by community scrapers. | **PRIMARY BUILD — moves first in the grey chain** |
+| Joblift (Inc 9) | L (Berlin 24k, Köln 27k, München 20k, Einzelhandel 97k…) | **CloudFront 403 at the edge** — robots.txt *and* the official partner-API page (`/business-developer`) both blocked from this egress; aggregates StepStone/Monster/stellenanzeigen content; a partner API exists. | **Secondary — gate first** (UA- vs egress-block determination + self-serve partner API route) |
+| Arbeitnow (Inc 11) | ≤5k tech/remote | Keyless official API, clean ToS. | Cheap fill (interleave) |
+| Interamt | ~90k/yr public | Playwright-only, high run cost; not in the roadmap. | Gate only if breadth still needs it |
+
+**The grey-HTML chain re-ordered by evidence: 10 → 9 → 8** (Stellenanzeigen →
+Joblift → Kimeta), not the original 8 → 9 → 10. Serial-only, one gate + canary
+each, recorded in `SCRAPER_FEASIBILITY.md` before any full sweep.
+
+**New prerequisite — the German region crosswalk (not previously scheduled):**
+every German source needs location → NUTS 3 2024, and none of them ships a NUTS
+code. Germany has **400 NUTS 3 codes** (Eurostat GISCO `NUTS_AT_2024.csv`,
+verified live 2026-08-23). Authority: **BKG Geodatenzentrum**
+(`gdz.bkg.bund.de`, robots permits — only GPTBot disallowed) Orts-/Gemeinde-
+verzeichnis (PLZ + AGS) cross-checked with **destatis.de** (allow, `Crawl-delay:
+30`) and validated against GISCO. Deliverable `scrapers/reference_germany.py` +
+pinned `germany_plz_nuts_2024.csv`, 0-unmatched bar, built once, reused by every
+German collector (the Increment 4/5/6/7 pattern). Built **before** the first
+HTML collector.
+
+**Access tracks running in parallel (no scraper, no code):** the BA Jobsuche
+agreement and the EURES arrangement are the only routes to full German coverage
+plus ESCO. Their status is recorded in `SCRAPER_FEASIBILITY.md`, never assumed.
+
+**Cross-source overlap stance:** aggregators share boards (Joblift explicitly
+indexes StepStone/Monster/stellenanzeigen). Cross-source dedupe is **not
+possible at collection** — SAFE_FIELDS carries no join key and matching would
+require PII-adjacent free text. Overlap is accepted and stated per source in
+`coverage_limitations`; observations remain per-source records. Adzuna (free-tier
+≈4,841 rows/sweep) and each HTML source are **windows, never complete snapshots**
+— the honest bound goes into every manifest (Increments 3–6 precedent).
+
+**Germany execution order (next sessions):**
+1. Gate-only: **Stellenanzeigen.de** feasibility (robots re-verify, ToS review,
+   JSON-LD detail probe, passive-Cloudflare check) + record the row.
+2. `reference_germany.py` (BKG × GISCO, 400 codes, 0 unmatched).
+3. Stellenanzeigen canary → `StellenAnzeigenCollector` → DoD sweep (≥5,000 rows,
+   zero 4xx).
+4. Joblift gate (CloudFront 403 re-probe with an honest UA; partner-API
+   self-serve check; ToS) → build or **blocked** record.
+5. Kimeta gate (expected verdict: **prohibited by robots.txt**) → record and
+   close rather than route around.
+6. Arbeitnow fill + BA/EURES access-track status updates, interleaved.
+
 ## Increment 8: Kimeta.de (Germany — largest aggregator)
 
 - **Priority Score:** **Medium** — XL volume (~1.5–1.8M) is the highest German
@@ -412,10 +473,10 @@ separate surfaces in `SCRAPER_FEASIBILITY.md`.
 | 4 | France Travail | Low (contract) | Med (onboarding latency) | Low (official) | **Low-Med** |
 | 5 | VDAB BE (public site) | Low-Med (robots-permitted HTML; API surface blocked and dropped) | Med (no in-page pagination, breadth-based coverage) | Med (Flanders only, no occupation code) | **Low-Med** |
 | 6 | NAV NO | Low (agreement) | Med (feed reconciliation) | Low-Med (Finn.no excluded) | **Med** |
-| 7 | Finland TMT | Low-Med (activation bound to a Finnish Y-tunnus; KEHA suitability check) | Med (NDJSON stream, credentials **+ IP allowlist**) | Low (ESCO-native) | **Med** |
-| 8 | Kimeta DE | **High** (grey) | **High** (HTML, dedupe) | Med (aggregator) | **High** |
-| 9 | Joblift | **High** (grey) | **High** (multi-domain HTML) | Med | **High** |
-| 10 | Stellenanzeigen DE | **High** (grey) | **High** (Cloudflare) | Low-Med (JSON-LD) | **High** |
+| 7 | Finland TMT | Low-Med (activation bound to a Finnish Y-tunnus; KEHA suitability check) | Med (NDJSON stream, credentials **+ IP allowlist**) | Low (ESCO-native) | **Med (parked-BLOCKED)** |
+| 8 | Kimeta DE | **High (robots.txt: `*` → `Disallow: /`, verified live)** | **High (HTML behind a blanket robots block; no keyed-API reading applies)** | Med (aggregator) | **High (gate expected: blocked)** |
+| 9 | Joblift | **High (CloudFront 403 at the edge: robots.txt + partner-API page)** | **High (anti-bot edge + aggregator HTML)** | Med | **High (gate pending)** |
+| 10 | Stellenanzeigen DE | **Low-Med (robots-permitted, sitemaps advertised, passive Cloudflare)** | **Med (JSON-LD structured HTML + Cloudflare)** | Low-Med (JSON-LD) | **Low-Med — PRIMARY German build** |
 | 11 | Arbeitnow | Low (public API) | Low | **High** (tech-only niche) | **Low-Med** |
 | 12 | EURES | **High** (grey, undocumented) | Med | Med (varies by PES) | **High** |
 | 13 | Latvia NVA | Low (open data) | Low | Med (S volume) | **Low** |
@@ -434,16 +495,29 @@ feasibility gate.
   waits.
 - **Increments 6 (NAV) and 7 (Finland)** can be built in parallel with 4–5
   once the interface is stable (Inc 1 done) — they use different transports
-  (feed, NDJSON) and their registration processes run independently.
-- **Increments 8–10 (Kimeta / Joblift / Stellenanzeigen)** must **not**
+  (feed, NDJSON) and their registration processes run independently. **Increment 7
+  is now parked-BLOCKED** (build complete, DoD pending KEHA activation — the
+  activation notification is bound to a Finnish Y-tunnus this lab does not hold).
+- **Germany is the active lane.** The user re-ordered the roadmap to make Germany
+  the active build target, and the evidence re-ordered the grey-HTML chain itself:
+  **Stellenanzeigen (Inc 10) → Joblift (Inc 9) → Kimeta (Inc 8)**, not the
+  original 8 → 9 → 10. The serial-only rule still holds. Stellenanzeigen is the
+  primary build because it is the only robots-permitted German HTML source. Kimeta
+  is expected to be blocked (``User-agent: *`` → ``Disallow: /`` — no keyed-API
+  reading applies). The German region crosswalk (``reference_germany.py``, BKG
+  × GISCO, 400 NUTS 3 codes) is a **new prerequisite** that must be built before
+  any HTML collector. The BA Jobsuche access track and the EURES arrangement run
+  in parallel as agreement tasks, not scrapers.
+- **Increments 8–10 (the German grey-HTML chain)** must **not**
   overlap each other: each is a grey/HTML source requiring its own Canary Test
   and canary result recording before full deployment. Run serially, spaced by
   at least one clean-sweep session each. **Increment 5 (VDAB) joined this
   HTML-canary class when it was re-scoped to the public site**, so it does not
   overlap 8–10 either; its canary already passed (2026-08-22).
-- **Increments 11–13 are fillers** — slot into any idle cycle; they share no
-  moving parts with the critical path.
-- **Recommended team shape:** one lane on the sequential backbone (1→2→3),
-  one lane on agreement/credential sources (4, 6, 7), one lane on the
-  grey-HTML canary chain (8→9→10). Data writes are the only shared resource
+- **Increments 11 (Arbeitnow) and 13 (Latvia NVA) are fillers** — slot into any
+  idle cycle; they share no moving parts with the critical path.
+- **Recommended team shape:** one lane on the German active lane (region
+  crosswalk → Stellenanzeigen → Joblift gate → Kimeta gate), one lane on access
+  tracks (BA Jobsuche, EURES), one lane on the interleave fillers (Arbeitnow,
+  Adzuna country expansion). Data writes are the only shared resource
   and are per-source-partition isolated on disk, so lanes do not contend.

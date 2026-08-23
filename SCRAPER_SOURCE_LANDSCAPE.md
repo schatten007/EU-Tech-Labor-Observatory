@@ -601,6 +601,29 @@ priority ranking for choosing the lab's first scrapers.
 - **Aggregate-only or login-walled, low priority:** UWV posting-level (scrape
   needed), SEPE, ANPAL, Jobnet, IEFP, Baltic EE.
 
+**Germany — measured live 2026-08-23 (corrections to the rows above).** (a)
+**Kimeta's robots.txt is a blanket block for non-listed crawlers**: the last
+group is `User-agent: *` → `Disallow: /` (6,257 B; only named search-engine UAs
+get `Allow: /`), verified with the lab's `RobotsRule` — DENY on `/jobs/berlin`,
+`/search` and `/api/job-pdf`. There is no keyed-API reading that rescues a public
+HTML site, so Increment 8 is expected to gate **blocked** for this lab. (b)
+**Joblift sits behind a CloudFront WAF that 403s even robots.txt** and its
+official partner-API page (`joblift.co.uk/business-developer`) from this egress;
+the homepage advertises per-city totals (Berlin 24,296, Köln 27,064, München
+20,249) and openly lists StepStone, Monster and stellenanzeigen as indexed
+boards. (c) **Stellenanzeigen.de is robots-permitted** (`/job/*`, `/suche/*`
+ALLOW; `/stabi/` and internal ajax paths DENY; three sitemaps advertised:
+`careeasy/sitemap_index.xml`, `wp/sitemaps/sitemap.xml`, `sitemaps/…index-sitemap`),
+detail pages carry `JobPosting` JSON-LD, and community scrapers report "passive
+Cloudflare, no active challenge" — the most feasible German HTML surface and the
+plan's primary build. (d) **BA portal robots is allow-all** (208 B) but the
+Jobsuche data remains agreement-only — robots does not extend to the data.
+(e) **German region authority:** Germany has **400 NUTS 3 codes** in Eurostat
+GISCO NUTS 2024; BKG Geodatenzentrum robots permits (only GPTBot blocked) and
+destatis allows with `Crawl-delay: 30`, so the PLZ/Stadt → NUTS 3 2024 crosswalk
+(`scrapers/reference_germany.py`) is buildable from official, robots-clean
+sources. govdata.de is blanket-`*`-denied and is **not** used as a reference host.
+
 Next step when a target is chosen: fill the corresponding row in
 `SCRAPER_FEASIBILITY.md` (robots.txt fetch, ToS clause, Crawl-Delay, SAFE_FIELDS
 coverage, PII risk, rate limits, snapshot semantics) before any code is written.

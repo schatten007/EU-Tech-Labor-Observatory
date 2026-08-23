@@ -19,6 +19,7 @@ than expanding the active increment.
 | 5 | 2026-08-22 | Complete | VDAB (BE-Flanders) **implementation** on the re-scoped public HTML surface: `VDABCollector` with a per-URL `robots.txt` gate (hard failure, `/api/vindeenjob/` never requested), keyword-sitemap discovery + breadth ordering by postcode, allowlist-only BeautifulSoup/lxml tile parsing, Dutch date parser, HMAC dedupe, pinned postcode->NUTS 2024 crosswalk (`scrapers/reference_vdab.py`, 528 rows), CLI `--source be` + `make scrape-vdab` / `make reference-vdab`, 45 new respx tests. | `make check` passed (215 tests); DoD sweep complete (12,282 rows, 500/500 pages, zero 4xx) |
 | 6 | 2026-08-23 | Complete | NAV stillings-feed (NO): feasibility gate (robots absent + full Nynorsk ToS review + live contract re-verification), `NAVFeedCollector` — the lab's first **event-log** source (fold per ad uuid on HMAC source_id), first **source-reported `removed_at`**, and first **native ESCO occupation URI**; token handling with disk cache + 401 rotate-and-replay, `If-Modified-Since` seek / `If-None-Match` revalidation, budgeted ad details, poll cursor, pinned SSB Klass x GISCO fylke/kommune -> NUTS 2024 crosswalk (`scrapers/reference_nav.py`, 370 rows), CLI `--source no` + `make scrape-nav` / `make reference-nav`, 93 new respx tests. | `make check` passed (313 tests); backfill 10,342 rows (20/20 pages) + poll cycle 2,239 rows (6/6, cursor-resumed), zero 4xx, token rotation handled live |
 | 7 | 2026-08-23 | **Blocked** (build complete, DoD pending activation) | Työmarkkinatori / Job Market Finland (FI, P67 search API via Kipa): feasibility gate first — **`tyomarkkinatori.fi/robots.txt` disallows `/api/`**, so the source's own KUNTA/MAAKUNTA/ESCO codesets were left untouched and the crosswalk was built from Statistics Finland instead; both Kipa hosts **drop TCP 443 from a non-allowlisted IP** (21 s) so there is **no sandbox** and the contract was pinned from the published OpenAPI. `FinlandTMTCollector` — key auth + optional bearer with 401 refresh-and-replay, streaming NDJSON with drained-then-retried 429/5xx, **client-side watermark** (the API has no cursor and no sentinel), loud schema-drift guard, the lab's **first `skill_mappings`** and second **source-reported `removed_at`**, five-way FINESCO classification (ESCO / ISCO group / national extension / unrecognised / absent); pinned kunta+maakunta -> NUTS 2024 crosswalk (`scrapers/reference_finland.py`, **327 rows, 19/19 NUTS 3, 0 unmatched, 0 ambiguous**); CLI `--source fi` + `--max-rows`/`--status`, `make scrape-finland` / `make reference-finland`, 54 new tests. **KEHA activation notification deliberately NOT submitted** (bound to a Finnish Y-tunnus). | `make check` passed (367 tests); **DoD not met — 0 records**: no key and no IP opening, sweep stops at the robots gate after 94.3 s, no partition written |
+| P1 | 2026-08-23 | Complete | **Germany — active lane architecture** (planning, no code): user re-ordered the roadmap to make Germany the active build target; every German surface probed live and the grey-HTML chain **re-ordered by evidence to 10 → 9 → 8** (Stellenanzeigen → Joblift → Kimeta). Key findings: **Kimeta is robots-blocked for this lab** (`*` → `Disallow: /`, verified with `RobotsRule` — DENY on `/jobs/berlin`, `/search`, `/api/job-pdf`); **Joblift is CloudFront-403 at the edge** (robots.txt and its partner-API page both blocked from this egress); **Stellenanzeigen.de is robots-permitted with three advertised sitemaps and `JobPosting` JSON-LD on detail pages** (community scrapers confirm "passive Cloudflare, no active challenge") — it becomes the primary German build; BA portal is robots-allow-all but the Jobsuche data stays agreement-only (access track); BKG Geodatenzentrum robots permits (only GPTBot blocked) and destatis allows with `Crawl-delay: 30`, confirming the German region-crosswalk authority. Germany has **400 NUTS 3 codes** (GISCO 2024, verified). Plan recorded: coverage stack, lanes, mandatory foolproof mechanisms, predetermined backup chain, cross-source overlap stance, and the new `reference_germany.py` prerequisite. | docs only; `make check` unchanged (367 tests) |
 ## Session Notes
 
 ### 2026-08-20 - Increment L0 (context cleanup)
@@ -908,3 +909,62 @@ feasibility gate was opened and greened before any collector code was written.
   `reference-finland` with honest runtime comments naming the credential and
   IP-opening preconditions. **`make check` green: 367 tests** (313 before), ruff
   clean, mypy strict clean; the JobTech output-contract tests pass unchanged.
+### 2026-08-23 - P1 (Germany active-lane architecture) — planning, no code
+
+- **Why:** Germany is the highest-value market and the least covered (Adzuna DE
+  4,841 of ~1.16M advertised = **0.4%**). The user re-ordered the roadmap to make
+  Germany the active build target. This session produced the architecture, ran
+  the live probes that shape it, and recorded the reorder — it built nothing.
+- **Live probes (all at the 1 s floor, single honest UA):** robots.txt for
+  kimeta.de (6,257 B), joblift.de (**403 CloudFront**), stellenanzeigen.de
+  (772 B after the www redirect), arbeitsagentur.de (208 B, allow-all),
+  govdata.de (blanket `*` deny — excluded as a reference source), destatis.de
+  (allow, `Crawl-delay: 30`), gdz.bkg.bund.de (only GPTBot blocked), plus the
+  Joblift partner-API page (`/business-developer`, **also 403 CloudFront**).
+  Parsed kimeta/stellenanzeigen/arbeitsagentur with the lab's own `RobotsRule`.
+- **Three findings that re-ordered the grey chain:**
+  1. **Kimeta is robots-blocked for this lab.** `User-agent: *` → `Disallow: /`.
+     `RobotsRule` confirms DENY on `/jobs/berlin`, `/search`, `/api/job-pdf`.
+     There is no keyed-API reading to rescue it (that reading applies to Adzuna's
+     API host, not a public HTML site). Expected gate verdict: **blocked** — the
+     roadmap's Inc 8 becomes the *tertiary* German source, not the first.
+  2. **Joblift is CloudFront-403 at the edge** — even robots.txt is blocked from
+     this egress, and so is its official partner-API page. Its homepage (fetched
+     via search cache) advertises Berlin 24,296 / Köln 27,064 / München 20,249 /
+     Einzelhandel 96,881 vacancies and openly lists StepStone, Monster and
+     stellenanzeigen as indexed boards. The gate must distinguish a UA-based
+     block (maybe honestly passable) from an egress/WAF block (not).
+  3. **Stellenanzeigen.de is robots-permitted** (`/job/*`, `/suche/*` ALLOW;
+     `/stabi/` etc. DENY), advertises **three sitemaps**, and community scrapers
+     (Apify actors, cited as *reference only* — their proxy/TLS-fingerprint
+     stacks are not lab practice) confirm `JobPosting` JSON-LD on detail pages
+     and "passive Cloudflare, no active challenge". It becomes the **primary
+     German build** and moves first in the serial chain: **10 → 9 → 8**.
+- **New prerequisite found and scheduled:** every German source needs a
+  location → NUTS 3 2024 mapping and none ships one. Germany has **400 NUTS 3
+  codes** (GISCO NUTS 2024, verified). Authority confirmed: BKG Geodatenzentrum
+  (robots-permitted) Orts-/Gemeindeverzeichnis (PLZ + AGS) cross-checked with
+  destatis, validated against GISCO — the German analogue of SSB Klass /
+  Statistics Finland. Deliverable `scrapers/reference_germany.py` +
+  `germany_plz_nuts_2024.csv`, 0-unmatched bar, built before any HTML collector.
+- **Access tracks (parallel, no scraper):** BA Jobsuche (HR-BA-XML / explicit
+  arrangement — the only full-coverage route; the portal's allow-all robots does
+  not extend to the Jobsuche data) and the EURES arrangement (ESCO-native,
+  carries the German PES feed). Their status is recorded, never assumed.
+- **Foolproof mechanisms codified per source:** gate before build (robots on
+  every host via `RobotsRule`, ToS verbatim, rate limits, snapshot semantics,
+  PII, exclusions) → canary (≤100, 1 s+, serial-only) → mini-canary before the
+  sweep → manifest reconciliation → PII scan → NAV-style incident hardening →
+  honest coverage bound in every manifest. Backup chain is predetermined, not
+  improvised under pressure (see the roadmap's Germany section).
+- **Cross-source overlap stated, not hidden:** aggregators share boards; the
+  SAFE_FIELDS contract carries no join key, so cross-source dedupe is
+  impossible at collection and is deliberately left to downstream analytics.
+  Every manifest states its own window against the advertised stock.
+- **Records:** `SCRAPER_ROADMAP.md` gained the "Germany — ACTIVE LANE" section
+  (coverage stack, re-ordered chain, new prerequisite, access tracks, execution
+  order) and a rewritten Parallelization section; the Risk Matrix rows 7–10
+  were corrected to the measured evidence; `SCRAPER_FEASIBILITY.md` gained the
+  "Germany programme" per-surface status table; this session log row. Next
+  sessions: Stellenanzeigen gate-only → `reference_germany.py` → Stellenanzeigen
+  canary + collector + DoD sweep → Joblift gate → Kimeta gate.
