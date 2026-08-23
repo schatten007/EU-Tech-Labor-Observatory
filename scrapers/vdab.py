@@ -108,7 +108,7 @@ from scrapers.base import (
     RawRecord,
 )
 from scrapers.retry import RetryPolicy, with_backoff
-from scrapers.robots import PacingGate, RobotsRule
+from scrapers.robots import PacingGate, RobotsDisallowedError, RobotsRule
 from scrapers.sanitize import pseudonymize
 
 VDAB_BASE = "https://www.vdab.be"
@@ -226,13 +226,10 @@ DUTCH_MONTHS: Final[dict[str, int]] = {
 }
 
 
-class RobotsDisallowedError(RuntimeError):
-    """A URL the sweep wanted is disallowed by robots.txt.
-
-    Raised instead of skipping the URL: a silent skip would hide a compliance
-    breach (SCRAPERS.md Golden rule 1), and the ``/api/vindeenjob/`` prohibition
-    is the core guarantee of this increment.
-    """
+#: ``RobotsDisallowedError`` now lives in :mod:`scrapers.robots` (shared by every
+#: collector that gates its requests per URL, Increment 6 onwards) and is
+#: imported above, so ``from scrapers.vdab import RobotsDisallowedError`` keeps
+#: working and both collectors raise the *same* class.
 
 
 # ---------------------------------------------------------------------------

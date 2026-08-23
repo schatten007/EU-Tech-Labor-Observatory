@@ -212,6 +212,46 @@ separate surfaces in `SCRAPER_FEASIBILITY.md`.
 - **Definition of Done:** Initial backfill + a daily poll cycle produce ≥5,000
   records with `removed_at` correctly stamped on INACTIVE ads; token rotation
   handled without downtime.
+- **Status:** **DONE 2026-08-23** — see `SCRAPER_FEASIBILITY.md` and
+  `SESSIONS.md`. Contract re-verified live before the build and it **corrected
+  NAV's own documentation twice**: revalidation needs `If-None-Match` **alone**
+  (adding `If-Modified-Since` re-seeks and answers 200; `If-None-Match` alone
+  answers **304 with a 0-byte body**), and the migration pseudocode's
+  `_feed_entry.id` does not exist — the field is `uuid`. robots.txt is **absent**
+  (404) so nothing is disallowed, and unauthenticated requests answer 401 with no
+  `WWW-Authenticate`, so the keyed-API reading from Increments 3–4 applies. The
+  ToS (`arbeidsplassen.nav.no/vilkar-api`) names *"statistiske/analytiske
+  formål"* as an **independent permitted purpose**, so this is allowed outright;
+  the public experimentation token is used and **no private-token request has
+  been sent** (recorded as not started). This increment is the lab's first
+  **event-log** source (folded per ad uuid on the HMAC `source_id`, ~2.0 events
+  per ad), its first **source-reported `removed_at`** (so no MPSV-style
+  reconciliation pass is needed), and its first **native ESCO occupation URI**
+  (`ad_content.categoryList`), with `esco_occupation_label` left `None` on
+  purpose because the source's label is Norwegian and this project publishes
+  English. **Region is fully mapped:** the pinned `nav_region_nuts_2024.csv`
+  (**370 rows** — 15 fylke + 353 kommune + 2 deliberately `ambiguous` repeated
+  names; SSB Klass 104/131 × Eurostat GISCO NUTS 2024, **15/15 fylker joined, 0
+  unmatched**) resolves **98.2%** of rows to a NUTS 3 code across **all 15
+  mainland Norwegian NUTS 3 regions**. **DoD evidence:** backfill
+  `no-all-events` 20260822T000000Z — **20/20 pages, 20,000 events → 10,342
+  rows**, `status=complete`, `expected_rows == row_count == NDJSON lines`, zero
+  4xx, **5,134/5,134 INACTIVE rows `removed_at`-stamped**, 1,172 ESCO URIs
+  (81.7% of the 1,434 detail-enriched rows); poll cycle 20260823T000000Z —
+  **resumed from the persisted cursor**, 6/6 pages, 4,600 events → **2,239
+  rows**, reconciled, zero 4xx, reached the true end of feed (`next_url`/
+  `next_id` null) and reused the cached token (0 token requests). **Token
+  rotation proven live:** the overnight-rotated cached token produced a 401 on
+  the backfill's first authorized request, which the collector refreshed once and
+  replayed with no lost page (`token_refreshes=1`). Combined **12,581 rows over
+  12,051 distinct ads**, PII scan clean. Honest bound in `coverage_limitations`:
+  a sweep is a **window over an event log**, not a snapshot — bounded by
+  `--since`, by the `--max-details` budget (1 paced request per enriched row) and
+  by Finn.no's documented absence, with no advertised active-stock total to
+  compare against. A **NAV-side reliability incident** (26–28 s token responses,
+  500/504, read timeouts) was met with back-off plus three hardenings (90 s
+  timeout, cached public token, 5xx-tolerant detail fetches). `make check` green
+  (313 tests).
 
 ## Increment 7: Työmarkkinatori / Job Market Finland (Finland)
 

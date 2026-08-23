@@ -5,13 +5,17 @@ Usage:
     python main.py --source cz --date 2026-08-22
     python main.py --source ft --date 2026-08-22 --max-pages 120
     python main.py --source be --date 2026-08-22 --max-pages 500
+    python main.py --source no --date 2026-08-23 --since 3 --max-details 1500
+    python main.py --source no --date 2026-08-23            # daily poll (cursor)
     python main.py --source pl --date 2026-08-21 --max-pages 1   # canary
 
 Writes ``data/raw/collections/<source>/<scope_id>/<sweep_id>/`` with
 ``observations.ndjson`` and ``manifest.json`` per SCRAPERS.md § Output contract.
 The MPSV collector additionally writes ``meta.ndjson`` (HMAC source_id ->
 source-reported ``expirace``) used by ``scrapers.reconcile_mpsv`` to stamp
-``removed_at`` on closed postings.
+``removed_at`` on closed postings. NAV needs no such pass: its feed reports
+closures itself, and the collector persists a poll cursor in
+``data/state/nav_feed_cursor.json`` so the next daily sweep resumes.
 """
 
 from __future__ import annotations
@@ -56,6 +60,20 @@ from scrapers.france_travail import (
 )
 from scrapers.france_travail import (
     crosswalk_reference_hashes as ft_crosswalk_reference_hashes,
+)
+from scrapers.nav_norway import (
+    NAV_ACCESS_METHOD,
+    NAV_COVERAGE_LIMITATIONS,
+    NAV_FRESHNESS_THRESHOLD_HOURS,
+    NAV_ITEMS_PER_PAGE,
+    NAV_LICENCE_REFERENCE,
+    NAV_SCOPE_ID,
+    NAV_SCOPE_PARAMS,
+    NAV_SOURCE_VERSION,
+    NAVFeedCollector,
+)
+from scrapers.nav_norway import (
+    crosswalk_reference_hashes as nav_crosswalk_reference_hashes,
 )
 from scrapers.poland_cbop import (
     CBOP_ACCESS_METHOD,
@@ -178,6 +196,30 @@ def _vdab(
     )
 
 
+def _nav(
+    scope_id: str,
+    sweep_id: str,
+    observed_at: _dt.datetime,
+    hmac_key: bytes,
+    max_pages: int | None,
+    since_days: int | None = None,
+    max_details: int | None = None,
+    use_cursor: bool = True,
+    **_: object,
+) -> BaseCollector:
+    return NAVFeedCollector(
+        scope_id=scope_id,
+        sweep_id=sweep_id,
+        observed_at=observed_at,
+        hmac_key=hmac_key,
+        reference_dir=DEFAULT_REFERENCE,
+        since_days=since_days,
+        max_pages=max_pages,
+        max_details=max_details,
+        use_cursor=use_cursor,
+    )
+
+
 def _adzuna(adapter: CountryAdapter) -> Callable[..., BaseCollector]:
     """Factory for an Adzuna collector bound to one country adapter."""
 
@@ -267,6 +309,20 @@ def source_config(source: str, country: str = "de") -> SourceConfig:
             reference_hashes=vdab_crosswalk_reference_hashes(DEFAULT_REFERENCE),
             build=_vdab,
         )
+    if source in ("nav", "no"):
+        return SourceConfig(
+            slug="nav",
+            scope_id=NAV_SCOPE_ID,
+            scope_params=NAV_SCOPE_PARAMS,
+            source_version=NAV_SOURCE_VERSION,
+            licence_reference=NAV_LICENCE_REFERENCE,
+            access_method=NAV_ACCESS_METHOD,
+            expected_country="NO",
+            freshness_threshold_hours=NAV_FRESHNESS_THRESHOLD_HOURS,
+            coverage_limitations=NAV_COVERAGE_LIMITATIONS,
+            reference_hashes=nav_crosswalk_reference_hashes(DEFAULT_REFERENCE),
+            build=_nav,
+        )
     return SourceConfig(
         slug="mpsv",
         scope_id=MPSV_SCOPE_ID,
@@ -286,12 +342,25 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run a collector sweep")
     parser.add_argument(
         "--source",
-        choices=("cbop", "pl", "mpsv", "cz", "adzuna", "francetravail", "ft", "fr", "vdab", "be"),
+        choices=(
+            "cbop",
+            "pl",
+            "mpsv",
+            "cz",
+            "adzuna",
+            "francetravail",
+            "ft",
+            "fr",
+            "vdab",
+            "be",
+            "nav",
+            "no",
+        ),
         default="pl",
         help="source slug (pl/cbop = CBOP/ePraca Poland; cz/mpsv = Úřad práce "
         "Czechia; adzuna = Adzuna multi-country API; ft/fr/francetravail = "
         "France Travail Offres d'emploi v2; be/vdab = VDAB public job-search "
-        "website, Belgium/Flanders)",
+        "website, Belgium/Flanders; no/nav = NAV stillings-feed, Norway)",
     )
     parser.add_argument(
         "--country",
@@ -309,6 +378,26 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--max-pages", type=int, default=None, help="limit the sweep to N pages (canary mode)"
     )
+    parser.add_argument(
+        "--since",
+        type=int,
+        default=None,
+        help="NAV only: If-Modified-Since backfill window in days (default: resume "
+        "from the persisted cursor, else 7 days; capped at ~190 because an ad is "
+        "never active longer than 6 months). Passing it forces a fresh seek.",
+    )
+    parser.add_argument(
+        "--max-details",
+        type=int,
+        default=None,
+        help="NAV only: cap the ad-detail requests (1 paced request each, so this "
+        "is the sweep's wall-clock and ESCO-coverage dial)",
+    )
+    parser.add_argument(
+        "--fresh",
+        action="store_true",
+        help="NAV only: ignore the persisted poll cursor instead of resuming it",
+    )
     parser.add_argument("--parquet", action="store_true", help="also export the sweep as Parquet")
     return parser
 
@@ -321,13 +410,24 @@ def build_collector(
     observed_at: _dt.datetime,
     hmac_key: bytes,
     max_pages: int | None,
+    since_days: int | None = None,
+    max_details: int | None = None,
+    use_cursor: bool = True,
 ) -> BaseCollector:
+    """Build the configured collector.
+
+    ``since_days`` / ``max_details`` / ``use_cursor`` are NAV's feed-window and
+    detail-budget dials; every other source's factory ignores them.
+    """
     return config.build(
         scope_id=scope_id,
         sweep_id=sweep_id,
         observed_at=observed_at,
         hmac_key=hmac_key,
         max_pages=max_pages,
+        since_days=since_days,
+        max_details=max_details,
+        use_cursor=use_cursor,
     )
 
 
@@ -361,6 +461,9 @@ async def run_sweep(args: argparse.Namespace) -> int:
         observed_at=observed_at,
         hmac_key=load_hmac_key(),
         max_pages=args.max_pages,
+        since_days=args.since,
+        max_details=args.max_details,
+        use_cursor=not args.fresh,
     )
 
     rows = []
@@ -403,6 +506,30 @@ async def run_sweep(args: argparse.Namespace) -> int:
                 f" Largest per-segment total advertised by a fetched landing page: "
                 f"{collector.max_advertised_total} jobs."
             )
+
+    if isinstance(collector, NAVFeedCollector):
+        coverage += (
+            f" Sweep window: {collector.completed_pages} feed page(s) at "
+            f"{NAV_ITEMS_PER_PAGE} events each"
+            + (
+                " resumed from the persisted cursor"
+                if collector.resumed_from_cursor
+                else f" seeked with If-Modified-Since {collector.since_header}"
+            )
+            + f" ({collector.pages_unchanged} answered 304 Not Modified), "
+            f"{collector.events_seen} feed events folded to {len(rows)} rows "
+            f"({collector.rows_active} ACTIVE / {collector.rows_inactive} INACTIVE, "
+            f"{collector.rows_removed} with a source-reported removed_at); "
+            f"{collector.detail_requests} ad-detail request(s) of a "
+            f"{collector.detail_budget} budget "
+            f"({collector.details_with_content} with ad_content, "
+            f"{collector.details_masked} content-masked, "
+            f"{collector.details_missing} no longer served, "
+            f"{collector.details_failed} abandoned after 5xx retries), "
+            f"{collector.rows_with_esco} rows carry an ESCO occupation URI; "
+            f"{collector.token_requests} token request(s), "
+            f"{collector.token_refreshes} token rotation(s) handled mid-sweep."
+        )
 
     validator = SchemaValidator()
     writer = SweepWriter(args.root)

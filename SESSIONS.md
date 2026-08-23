@@ -17,6 +17,7 @@ than expanding the active increment.
 | 4 | 2026-08-22 | Complete | France Travail (FR, Offres d'emploi v2): feasibility gate (robots on 3 hosts + full Licence Offres d'emploi review + live OAuth2/pagination probe), `FranceTravailCollector` with client-credentials auth, TTL reuse and 401 refresh, département-segmented `range` windows, pinned département->NUTS 2024 crosswalk (`scrapers/reference_francetravail.py`), PII isolation, CLI `--source ft` + `make scrape-ft` / `make reference-ft`, respx tests. | `make check` passed (170 tests); DoD sweep complete (17,406 rows) |
 | 5 | 2026-08-22 | Gate only | VDAB (BE-Flanders) **feasibility gate + re-scope, no code**: Vacature API v4 found to require an approved partnership + signed samenwerkingsovereenkomst -> recorded **blocked**, not routed around; public vdab.be job-search HTML assessed instead (robots-permitted, disclaimer allows informational re-use) and its **canary passed** (12 pages, 1.2 s, 12/12 HTTP 200, 189 unique ids); roadmap/landscape/feasibility corrected and the Increment 5 kickoff prompt rewritten. | docs only; `make check` unchanged (170 tests) |
 | 5 | 2026-08-22 | Complete | VDAB (BE-Flanders) **implementation** on the re-scoped public HTML surface: `VDABCollector` with a per-URL `robots.txt` gate (hard failure, `/api/vindeenjob/` never requested), keyword-sitemap discovery + breadth ordering by postcode, allowlist-only BeautifulSoup/lxml tile parsing, Dutch date parser, HMAC dedupe, pinned postcode->NUTS 2024 crosswalk (`scrapers/reference_vdab.py`, 528 rows), CLI `--source be` + `make scrape-vdab` / `make reference-vdab`, 45 new respx tests. | `make check` passed (215 tests); DoD sweep complete (12,282 rows, 500/500 pages, zero 4xx) |
+| 6 | 2026-08-23 | Complete | NAV stillings-feed (NO): feasibility gate (robots absent + full Nynorsk ToS review + live contract re-verification), `NAVFeedCollector` — the lab's first **event-log** source (fold per ad uuid on HMAC source_id), first **source-reported `removed_at`**, and first **native ESCO occupation URI**; token handling with disk cache + 401 rotate-and-replay, `If-Modified-Since` seek / `If-None-Match` revalidation, budgeted ad details, poll cursor, pinned SSB Klass x GISCO fylke/kommune -> NUTS 2024 crosswalk (`scrapers/reference_nav.py`, 370 rows), CLI `--source no` + `make scrape-nav` / `make reference-nav`, 93 new respx tests. | `make check` passed (313 tests); backfill 10,342 rows (20/20 pages) + poll cycle 2,239 rows (6/6, cursor-resumed), zero 4xx, token rotation handled live |
 
 ## Session Notes
 
@@ -563,3 +564,219 @@ tests.
   the DoD evidence; the feasibility row gains the mini-canary result, the built
   crosswalk row and a `DONE — live DoD evidence` row. Surface A stays **blocked**
   and unbuilt.
+
+### 2026-08-23 - Increment 6 (NAV stillings-feed, Norway)
+
+The lab's first **event-log** source, first **source-reported `removed_at`**, and
+first source that populates **`esco_occupation_uri` from the source itself**. The
+feasibility gate was opened and greened before any collector code was written.
+
+- **Contract re-verified live before building** (a cheap re-probe of the
+  2026-08-22 reconnaissance, not a re-derivation) — and it corrected NAV's own
+  documentation twice:
+  - `robots.txt` on `pam-stilling-feed.nav.no` is **absent** (404, a 156-byte
+    Javalin JSON error body) ⇒ nothing disallowed; unauthenticated
+    `GET /api/v1/feed` answers **401** with **no `WWW-Authenticate`** header, so
+    the token plus the accepted ToS is the operative permission (the keyed-API
+    reading from Increments 3–4; here robots is merely absent, which is strictly
+    more permissive). Neighbouring hosts checked too:
+    `arbeidsplassen.nav.no/robots.txt` is allow-all, `navikt.github.io` 404.
+  - `GET /api/publicToken` → 200 `text/plain`, a 3-segment 287-character JWT.
+  - Feed pages hold **exactly 1,000 items**; `next_url` is `/api/v1/feed/<uuid>`
+    and `next_id` **equals the page's own ETag**; end-of-feed is `next_url` *and*
+    `next_id` both `null` — reproduced live by seeking 20 minutes back (1 item,
+    both null).
+  - **Correction 1 (revalidation).** NAV's documented pseudocode sends
+    `If-Modified-Since` *and* `If-None-Match` together. Measured: on a page URL,
+    `If-None-Match` **alone** returns **304 with a 0-byte body**, while adding
+    `If-Modified-Since` makes the API **re-seek** and return 200 (488,817 bytes);
+    a stale ETag returns 200. The collector therefore sends `If-None-Match` only
+    when revalidating and `If-Modified-Since` only when seeking. 304 is treated
+    as *unchanged* — it is not a retry status and does not break reconciliation.
+  - **Correction 2 (field name).** NAV's migration pseudocode references
+    `_feed_entry.id`, which does not exist; the field is `uuid`. Confirmed and
+    noted in the payload model.
+  - `If-Modified-Since` genuinely **seeks** (a 2-day value started the feed at
+    `2026-08-21T01:32`), and an unknown `feedentry` uuid answers **404 with an
+    empty body**.
+- **Measured, not assumed — INACTIVE details.** The docs distinguish an ad that
+  is *"actively stopped"* (fields masked) from one merely inactive by expiry, so
+  the share was measured on a fresh window: of **20 INACTIVE details, 18 returned
+  111–112 bytes** with only `{uuid,status,sistEndret}` and **2 carried full
+  `ad_content`** (10%). Decision from the measurement: **INACTIVE details are
+  never fetched** — ~9 wasted paced requests per usable payload, and the fields an
+  INACTIVE row needs (`removed_at`, region) are already on the feed event.
+- **Measured — the ESCO win and its limit.** `ad_content.categoryList` carries
+  three code systems on one ad (`ESCO`, `JANZZ`, `STYRK08`); the `ESCO` entry's
+  code is an ESCO occupation URI, present on **12/12** sampled ACTIVE ads in the
+  first probe. A second probe (29 ads) found **26 strict occupation URIs, 2 ads
+  whose "ESCO" code was actually an ISCO-08 **group** URI**
+  (`http://data.europa.eu/esco/isco/c9112`) and 1 ad with only JANZZ+STYRK08. An
+  ISCO group is a coarser concept scheme, so it is **refused** for
+  `esco_occupation_uri` and reported `unmapped` with its own method name
+  (`nav_categorylist_esco_isco_group`) rather than as a parse failure — the first
+  sweep showed this on ~15% of enriched rows, so naming it precisely matters.
+- **`esco_occupation_label` stays `None`, with the reason recorded.** The source's
+  `categoryList[].name` is Norwegian (`butikkmedarbeider`) and this project
+  publishes **English** labels; the pinned
+  `data/reference/jobtech_occupation_esco_1.2.1.csv` cannot help either — it is a
+  JobTech→ESCO crosswalk with **Swedish** labels (3,891 rows), not the ESCO 1.2.1
+  occupation universe. The URI is carried, the label is left to the publishing
+  layer, and the crosswalk is used only as an independent sanity check (**216 of
+  the 229 distinct URIs** in the first sweep also appear in it).
+- **`scrapers/reference_nav.py`** (opt-in network, `make reference-nav`): Eurostat
+  GISCO `NUTS_AT_2024.csv` (**17 Norwegian NUTS 3 codes**) × SSB Klass **104
+  fylker** (16 codes = 15 counties + `99 Uoppgitt`) and **131 kommuner** (358 =
+  357 + `9999 Uoppgitt`). A kommune code's first two digits are its fylke code,
+  verified exhaustively: **0 orphan prefixes across all 358 codes** (`parentCode`
+  is `null` in `codesAt.json`, so the prefix rule is the join). Unlike Increment
+  5's 529-request walk this is **3 requests**, so no resume state was invented.
+  - **The join is by name, and the names disagree on purpose.** SSB writes Sami
+    duals with a spaced hyphen (`"Troms - Romsa - Tromssa"`), GISCO with slashes
+    (`"Troms/Romsa/Tromssa"`), and the feed shouts (`"TRØNDELAG"`). One
+    `normalize_region_name` — shared by the builder *and* the collector so the
+    keys cannot drift — compares the Norwegian part case-, accent- and
+    punctuation-insensitively while preserving inner hyphens (`Aurskog-Høland`,
+    `Nord-Odal`).
+  - **A trap the build surfaced:** SSB disambiguates repeated names with a
+    parenthetical county (`"Herøy (Møre og Romsdal)"` / `"Herøy (Nordland)"`,
+    `"Våler (Innlandet)"` / `"Våler (Østfold)"`) while the feed sends the bare
+    `HERØY`. Keying on the qualified name would leave two rows the feed can never
+    hit, so the qualifier is folded away — which makes the collision **visible**:
+    those keys are written as `kommune-ambiguous` with **no code**, and the
+    collector reports `ambiguous` instead of guessing a county.
+  - Live build: **370 rows = 15 fylke + 353 kommune + 2 ambiguous**, **15/15
+    fylker matched GISCO with 0 unexpected unmatched** (only `99 Uoppgitt`, which
+    has no NUTS equivalent). `NO0B1` Jan Mayen and `NO0B2` Svalbard have no SSB
+    fylke and are **reported in the manifest, never forced onto a county**.
+    Historic kommune names were **deliberately excluded** (a pre-2020 kommune may
+    have been split across two of today's counties, so its NUTS 3 would be a
+    guess; ads are never active >6 months), and the resulting unmapped share is
+    reported honestly — the feed does emit non-kommune strings (`"?"` appeared 23
+    times on one page).
+- **`scrapers/nav_norway.py` (`NAVFeedCollector`)** on the existing Collector
+  Interface — `base.py`, `retry.py`, `sanitize.py`, `validate.py` reused
+  unchanged; `RobotsDisallowedError` was **moved into `scrapers/robots.py`** so
+  VDAB and NAV raise the *same* class instead of duplicating it:
+  - **Event fold.** "Each change to an ad will generate a new entry in the feed,
+    and the latest entry will contain the current state" — so events are folded
+    per ad with last-event-wins, keyed on the **HMAC `source_id`**, never on the
+    native uuid. Measured fold ratio: **~2.0 events per ad**.
+  - **`removed_at` is source-reported** (the INACTIVE event's `sistEndret`), so
+    the MPSV-style cross-sweep reconciliation pass is **not needed here** — stated
+    in the docstring so nobody adds one out of habit. A re-activated ad
+    (INACTIVE→ACTIVE) correctly ends up with `removed_at = None`.
+  - **Token handling.** `NAV_FEED_TOKEN` (private consumer token) from env/`.env`
+    wins; otherwise the public token is used and **cached in gitignored
+    `data/state/nav_public_token.json`** (it is published at a public URL, rotates
+    "at irregular intervals", and its endpoint measured 26–28 s under load, so
+    caching means one request per rotation instead of one per sweep). A 401
+    refreshes once and replays. No token is committed, printed or logged — only
+    its length and segment count.
+  - **Poll cursor** in gitignored `data/state/nav_feed_cursor.json` (page id from
+    the page's own `feed_url`, its ETag, `Last-Modified`, `next_url`), so a poll
+    resumes at `next_url` when the previous sweep stopped mid-feed and otherwise
+    revalidates the tail with `If-None-Match`. The bare `/api/v1/feed` seek URL is
+    never stored, because without `If-Modified-Since` it restarts at 2019.
+  - **Details are budgeted and optional.** `--max-details` bounds them (one paced
+    request each ⇒ the sweep's wall-clock dial), they are spent in HMAC order so a
+    partial budget is a window-wide sample rather than the oldest N events, and a
+    404 or persistent 5xx on a detail is **counted and skipped, not fatal** — a
+    feed-page failure stays fatal, because a lost page is lost events.
+  - **Region** resolves county → municipality → `_feed_entry.municipal`
+    (`low_confidence`: a single denormalized header field that cannot be
+    cross-checked and is all a masked ad has), with locations that disagree →
+    `ambiguous`, a workplace outside Norway → `unmapped`, and NAV's `"?"`
+    placeholder → `unmapped` rather than `not_present` (a field *was* sent).
+  - **PII:** the payload models declare only allowlist-relevant fields
+    (`extra="ignore"`), so `contactList`, `employer`/`orgnr`, the 3.7 kB
+    `description`, `title`/`jobtitle`, `applicationUrl`/`sourceurl`/`link` and
+    `address`/`city`/`postalCode` never reach `parse()`; `RawRecord.payload`
+    carries **model dumps only**, and `NormalizedRecord(extra="forbid")` is the
+    backstop.
+- **A real NAV-side incident, handled the charter's way.** Between ~01:20 and
+  ~14:40 the host degraded intermittently: `/api/publicToken` answered in **26–28
+  s**, the feed returned **500** and **504** and read-timed-out at 60–90 s. The
+  response was to **back off** (five- to fifteen-minute waits, single-request
+  health checks) rather than retry harder, and to harden the collector for what
+  was measured: a **90 s** timeout (the lab's 30 s default expired mid-sweep), the
+  cached token, and 5xx-tolerant detail fetches. The host recovered fully and the
+  DoD sweeps then ran clean.
+- **Wiring:** `main.py` gains a typed `SourceConfig` for `nav`/`no` (scope
+  `no-all-events`, deliberately stable across daily polls — the window and budgets
+  live in `coverage_limitations`, not in `scope_params`, so `scope_hash` does not
+  move), plus `--since`, `--max-details` and `--fresh`; the Makefile gains
+  `make scrape-nav` and `make reference-nav` with an honest runtime comment.
+  Nothing in the existing sources was restructured.
+- **Tests: 93 new** (`tests/test_nav_norway.py`, `tests/test_nav_crosswalk.py`),
+  all respx-mocked against hand-written synthetic payloads (no real employer,
+  person or ad text in the repo): both token routes (env and `.env`), the disk
+  cache reused across sweeps, 401 → refresh once → replay, a second 401 as a real
+  error, robots fetched before any other URL and enforced per URL, `next_url`
+  pagination to a null `next_id`, the seek carrying `If-Modified-Since` only,
+  **304 treated as unchanged with a reconciled zero-row manifest**, cursor resume
+  from `next_url`, an explicit `--since` overriding the cursor, a corrupt cursor
+  ignored, event folding in both orderings (ACTIVE→INACTIVE stamps `removed_at`,
+  INACTIVE→ACTIVE does not), folding keyed on the HMAC digest, INACTIVE ads never
+  costing a detail request, content-masked details, a detail 404 and a persistent
+  detail 5xx counted-not-fatal, a 403 still fatal, the detail budget bounding
+  requests but not rows, `positioncount` coercion (11 cases incl. garbage and
+  negatives), ESCO extraction (single/multiple/tie/ISCO-group/unrecognized/empty/
+  absent), region resolution across all six outcomes, the `"?"` placeholder as
+  `unmapped`, name folding across SSB/GISCO/feed spellings, PII isolation on the
+  record **and** the intermediate `RawRecord`, 429 with `Retry-After`, a transport
+  error, a malformed page failing loudly, and the crosswalk builder's joins and
+  loud failures. The JobTech output-contract tests pass unchanged.
+- **Live DoD sweeps** (serial, ≥1 s pacing, zero 4xx):
+  - **Backfill** `nav/no-all-events/20260822T000000Z` (`--since 12 --max-pages 20
+    --max-details 1500 --fresh`): **20/20 pages, 20,000 events folded to 10,342
+    rows**, `status=complete`, `expected_pages == completed_pages`,
+    `expected_rows == row_count == NDJSON lines == 10,342`, 8.8 MB, ~26 min. All
+    source_ids unique 64-hex HMAC. **5,208 ACTIVE / 5,134 INACTIVE, with all
+    5,134 INACTIVE rows carrying a source-reported `removed_at`.** 1,500 details
+    → 1,434 with `ad_content`, 66 content-masked, 0 missing, 0 abandoned. Region
+    on **10,159 rows (98.2%)** across **all 15 mainland NUTS 3 regions**
+    (`region_mapping_status` populated on 100%); ESCO URI on **1,172 rows =
+    81.7% of the detail-enriched rows** (11.3% of all rows — the detail budget's
+    honest consequence), 261 distinct URIs of which **250 also appear in the
+    pinned JobTech→ESCO crosswalk**, and 230 rows `unmapped` because the "ESCO"
+    code was an ISCO-08 group URI.
+  - **Poll cycle** `nav/no-all-events/20260823T000000Z` (`--max-details 700`, no
+    `--since`): **resumed from the persisted cursor**, 6/6 pages, 4,600 events →
+    **2,239 rows**, reconciled, 1.9 MB, and **reached the true end of the feed
+    live** (`next_url` and `next_id` both null). 1,012 source-reported
+    `removed_at`; 553 ESCO URIs (79.0% of enriched rows); region on 2,201 rows
+    (98.3%); **0 token requests** — it reused the token the backfill had cached.
+  - **Token rotation proven live, not just mocked:** the cached public token had
+    rotated during the overnight incident, so the backfill's first authorized
+    request answered 401; the collector refreshed once and replayed, and the walk
+    continued with no lost page and no aborted sweep (`token_requests=1`,
+    `token_refreshes=1`, visible in the manifest's `coverage_limitations`).
+  - **Combined: 12,581 rows over 12,051 distinct ads**, 530 ads present in both
+    segments (23.7% of poll rows — they had events in both, which is exactly what
+    an event log should show), **6,146 source-reported `removed_at`**, 1,725 ESCO
+    URIs. **PII scan of both NDJSON files: clean** — 0 e-mails, 0 URLs other than
+    ESCO occupation URIs, 0 phone-like, 0 orgnr-like, 0 postcode-like values,
+    exactly the 25 allowlist fields, no native uuid anywhere.
+  - **Two process notes, recorded rather than smoothed over.** The roadmap's
+    "≤100 records" canary size **cannot be expressed against this source** (the
+    server's page size is fixed at 1,000 and there is no smaller unit), so the
+    pre-DoD validation was a completed 3-day backfill through the collector
+    (8/8 pages, 3,615 rows, zero 4xx, reconciled); its partition was later
+    overwritten by the wider DoD backfill under the same `sweep_id`. Separately,
+    two poll runs were killed by an environment-level process reap **after** the
+    feed walk but **before** the partition write; the final poll was therefore run
+    in the foreground, resuming from a cursor reconstructed read-only by
+    re-walking the same 20 pages (the feed is append-only, so page ids are
+    stable).
+- **Honest coverage bound, unpadded:** a sweep is a **window over an append-only
+  event log**, never a snapshot. Coverage is bounded by the `--since` window, by
+  the `--max-details` budget (each detail is one paced request, so ~1 s per
+  enriched row — which is why only 11.3% of backfill rows carry an ESCO URI even
+  though 81.7% of *enriched* rows do), and by Finn.no's documented absence from
+  the API. NAV publishes **no advertised active-ad total**, so no completeness
+  percentage is claimed or invented. All of this is in `coverage_limitations` on
+  every manifest.
+- **Roadmap/feasibility updated:** Increment 6 marked **DONE 2026-08-23** with the
+  DoD evidence; the feasibility row gains the built-crosswalk row, the validation
+  run, the host-incident record and a `DONE — live DoD evidence` row.

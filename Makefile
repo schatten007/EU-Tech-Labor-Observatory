@@ -1,4 +1,4 @@
-.PHONY: check lint types test scrape scrape-cz scrape-adzuna scrape-adzuna-nl scrape-ft scrape-vdab reconcile reference-mpsv reference-ft reference-vdab clean
+.PHONY: check lint types test scrape scrape-cz scrape-adzuna scrape-adzuna-nl scrape-ft scrape-vdab scrape-nav reconcile reference-mpsv reference-ft reference-vdab reference-nav clean
 
 check: lint types test
 
@@ -48,6 +48,18 @@ scrape-ft:
 scrape-vdab:
 	uv run --offline python main.py --source be --date $(shell date -u +%Y-%m-%d)
 
+# Wired to Increment 6: NAV stillings-feed (Norway). The feed is an append-only
+# EVENT LOG, so a sweep is a window, never a snapshot: --since sets the
+# If-Modified-Since backfill in days (omit it to resume the persisted cursor at
+# data/state/nav_feed_cursor.json, which is what a daily poll should do), and
+# --max-details caps the ad-detail requests. Honest runtime: pages are cheap
+# (1,000 events each) but every detail is one paced request, so the default
+# 1,500-detail budget is ~25 minutes at the 1 s floor and a 5,000-detail sweep is
+# ~1.5 hours. Needs no credentials - it falls back to NAV's public token - but
+# uses NAV_FEED_TOKEN from .env when a private consumer token exists.
+scrape-nav:
+	uv run --offline python main.py --source no --date $(shell date -u +%Y-%m-%d)
+
 # NOT part of check. Stamps removed_at on postings closed between the two most
 # recent MPSV sweeps (compares HMAC source_ids only; writes closures.ndjson).
 reconcile:
@@ -71,6 +83,13 @@ reference-ft:
 # partial CSV; use --fresh to start over. The CSV is committed for the gate.
 reference-vdab:
 	uv run --offline python -m scrapers.reference_vdab
+
+# NOT part of check. Rebuilds the pinned NAV fylke/kommune -> NUTS 2024 crosswalk
+# (SSB Klass 104 fylker + 131 kommuner x Eurostat GISCO NUTS 2024; opt-in
+# network, no credentials). Only 3 requests, so it finishes in seconds and needs
+# no resume state. The CSV is committed for the offline gate.
+reference-nav:
+	uv run --offline python -m scrapers.reference_nav
 
 clean:
 	rm -rf .mypy_cache .ruff_cache .pytest_cache

@@ -23,6 +23,7 @@ import respx
 
 from scrapers.base import NormalizedRecord
 from scrapers.retry import RetryPolicy
+from scrapers.robots import RobotsDisallowedError
 from scrapers.vdab import (
     DUTCH_MONTHS,
     VDAB_BASE,
@@ -30,7 +31,6 @@ from scrapers.vdab import (
     VDAB_KEYWORD_SITEMAP_URL,
     VDAB_REFERENCE_FILE,
     VDAB_ROBOTS_URL,
-    RobotsDisallowedError,
     VDABCollector,
     VDABCrosswalk,
     crosswalk_reference_hashes,

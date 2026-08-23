@@ -1,0 +1,371 @@
+source_type,source_code,nuts_code,nuts_label,source_url,source_version
+fylke,agder,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,akershus,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,buskerud,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,finnmark,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,innlandet,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,more og romsdal,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,nordland,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,oslo,NO081,Oslo,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,ostfold,NO083,Østfold,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,rogaland,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,telemark,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,troms,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,trondelag,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,vestfold,NO093,Vestfold,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+fylke,vestland,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json,2026-08-23
+kommune,aarborte,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,afjord,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,al,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,alesund,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,alstahaug,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,alta,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,alvdal,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,alver,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,amli,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,amot,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,andoy,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,ardal,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,aremark,NO083,Østfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,arendal,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,as,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,aseral,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,asker,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,askoy,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,askvoll,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,asnes,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,aukra,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,aure,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,aurland,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,aurskog holand,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,austevoll,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,austrheim,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,averoy,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,baerum,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,balsfjord,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bamble,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bardu,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,batsfjord,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,beiarn,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bergen,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,berlevag,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bindal,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,birkenes,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bjerkreim,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bjornafjorden,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bo,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bodo,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bokn,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bomlo,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bremanger,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bronnoy,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bygland,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,bykle,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,deatnu,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,dielddanuorri,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,donna,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,dovre,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,drammen,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,drangedal,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,dyroy,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,eidfjord,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,eidskog,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,eidsvoll,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,eigersund,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,elverum,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,enebakk,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,engerdal,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,etne,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,etnedal,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,evenes,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,evje og hornnes,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,faerder,NO093,Vestfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,farsund,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,fauske,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,fedje,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,fitjar,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,fjaler,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,fjord,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,fla,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,flakstad,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,flatanger,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,flekkefjord,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,flesberg,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,folldal,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,fredrikstad,NO083,Østfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,frogn,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,froland,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,frosta,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,froya,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,fyresdal,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gaivuotna,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gamvik,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gausdal,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gildeskal,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,giske,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gjemnes,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gjerdrum,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gjerstad,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gjesdal,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gjovik,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gloppen,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gol,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gran,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,grane,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gratangen,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,grimstad,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,grong,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,grue,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,gulen,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,guovdageaidnu,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,ha,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,habmer,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hadsel,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,haegebostad,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,halden,NO083,Østfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hamar,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hammerfest,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,haram,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hareid,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,harstad,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hasvik,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,haugesund,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,heim,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hemnes,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hemsedal,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hitra,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hjartdal,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hjelmeland,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hol,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hole,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,holmestrand,NO093,Vestfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,holtalen,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,horten,NO093,Vestfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hoyanger,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hoylandet,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hurdal,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hustadvika,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hvaler,NO083,Østfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,hyllestad,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,ibestad,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,inderoy,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,indre fosen,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,indre ostfold,NO083,Østfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,iveland,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,jevnaker,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,karasjohka,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,karlsoy,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,karmoy,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,kinn,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,klepp,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,kongsberg,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,kongsvinger,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,kragero,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,kristiansand,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,kristiansund,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,krodsherad,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,kvaefjord,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,kvaenangen,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,kvam,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,kvinesdal,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,kvinnherad,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,kviteseid,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,kvitsoy,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,laerdal,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,larvik,NO093,Vestfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lebesby,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,leirfjord,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,leka,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lesja,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,levanger,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lier,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lierne,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lillehammer,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lillesand,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lillestrom,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lindesnes,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,loabak,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lodingen,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lom,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,loppa,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lorenskog,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,loten,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lund,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lunner,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,luroy,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,luster,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lyngdal,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,lyngen,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,malselv,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,malvik,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,marker,NO083,Østfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,masfjorden,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,masoy,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,melhus,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,meloy,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,meraker,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,midt telemark,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,midtre gauldal,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,modalen,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,modum,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,molde,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,moskenes,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,moss,NO083,Østfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,naeroysund,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,namsos,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,namsskogan,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nannestad,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,narvik,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nes,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nesbyen,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nesna,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nesodden,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nissedal,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nittedal,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nome,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nord aurdal,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nord fron,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nord odal,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nordkapp,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nordre follo,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nordre land,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nordreisa,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,nore og uvdal,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,notodden,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,oksnes,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,oppdal,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,orkland,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,orland,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,orsta,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,os,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,osen,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,oslo,NO081,Oslo,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,osteroy,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,ostre toten,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,overhalla,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,ovre eiker,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,oyer,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,oygarden,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,oystre slidre,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,porsanger,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,porsgrunn,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,raarvihke,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,rade,NO083,Østfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,raelingen,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,rakkestad,NO083,Østfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,rana,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,randaberg,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,rauma,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,rendalen,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,rennebu,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,rindal,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,ringebu,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,ringerike,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,ringsaker,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,risor,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,rodoy,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,rollag,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,roros,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,rost,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,salangen,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,saltdal,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,samnanger,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sande,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sandefjord,NO093,Vestfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sandnes,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sarpsborg,NO083,Østfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sauda,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sel,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,selbu,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,seljord,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,senja,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sigdal,NO085,Buskerud,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,siljan,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sirdal,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,skaun,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,skien,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,skiptvet,NO083,Østfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,skjak,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,skjervoy,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,smola,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,snaase,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sogndal,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sokndal,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sola,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,solund,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,somna,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sondre land,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sor aurdal,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sor fron,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sor odal,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sor varanger,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sorfold,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sorreisa,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sortland,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,stad,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,stange,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,stavanger,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,steigen,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,steinkjer,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,stjordal,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,stor elvdal,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,stord,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,storfjord,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,strand,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,stranda,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,stryn,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sula,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,suldal,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sunndal,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sunnfjord,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,surnadal,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sveio,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,sykkylven,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,time,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,tingvoll,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,tinn,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,tokke,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,tolga,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,tonsberg,NO093,Vestfold,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,traena,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,tromso,NO072,Troms/Romsa/Tromssa,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,trondheim,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,trysil,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,tvedestrand,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,tydal,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,tynset,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,tysnes,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,tysvaer,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,ullensaker,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,ullensvang,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,ulstein,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,ulvik,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,unjarga,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,utsira,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vadso,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vaeroy,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vaga,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vagan,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vaksdal,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,valle,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vang,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vanylven,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vardo,NO073,Finnmark/Finnmárku/Finmarkku,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vefsn,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vega,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vegarshei,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vennesla,NO092,Agder,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,verdal,NO060,Trøndelag/Trööndelage,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vestby,NO084,Akershus,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vestnes,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vestre slidre,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vestre toten,NO020,Innlandet,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vestvagoy,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vevelstad,NO071,Nordland/Nordlánnda,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vik,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vindafjord,NO0A1,Rogaland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,vinje,NO094,Telemark,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,volda,NO0A3,Møre og Romsdal,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune,voss,NO0A2,Vestland,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune-ambiguous,heroy,,,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23
+kommune-ambiguous,valer,,,https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json,2026-08-23

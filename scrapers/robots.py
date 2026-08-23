@@ -18,6 +18,15 @@ MIN_PACING_SECONDS: Final = 1.0
 DEFAULT_USER_AGENT = "EU-Tech-Labour-Observatory/0.1"
 
 
+class RobotsDisallowedError(RuntimeError):
+    """A URL the sweep wanted is disallowed by robots.txt.
+
+    Raised instead of skipping the URL: a silent skip would hide a compliance
+    breach (SCRAPERS.md Golden rule 1). Shared by every collector that gates
+    its requests per URL.
+    """
+
+
 class RobotsRule:
     """Parsed robots.txt contract; an absent file allows everything.
 

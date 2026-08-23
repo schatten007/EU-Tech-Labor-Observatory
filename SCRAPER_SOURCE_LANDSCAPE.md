@@ -298,6 +298,24 @@ day**, ads never active >6 months, `ACTIVE`/`INACTIVE` status per ad.
 - **ToS:** allowed under agreement (open data licence; terms of use must be
   accepted).
 
+**Measured live 2026-08-22/23 (Increment 6 — implemented):** robots.txt is
+**absent** (404) on the feed host; unauthenticated requests answer 401 with no
+`WWW-Authenticate`. Pages hold **exactly 1,000 items**, `next_id` equals the
+page ETag, and end-of-feed is `next_url`/`next_id` both null. The event stream
+runs at **~3,000–6,000 events/day** (1,000 items span 4–8 h of business time,
+far less at night) and folds at about **2 events per ad**. The ToS
+(`arbeidsplassen.nav.no/vilkar-api`) names *"statistiske/analytiske formål"* as
+an independent permitted purpose, so this is **allowed outright, not merely
+under agreement**. Revalidation needs `If-None-Match` **alone** (adding
+`If-Modified-Since` re-seeks and returns 200). Detail payloads carry
+`categoryList` with **ESCO occupation URIs** alongside JANZZ and STYRK08 —
+the first source in this lab that populates `esco_occupation_uri` directly —
+but INACTIVE details are usually content-masked (measured: 2 of 20 still
+carried `ad_content`). One operational caveat: the host was briefly **degraded**
+during the build (26–28 s token responses, a 500, read timeouts) and recovered
+after a five-minute back-off, so a generous timeout and a cached token matter
+more than a tight one.
+
 ### 8. Jobnet / STAR (DK)
 
 Denmark's national job portal. **No public read/search API.** The
