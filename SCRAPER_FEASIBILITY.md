@@ -211,20 +211,25 @@ Statistics Finland instead, which is the better authority anyway.
 
 Germany is the highest-value market and the least covered (Adzuna DE 4,841 of
 ~1.16M advertised = 0.4%), so it becomes the active lane. Every German surface
-was assessed live on 2026-08-23; the rows below are the gate status, and each
-surface gets its own full feasibility row before its build. Full architecture
-and backup chain: `SCRAPER_ROADMAP.md` → "Germany — ACTIVE LANE".
+was **re-assessed technically on 2026-08-23 (21:46 UTC) after the user relaxed
+the ToS/robots gate for this private educational project**; the rows below are
+the gate status, and each surface gets its own full feasibility row before its
+build. Full architecture and backup chain: `SCRAPER_ROADMAP.md` →
+"Germany — ACTIVE LANE".
 
-| Surface | Advertised volume | robots.txt (live) | ToS / access | Gate status | Role |
+| Surface | Advertised | Technical access (verified live) | robots.txt / ToS (recorded) | Gate status | Role |
 | --- | --- | --- | --- | --- | --- |
-| BA Jobsuche | ~1.9M | `www.arbeitsagentur.de/robots.txt`: allow-all (208 B) + sitemaps | Jobsuche data agreement-only (HR-BA-XML / explicit BA arrangement); portal robots is irrelevant to the data | **blocked — access track only** (never scraped) | full national coverage |
-| Kimeta (Inc 8) | ~1.5–1.8M | **`User-agent: *` → `Disallow: /`** (6,257 B; `RobotsRule` → DENY on `/jobs/berlin`, `/search`, `/api/job-pdf`) | grey; no keyed-API reading applies to a public HTML site | **gate pending — expected blocked** | tertiary |
-| Adzuna DE (Inc 3) | ~1.16M | api host blanket-disallow (keyed-API reading: key + ToS = permission, recorded Inc 3) | sanctioned API ToS, free key | **DONE** (4,841 rows/sweep free-tier cap) | sanctioned base |
-| Stellenanzeigen.de (Inc 10) | ~10k+ active | **permitted** (772 B; `/job/*`, `/suche/*` ALLOW; `/stabi/` etc. DENY; 3 sitemaps advertised) | to be reviewed at gate | **gate next — primary build** | primary |
-| Joblift (Inc 9) | L (Berlin 24k, Köln 27k, Einzelhandel 97k…) | **CloudFront 403** — robots.txt blocked from this egress; partner-API page 403 too | partner API exists (`/business-developer`, also 403'd here); aggregates StepStone/Monster/stellenanzeigen | **gate pending** | secondary |
-| EURES DE slice (Inc 12) | ~1.8M EU | n/a (portal) | arrangement-gated, ESCO-native | **blocked — access track only** | national + ESCO |
-| Arbeitnow (Inc 11) | ≤5k tech/remote | n/a (API) | keyless official API, clean | **ungated — scheduled** | cheap fill |
-| Interamt | ~90k/yr public | n/a | not in roadmap | **ungated** | gate only if needed |
+| **BA Jobsuche public website** | ~1.9M | **SSR, plain HTTP** — `www.arbeitsagentur.de/jobsuche/suche?was=…&wo=…` → 200, 370 KB, server-rendered, no anti-bot, native ref IDs (`Stellenangebot 10000-1202838080-S`), publish date, salary, location+distance, homeoffice. Internal REST API (`rest.arbeitsagentur.de/…/pc/v6/jobs`) is **WAF-403** — unusable. | search host robots **absent (404)**; portal robots allow-all | **#1 — build next** | primary |
+| **StepStone.de** | ~1.5M+ | **SSR, plain HTTP** — `www.stepstone.de/jobs/…` → 200, 1.1 MB, `application/ld+json`, no Akamai challenge on search pages. | 3,250 B robots (legacy `/5/` paths; `/jobs/*?q=*` allowed) | **#2 — build next** | secondary |
+| **Indeed.de** | ~1.5M+ | **SSR, plain HTTP** — `de.indeed.com/Jobs?q=…` → 200, 1.3 MB, `data-jk` ids. **Litigation risk** (Indeed has sued scrapers) — flagged, decision required. | 13 KB robots (`*` blocks `/jobs`, `/viewjob`, `/*&start=`) | **#3 — risk-gated** | tertiary |
+| **Kimeta (Inc 8)** | ~1.5–1.8M | **No anti-bot** — homepage 200 (214 KB); JS app with `/api/mutation/…`; content pages at `/stellenangebote`. robots deny is the only barrier (relaxed). | 6,257 B robots (`*` → `Disallow: /`) | **#4 — build** | quaternary |
+| **Stellenanzeigen.de (Inc 10)** | ~10k+ | **robots-permitted, JSON-LD, passive Cloudflare** (community-confirmed) | permitted (772 B; 3 sitemaps) | **#5 — build** | small-clean |
+| **Joblift (Inc 9)** | L (per-city 20–27k) | **CloudFront 403 at the edge** — robots.txt AND `/business-developer` both 403; needs a real-browser test. | CloudFront-403 (not a robots answer) | **#6 — probe in browser** | pending |
+| **Monster.de** | L | **DataDome challenge** on robots.txt ("Please enable JS", `geo.captcha-delivery.com`) — technical anti-bot. | DataDome-403 | **#7 — blocked** (tooling decision) | pending |
+| **Interamt** | ~90k/yr public | **Redirect loop for curl** (50 hops); JS-only SPA. | 283 B robots (permits `/`, blocks `/cms/`) | **#8 — Playwright only** | pending |
+| **Arbeitnow (Inc 11)** | ≤5k tech/remote | Keyless API, clean, trivial build. | clean (78 B) | **scheduled** | cheap fill |
+| **Adzuna DE (Inc 3)** | ~1.16M | Sanctioned API, free key. | keyed-API reading (recorded Inc 3) | **DONE** (4,841 rows/sweep) | sanctioned base |
+| **EURES DE slice (Inc 12)** | ~1.8M EU | Arrangement-gated, ESCO-native. | arrangement-gated | **access track** | national + ESCO |
 
 **German region prerequisite:** Germany has **400 NUTS 3 codes** (Eurostat GISCO
 `NUTS_AT_2024.csv`, verified live). No German surface ships a NUTS code, so

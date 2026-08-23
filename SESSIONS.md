@@ -20,6 +20,7 @@ than expanding the active increment.
 | 6 | 2026-08-23 | Complete | NAV stillings-feed (NO): feasibility gate (robots absent + full Nynorsk ToS review + live contract re-verification), `NAVFeedCollector` — the lab's first **event-log** source (fold per ad uuid on HMAC source_id), first **source-reported `removed_at`**, and first **native ESCO occupation URI**; token handling with disk cache + 401 rotate-and-replay, `If-Modified-Since` seek / `If-None-Match` revalidation, budgeted ad details, poll cursor, pinned SSB Klass x GISCO fylke/kommune -> NUTS 2024 crosswalk (`scrapers/reference_nav.py`, 370 rows), CLI `--source no` + `make scrape-nav` / `make reference-nav`, 93 new respx tests. | `make check` passed (313 tests); backfill 10,342 rows (20/20 pages) + poll cycle 2,239 rows (6/6, cursor-resumed), zero 4xx, token rotation handled live |
 | 7 | 2026-08-23 | **Blocked** (build complete, DoD pending activation) | Työmarkkinatori / Job Market Finland (FI, P67 search API via Kipa): feasibility gate first — **`tyomarkkinatori.fi/robots.txt` disallows `/api/`**, so the source's own KUNTA/MAAKUNTA/ESCO codesets were left untouched and the crosswalk was built from Statistics Finland instead; both Kipa hosts **drop TCP 443 from a non-allowlisted IP** (21 s) so there is **no sandbox** and the contract was pinned from the published OpenAPI. `FinlandTMTCollector` — key auth + optional bearer with 401 refresh-and-replay, streaming NDJSON with drained-then-retried 429/5xx, **client-side watermark** (the API has no cursor and no sentinel), loud schema-drift guard, the lab's **first `skill_mappings`** and second **source-reported `removed_at`**, five-way FINESCO classification (ESCO / ISCO group / national extension / unrecognised / absent); pinned kunta+maakunta -> NUTS 2024 crosswalk (`scrapers/reference_finland.py`, **327 rows, 19/19 NUTS 3, 0 unmatched, 0 ambiguous**); CLI `--source fi` + `--max-rows`/`--status`, `make scrape-finland` / `make reference-finland`, 54 new tests. **KEHA activation notification deliberately NOT submitted** (bound to a Finnish Y-tunnus). | `make check` passed (367 tests); **DoD not met — 0 records**: no key and no IP opening, sweep stops at the robots gate after 94.3 s, no partition written |
 | P1 | 2026-08-23 | Complete | **Germany — active lane architecture** (planning, no code): user re-ordered the roadmap to make Germany the active build target; every German surface probed live and the grey-HTML chain **re-ordered by evidence to 10 → 9 → 8** (Stellenanzeigen → Joblift → Kimeta). Key findings: **Kimeta is robots-blocked for this lab** (`*` → `Disallow: /`, verified with `RobotsRule` — DENY on `/jobs/berlin`, `/search`, `/api/job-pdf`); **Joblift is CloudFront-403 at the edge** (robots.txt and its partner-API page both blocked from this egress); **Stellenanzeigen.de is robots-permitted with three advertised sitemaps and `JobPosting` JSON-LD on detail pages** (community scrapers confirm "passive Cloudflare, no active challenge") — it becomes the primary German build; BA portal is robots-allow-all but the Jobsuche data stays agreement-only (access track); BKG Geodatenzentrum robots permits (only GPTBot blocked) and destatis allows with `Crawl-delay: 30`, confirming the German region-crosswalk authority. Germany has **400 NUTS 3 codes** (GISCO 2024, verified). Plan recorded: coverage stack, lanes, mandatory foolproof mechanisms, predetermined backup chain, cross-source overlap stance, and the new `reference_germany.py` prerequisite. | docs only; `make check` unchanged (367 tests) |
+| P2 | 2026-08-23 | Complete | **Germany re-assessment under the relaxed constraint** (planning, no code): user **relaxed the ToS/robots gate** for this private educational project. Live probes found the plan's #1 source is now the **BA Jobsuche public website** (~1.9M, SSR plain HTTP, no anti-bot, native ref IDs; its internal REST API is WAF-403 even from a browser); **StepStone** (~1.5M+, SSR, JSON-LD, no Akamai challenge on search) and **Indeed** (~1.5M+, SSR, `data-jk` ids, **litigation history flagged**) are also plain-HTTP accessible; **Kimeta** has no technical anti-bot. **Monster** (DataDome) and **Joblift** (CloudFront 403) and **Interamt** (JS redirect loop) are technically blocked — probe rows. Roadmap tiered German stack rewritten (BA Jobsuche → StepStone → Indeed → Kimeta → Stellenanzeigen → probes → Arbeitnow), feasibility table rewritten from legal to technical verdicts, landscape + risk matrix updated. `reference_germany.py` remains the build prerequisite. | docs only; `make check` unchanged (367 tests) |
 ## Session Notes
 
 ### 2026-08-20 - Increment L0 (context cleanup)
@@ -968,3 +969,43 @@ feasibility gate was opened and greened before any collector code was written.
   "Germany programme" per-surface status table; this session log row. Next
   sessions: Stellenanzeigen gate-only → `reference_germany.py` → Stellenanzeigen
   canary + collector + DoD sweep → Joblift gate → Kimeta gate.
+### 2026-08-23 - P2 (Germany re-assessment under the relaxed constraint) — no code
+
+- **Constraint change (user decision):** the ToS/robots gate is **relaxed for
+  this private research/educational student project**. Robots and ToS are still
+  recorded as evidence in the feasibility rows but no longer block a build. The
+  gates that survive: technical anti-bot (Cloudflare/DataDome/Akamai/WAF), the
+  litigation risk on Indeed, the 1 s pacing floor, the PII ban, HMAC
+  pseudonymization, canaries (as a technical check), and manifest reconciliation.
+- **The plan's #1 changed.** Live probes (22:00 UTC, at the 1 s floor) found the
+  **BA Jobsuche public website** is server-rendered, plain-HTTP accessible, and
+  free of anti-bot: `www.arbeitsagentur.de/jobsuche/suche?was=…&wo=…` returned
+  200 / 370 KB with job titles, employers, publish dates, location+distance,
+  salary, employment type, homeoffice and native ref IDs
+  (`Stellenangebot 10000-1202838080-S`); the search host serves no robots.txt
+  (404). That is ~1.9M postings — the single biggest German prize, previously
+  classified as "agreement-only / never scraped". The internal REST API
+  (`rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs`, found in
+  `config/config.js`) is **WAF-403 even from a browser** (verified with Playwright
+  from the same-origin SPA), so the collector is an HTML parser, not an API client.
+- **Also verified plain-HTTP accessible with a browser UA:** **StepStone.de**
+  (search 200 / 1.1 MB, `application/ld+json`, no Akamai challenge on search
+  pages), **Indeed.de** (200 / 1.3 MB, `data-jk` ids — **litigation history
+  flagged, decision required**), **Kimeta** (homepage 200 / 214 KB; JS-driven
+  app, no technical anti-bot). **Stellenanzeigen.de** remains robots-permitted
+  with JSON-LD and passive Cloudflare (smaller volume).
+- **Confirmed technically blocked:** **Monster.de** (DataDome challenge even on
+  robots.txt — `geo.captcha-delivery.com`), **Joblift** (CloudFront 403 on
+  robots.txt AND its `/business-developer` partner-API page; needs a real-browser
+  test), **Interamt** (curl loops 50 redirects, JS-only SPA). These become
+  "probe/blocked" rows needing a tooling decision (browser automation), not
+  immediate builds.
+- **Plan recorded:** roadmap gained the tiered German stack (BA Jobsuche →
+  StepStone → Indeed → Kimeta → Stellenanzeigen → Joblift/Monster/Interamt probes
+  → Arbeitnow fill) with the technical-feasibility-first execution order; the
+  feasibility doc's Germany programme table was rewritten from legal verdicts to
+  technical ones; the landscape's German measured-facts paragraph updated; risk
+  matrix rows 8-10 re-scored and G1-G4 rows added. The German region crosswalk
+  (`reference_germany.py`, BKG × GISCO, 400 NUTS 3 codes) remains the build
+  prerequisite. Next session: `reference_germany.py`, then the BA Jobsuche
+  feasibility gate and collector.

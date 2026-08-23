@@ -601,28 +601,37 @@ priority ranking for choosing the lab's first scrapers.
 - **Aggregate-only or login-walled, low priority:** UWV posting-level (scrape
   needed), SEPE, ANPAL, Jobnet, IEFP, Baltic EE.
 
-**Germany — measured live 2026-08-23 (corrections to the rows above).** (a)
-**Kimeta's robots.txt is a blanket block for non-listed crawlers**: the last
-group is `User-agent: *` → `Disallow: /` (6,257 B; only named search-engine UAs
-get `Allow: /`), verified with the lab's `RobotsRule` — DENY on `/jobs/berlin`,
-`/search` and `/api/job-pdf`. There is no keyed-API reading that rescues a public
-HTML site, so Increment 8 is expected to gate **blocked** for this lab. (b)
-**Joblift sits behind a CloudFront WAF that 403s even robots.txt** and its
-official partner-API page (`joblift.co.uk/business-developer`) from this egress;
-the homepage advertises per-city totals (Berlin 24,296, Köln 27,064, München
-20,249) and openly lists StepStone, Monster and stellenanzeigen as indexed
-boards. (c) **Stellenanzeigen.de is robots-permitted** (`/job/*`, `/suche/*`
-ALLOW; `/stabi/` and internal ajax paths DENY; three sitemaps advertised:
-`careeasy/sitemap_index.xml`, `wp/sitemaps/sitemap.xml`, `sitemaps/…index-sitemap`),
-detail pages carry `JobPosting` JSON-LD, and community scrapers report "passive
-Cloudflare, no active challenge" — the most feasible German HTML surface and the
-plan's primary build. (d) **BA portal robots is allow-all** (208 B) but the
-Jobsuche data remains agreement-only — robots does not extend to the data.
-(e) **German region authority:** Germany has **400 NUTS 3 codes** in Eurostat
-GISCO NUTS 2024; BKG Geodatenzentrum robots permits (only GPTBot blocked) and
-destatis allows with `Crawl-delay: 30`, so the PLZ/Stadt → NUTS 3 2024 crosswalk
-(`scrapers/reference_germany.py`) is buildable from official, robots-clean
-sources. govdata.de is blanket-`*`-denied and is **not** used as a reference host.
+**Germany — measured live 2026-08-23 (corrections to the rows above, re-assessed
+22:05 UTC after the user relaxed the ToS/robots gate for this private educational
+project — so these are *technical* verdicts, not legal ones).** (a) **BA
+Jobsuche's public website is the single biggest technically accessible German
+source**: `www.arbeitsagentur.de/jobsuche/suche?was=…&wo=…` is server-rendered
+(Angular SSR) plain HTTP — 200, 370 KB, no anti-bot, with job title, employer,
+publish date, location + distance, salary, employment type, homeoffice and a
+native ref ID (`Stellenangebot 10000-1202838080-S`); the search host serves no
+robots.txt (404). Its internal REST API (`rest.arbeitsagentur.de/jobboerse/
+jobsuche-service/pc/v6/jobs`, discovered in `config/config.js`) is **WAF-gated**
+— 403 even from the same browser context — so the surface is HTML, not JSON.
+(b) **StepStone.de is plain-HTTP accessible** — search pages 200 (1.1 MB) with
+`application/ld+json`, no Akamai challenge on search pages (detail pages need a
+canary probe); `robots.txt` (3,250 B) allows the modern `/jobs/*?q=*` surface.
+(c) **Indeed.de is plain-HTTP accessible** — search pages 200 (1.3 MB) with
+`data-jk` ids — but has **litigation history** (Indeed has sued scrapers);
+that risk is flagged, not hidden. (d) **Kimeta has no technical anti-bot** — its
+robots.txt `*`→`Disallow:/` (6,257 B) is the only barrier, and under the relaxed
+constraint it is a JS-driven HTML build (`/stellenangebote`, `/stellenmarkt`, a
+`/api/mutation/…` search endpoint). (e) **Stellenanzeigen.de is robots-permitted**
+(`/job/*`, `/suche/*` ALLOW; `/stabi/` DENY; three sitemaps), JSON-LD details,
+"passive Cloudflare" — a smaller-volume clean build. (f) **Joblift is CloudFront
+403** on robots.txt AND its partner-API page — a technical edge block needing a
+real-browser test. (g) **Monster.de is DataDome-challenged** ("Please enable JS",
+`geo.captcha-delivery.com`) and **Interamt** loops curl through redirects (JS
+SPA). (h) **German region authority:** Germany has **400 NUTS 3 codes** in
+Eurostat GISCO NUTS 2024; BKG Geodatenzentrum robots permits (only GPTBot
+blocked) and destatis allows with `Crawl-delay: 30` — the PLZ/Stadt → NUTS 3
+2024 crosswalk (`scrapers/reference_germany.py`) is buildable from official,
+robots-clean sources. govdata.de is blanket-`*`-denied and is **not** used as a
+reference host.
 
 Next step when a target is chosen: fill the corresponding row in
 `SCRAPER_FEASIBILITY.md` (robots.txt fetch, ToS clause, Crawl-Delay, SAFE_FIELDS
