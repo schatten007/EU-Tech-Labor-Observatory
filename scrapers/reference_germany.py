@@ -143,7 +143,7 @@ def _read_dbf_table(path: Path) -> list[dict[str, str]]:
             offset = 1
             rec: dict[str, str] = {}
             for name, fsize in fields:
-                rec[name] = raw[offset : offset + fsize].decode("latin-1", errors="replace").strip()
+                rec[name] = raw[offset : offset + fsize].decode("utf-8", errors="replace").strip()
                 offset += fsize
             records.append(rec)
     return records

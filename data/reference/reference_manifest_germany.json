@@ -2,7 +2,7 @@
   "source": "destatis-kreise-nuts + bkg-vz250-gem + destatis-anschriften x eurostat-gisco-nuts-2024",
   "nuts_version": "NUTS-2024",
   "source_version": "2026-08-23",
-  "retrieved_at": "2026-08-23T20:31:50.978445+00:00",
+  "retrieved_at": "2026-08-23T22:19:27.457012+00:00",
   "source_urls": {
     "gisco_nuts_2024": "https://gisco-services.ec.europa.eu/distribution/v2/nuts/csv/NUTS_AT_2024.csv",
     "vz250_gem": "https://daten.gdz.bkg.bund.de/produkte/vg/vz250_1231/aktuell/vz250_12-31.gk3.shape.zip",
@@ -852,6 +852,6 @@
     "note": "VZ250_GEM carries stale NUTS codes for 7 Thuringian districts vs destatis Kreise NUTS 2024 (the official key). The crosswalk uses the destatis-derived codes."
   },
   "hashes": {
-    "germany_plz_nuts_2024.csv": "a3e8480ee1a237559391b39b1fb2f34af8dd5e37e1f9000518f88c313d658a42"
+    "germany_plz_nuts_2024.csv": "c73e0a54510714835274abd922ef280417c21a5f9489b31a46b88e30bade3c0a"
   }
 }
