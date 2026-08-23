@@ -1,4 +1,4 @@
-.PHONY: check lint types test scrape scrape-cz scrape-adzuna scrape-adzuna-nl scrape-ft scrape-vdab scrape-nav scrape-finland reconcile reference-mpsv reference-ft reference-vdab reference-nav reference-finland clean
+.PHONY: check lint types test scrape scrape-cz scrape-adzuna scrape-adzuna-nl scrape-ft scrape-vdab scrape-nav scrape-finland scrape-ba-jobsuche reconcile reference-mpsv reference-ft reference-vdab reference-nav reference-finland reference-germany clean
 
 check: lint types test
 
@@ -72,6 +72,22 @@ scrape-nav:
 # and --fresh to ignore the watermark in data/state/finland_tmt_cursor.json.
 scrape-finland:
 	uv run --offline python main.py --source fi --date $(shell date -u +%Y-%m-%d)
+
+# Wired to the Germany active lane (step 2): BA Jobsuche public website.
+# SSR HTML search pages (Angular) at 1 s pacing; the internal REST API
+# (rest.arbeitsagentur.de) is WAF-403 even from a browser, so the collector is
+# an HTML parser, not an API client. Honest runtime: ~1 s per page; a 200-page
+# sweep (~2,000 postings at ~10/page, less with dedupe) is ~5 minutes.
+scrape-ba-jobsuche:
+	uv run --offline python main.py --source ba --date $(shell date -u +%Y-%m-%d)
+
+# NOT part of check. Rebuilds the pinned German PLZ/Stadt -> NUTS 2024 crosswalk
+# (destatis Kreise AGS->NUTS official key x BKG VZ250_GEM municipality register
+# x destatis Anschriftenverzeichnis Zustell-PLZ, validated against Eurostat
+# GISCO NUTS 2024; opt-in network, no credentials). Downloads are cached under
+# data/reference/.cache. The CSV is committed for the offline gate.
+reference-germany:
+	uv run --offline python -m scrapers.reference_germany
 
 # NOT part of check. Stamps removed_at on postings closed between the two most
 # recent MPSV sweeps (compares HMAC source_ids only; writes closures.ndjson).
