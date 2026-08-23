@@ -264,6 +264,43 @@ separate surfaces in `SCRAPER_FEASIBILITY.md`.
 - **Deliverable:** `scrapers/finland_tmt.py` (`FinlandTMTCollector`).
 - **Definition of Done:** Streamed pull of active postings ≥5,000 records with
   ESCO occupation/skill URIs populated; no 4xx/401 after credentials issued.
+- **Status:** **BLOCKED 2026-08-23 — collector built, DoD pending KEHA
+  activation.** See `SCRAPER_FEASIBILITY.md` and `SESSIONS.md`. The contract was
+  pinned live from the **published OpenAPI description**
+  (`P67-tmt-provider-haku-V2`, 19,115 bytes) plus the technical documentation,
+  and it corrected two roadmap assumptions. First, the interface is **not merely
+  form-gated**: KEHA issues the `KIPA-Subscription-Key` *and* opens the caller's
+  IP address, and both Kipa hosts (`api.ahtp.fi`, `api-qa.ahtp.fi`) **drop TCP
+  443 from a non-allowlisted address** (21 s timeouts) while a sibling
+  `ahtp.fi` host answers in 0.52 s — so **there is no public sandbox** and the
+  QA environment is credential-gated too. Second, the API has **no pagination,
+  no cursor and no terminal sentinel**: `FiltersV2` carries only `onlyStatus`
+  plus five `{from, to}` intervals and eight set filters, so **one POST streams
+  one whole result set** and the "cursor" is a client-side watermark (max
+  `metadata.lastModified`, persisted to `data/state/finland_tmt_cursor.json`).
+  **A third finding changed the build:** the portal's own codeset service, which
+  the technical documentation points at for `KUNTA`/`MAAKUNTA`/`ESCO_AMMATTI`,
+  sits under `tyomarkkinatori.fi/api/`, which `robots.txt` **disallows**
+  (`Disallow: /api/`, `Disallow: /*/api/`) — so it is not touched (the VDAB
+  `/api/vindeenjob/` precedent) and the crosswalk is built from **Statistics
+  Finland** instead. **Region is fully mapped:** the pinned
+  `finland_tmt_region_nuts_2024.csv` (**327 rows** — 308 kunta + 19 maakunta + 0
+  ambiguous; Statistics Finland `kunta_1_20260101#nuts_2_20260101`, which names
+  itself *"virallinen NUTS 2024"*, × Eurostat GISCO NUTS 2024, **all 19 Finnish
+  NUTS 3 codes present, 0 unmatched, 0 GISCO codes without a municipality**), and
+  the maakunta layer is **derived then verified** single-valued, proving
+  empirically that a Finnish maakunta *is* a NUTS 3 region. This is also the
+  lab's **first source to populate `skill_mappings`** and its second with a
+  **source-reported `removed_at`** (`metadata.archived`). Occupation and skills
+  come from the source's own **FINESCO 1.2.0-R8** distribution, whose universe is
+  measurably not pure ESCO (3,046 ESCO occupations, 619 ISCO groups, **78 Finnish
+  national extensions**; 15,163 ESCO skills + 220 ISCED-F), so values are
+  classified into five honest outcomes rather than coerced. **Honest blocker:**
+  the activation notification was **deliberately not submitted** — it is an
+  organisation-level commitment bound to a Finnish **Y-tunnus** with a KEHA
+  suitability check, which this lab cannot truthfully satisfy — so **no key is
+  held and 0 postings were retrieved**. The DoD sweep waits for the key; the
+  increment is **not** claimed as DONE. `make check` green (**367 tests**).
 
 ## Increment 8: Kimeta.de (Germany — largest aggregator)
 
@@ -375,7 +412,7 @@ separate surfaces in `SCRAPER_FEASIBILITY.md`.
 | 4 | France Travail | Low (contract) | Med (onboarding latency) | Low (official) | **Low-Med** |
 | 5 | VDAB BE (public site) | Low-Med (robots-permitted HTML; API surface blocked and dropped) | Med (no in-page pagination, breadth-based coverage) | Med (Flanders only, no occupation code) | **Low-Med** |
 | 6 | NAV NO | Low (agreement) | Med (feed reconciliation) | Low-Med (Finn.no excluded) | **Med** |
-| 7 | Finland TMT | Low (agreement) | Med (NDJSON, credentials) | Low (ESCO-native) | **Low-Med** |
+| 7 | Finland TMT | Low-Med (activation bound to a Finnish Y-tunnus; KEHA suitability check) | Med (NDJSON stream, credentials **+ IP allowlist**) | Low (ESCO-native) | **Med** |
 | 8 | Kimeta DE | **High** (grey) | **High** (HTML, dedupe) | Med (aggregator) | **High** |
 | 9 | Joblift | **High** (grey) | **High** (multi-domain HTML) | Med | **High** |
 | 10 | Stellenanzeigen DE | **High** (grey) | **High** (Cloudflare) | Low-Med (JSON-LD) | **High** |

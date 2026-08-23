@@ -7,6 +7,7 @@ Usage:
     python main.py --source be --date 2026-08-22 --max-pages 500
     python main.py --source no --date 2026-08-23 --since 3 --max-details 1500
     python main.py --source no --date 2026-08-23            # daily poll (cursor)
+    python main.py --source fi --date 2026-08-23 --max-rows 100  # TMT smoke pull
     python main.py --source pl --date 2026-08-21 --max-pages 1   # canary
 
 Writes ``data/raw/collections/<source>/<scope_id>/<sweep_id>/`` with
@@ -15,7 +16,10 @@ The MPSV collector additionally writes ``meta.ndjson`` (HMAC source_id ->
 source-reported ``expirace``) used by ``scrapers.reconcile_mpsv`` to stamp
 ``removed_at`` on closed postings. NAV needs no such pass: its feed reports
 closures itself, and the collector persists a poll cursor in
-``data/state/nav_feed_cursor.json`` so the next daily sweep resumes.
+``data/state/nav_feed_cursor.json`` so the next daily sweep resumes. Finland's
+TMT collector reports closures itself too (``metadata.archived``) and persists a
+client-side watermark in ``data/state/finland_tmt_cursor.json``, because the P67
+stream has no server-side cursor.
 """
 
 from __future__ import annotations
@@ -46,6 +50,22 @@ from scrapers.czech_mpsv import (
     MPSV_SOURCE_VERSION,
     MPSVCollector,
     crosswalk_reference_hashes,
+)
+from scrapers.finland_tmt import (
+    TMT_ACCESS_METHOD,
+    TMT_COVERAGE_LIMITATIONS,
+    TMT_FRESHNESS_THRESHOLD_HOURS,
+    TMT_LICENCE_REFERENCE,
+    TMT_SCOPE_ID,
+    TMT_SCOPE_PARAMS,
+    TMT_SOURCE_VERSION,
+    TMT_STATUS_ARCHIVED,
+    TMT_STATUS_PUBLISHED,
+    FinlandTMTCollector,
+    tmt_credentials,
+)
+from scrapers.finland_tmt import (
+    crosswalk_reference_hashes as tmt_crosswalk_reference_hashes,
 )
 from scrapers.france_travail import (
     FT_ACCESS_METHOD,
@@ -220,6 +240,37 @@ def _nav(
     )
 
 
+def _finland_tmt(
+    scope_id: str,
+    sweep_id: str,
+    observed_at: _dt.datetime,
+    hmac_key: bytes,
+    max_pages: int | None,
+    max_rows: int | None = None,
+    only_status: str = TMT_STATUS_PUBLISHED,
+    use_cursor: bool = True,
+    **_: object,
+) -> BaseCollector:
+    if max_pages is not None:
+        raise SystemExit(
+            "--max-pages is invalid for tmt: the P67 API has no pagination "
+            "(one POST streams a whole result set). Use --max-rows instead."
+        )
+    subscription_key, bearer_token = tmt_credentials()
+    return FinlandTMTCollector(
+        scope_id=scope_id,
+        sweep_id=sweep_id,
+        observed_at=observed_at,
+        hmac_key=hmac_key,
+        subscription_key=subscription_key,
+        bearer_token=bearer_token,
+        reference_dir=DEFAULT_REFERENCE,
+        only_status=only_status,
+        max_rows=max_rows,
+        use_cursor=use_cursor,
+    )
+
+
 def _adzuna(adapter: CountryAdapter) -> Callable[..., BaseCollector]:
     """Factory for an Adzuna collector bound to one country adapter."""
 
@@ -323,6 +374,20 @@ def source_config(source: str, country: str = "de") -> SourceConfig:
             reference_hashes=nav_crosswalk_reference_hashes(DEFAULT_REFERENCE),
             build=_nav,
         )
+    if source in ("tmt", "finland", "fi"):
+        return SourceConfig(
+            slug="tmt",
+            scope_id=TMT_SCOPE_ID,
+            scope_params=TMT_SCOPE_PARAMS,
+            source_version=TMT_SOURCE_VERSION,
+            licence_reference=TMT_LICENCE_REFERENCE,
+            access_method=TMT_ACCESS_METHOD,
+            expected_country="FI",
+            freshness_threshold_hours=TMT_FRESHNESS_THRESHOLD_HOURS,
+            coverage_limitations=TMT_COVERAGE_LIMITATIONS,
+            reference_hashes=tmt_crosswalk_reference_hashes(DEFAULT_REFERENCE),
+            build=_finland_tmt,
+        )
     return SourceConfig(
         slug="mpsv",
         scope_id=MPSV_SCOPE_ID,
@@ -355,12 +420,16 @@ def build_parser() -> argparse.ArgumentParser:
             "be",
             "nav",
             "no",
+            "tmt",
+            "finland",
+            "fi",
         ),
         default="pl",
         help="source slug (pl/cbop = CBOP/ePraca Poland; cz/mpsv = Úřad práce "
         "Czechia; adzuna = Adzuna multi-country API; ft/fr/francetravail = "
         "France Travail Offres d'emploi v2; be/vdab = VDAB public job-search "
-        "website, Belgium/Flanders; no/nav = NAV stillings-feed, Norway)",
+        "website, Belgium/Flanders; no/nav = NAV stillings-feed, Norway; "
+        "fi/tmt/finland = Työmarkkinatori jobposting search API, Finland)",
     )
     parser.add_argument(
         "--country",
@@ -396,7 +465,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--fresh",
         action="store_true",
-        help="NAV only: ignore the persisted poll cursor instead of resuming it",
+        help="NAV/TMT only: ignore the persisted poll cursor or watermark instead of resuming it",
+    )
+    parser.add_argument(
+        "--max-rows",
+        type=int,
+        default=None,
+        help="Työmarkkinatori only: stop the NDJSON stream after N postings "
+        "(the API has no pagination, so this is the smoke-pull dial, e.g. 100)",
+    )
+    parser.add_argument(
+        "--status",
+        choices=(TMT_STATUS_PUBLISHED, TMT_STATUS_ARCHIVED),
+        default=TMT_STATUS_PUBLISHED,
+        help="Työmarkkinatori only: FiltersV2 onlyStatus — PUBLISHED is the "
+        "active set, ARCHIVED is the closed set",
     )
     parser.add_argument("--parquet", action="store_true", help="also export the sweep as Parquet")
     return parser
@@ -413,11 +496,15 @@ def build_collector(
     since_days: int | None = None,
     max_details: int | None = None,
     use_cursor: bool = True,
+    max_rows: int | None = None,
+    only_status: str = TMT_STATUS_PUBLISHED,
 ) -> BaseCollector:
     """Build the configured collector.
 
-    ``since_days`` / ``max_details`` / ``use_cursor`` are NAV's feed-window and
-    detail-budget dials; every other source's factory ignores them.
+    ``since_days`` / ``max_details`` are NAV's feed-window and detail-budget
+    dials, ``max_rows`` / ``only_status`` are Työmarkkinatori's stream dials, and
+    ``use_cursor`` is shared by both cursor-bearing sources; every other source's
+    factory ignores them.
     """
     return config.build(
         scope_id=scope_id,
@@ -428,6 +515,8 @@ def build_collector(
         since_days=since_days,
         max_details=max_details,
         use_cursor=use_cursor,
+        max_rows=max_rows,
+        only_status=only_status,
     )
 
 
@@ -464,6 +553,8 @@ async def run_sweep(args: argparse.Namespace) -> int:
         since_days=args.since,
         max_details=args.max_details,
         use_cursor=not args.fresh,
+        max_rows=args.max_rows,
+        only_status=args.status,
     )
 
     rows = []
@@ -530,6 +621,35 @@ async def run_sweep(args: argparse.Namespace) -> int:
             f"{collector.token_requests} token request(s), "
             f"{collector.token_refreshes} token rotation(s) handled mid-sweep."
         )
+
+    if isinstance(collector, FinlandTMTCollector):
+        coverage += (
+            f" Sweep window: {collector.streams_completed} NDJSON stream(s) with filters "
+            f"{json.dumps(collector.filters(), sort_keys=True)}"
+            + (
+                f" resumed from the persisted watermark {collector.modified_from_used}"
+                if collector.modified_from_used
+                else " with no watermark (full result set)"
+            )
+            + f"; {collector.lines_seen} stream line(s) → {len(rows)} rows "
+            f"({collector.malformed_lines} malformed line(s) skipped, "
+            f"{collector.rows_without_id} without metadata.externalId, "
+            f"{collector.duplicates_dropped} duplicate(s) dropped on HMAC source_id); "
+            f"{collector.rows_with_esco_occupation} rows carry a native ESCO occupation "
+            f"URI, {collector.rows_with_skills} rows carry "
+            f"{collector.skill_elements} skill_mappings element(s), "
+            f"{collector.rows_removed} rows carry a source-reported removed_at; "
+            f"{collector.token_refreshes} bearer refresh(es)."
+        )
+        if collector.truncated_by_budget:
+            coverage += (
+                " TRUNCATED: the --max-rows budget stopped the stream before its end, "
+                "so this partition is a sample and no watermark was persisted."
+            )
+        if collector.rate_limit:
+            coverage += f" RateLimit headers at sweep: {collector.rate_limit}."
+        if collector.watermark:
+            coverage += f" Watermark (max metadata.lastModified): {collector.watermark}."
 
     validator = SchemaValidator()
     writer = SweepWriter(args.root)

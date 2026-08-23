@@ -281,6 +281,38 @@ structured `openPositions`, timestamps, multi-language).
 - **Volume:** **M** (~tens of thousands active).
 - **ToS:** allowed under agreement (explicit terms-of-use process).
 
+**Measured live 2026-08-23 (Increment 7 — collector built, sweep blocked).** The
+interface renamed itself: *noutorajapinta* is now **hakurajapinta** (search
+interface) and *tuontirajapinta* is **hallintarajapinta**; the v1 interfaces
+retire in **May 2027**. Endpoint is `POST https://api.ahtp.fi/kipa/p67/v2/
+jobpostings` (QA: `api-qa.ahtp.fi`) with header `KIPA-Subscription-Key`, body
+`FiltersV2`, response `application/x-ndjson`. **Two corrections to the note
+above.** (1) There is **no pagination** — the published OpenAPI
+(`P67-tmt-provider-haku-V2`) shows `FiltersV2` has no offset/limit/page/cursor
+field at all, so one POST streams one whole result set with no terminal sentinel,
+and windowing is done with `{from, to}` intervals on `created`/`modified`/
+`published`/`archived`/`expires`. (2) Access is **more than a form**: KEHA issues
+the key *and* **opens the caller's IP**, and both Kipa hosts drop TCP 443 from a
+non-allowlisted address (21 s timeouts, while sibling `sahkoinenasiointi.ahtp.fi`
+answers in 0.52 s) — so **no public sandbox exists**, QA included. Use is bound
+to the API user's Finnish **Y-tunnus** with a KEHA suitability check, and the
+terms require attribution (*"Source: Job Market Finland's customer information
+system"*), forbid forwarding postings to third parties and forbid storing removed
+postings so they remain retrievable; **no statistical/analytical purpose is
+named**, unlike NAV's ToS. Data quality is the best in this lab so far:
+`JobPostingV2` carries `metadata.externalId`/`created`/`lastModified`/`archived`
+(a **source-reported closure timestamp**), `application.published`/
+`openPositions`, `location.municipalities`/`regions` (KUNTA/MAAKUNTA codes, not
+free text) and **native ESCO occupation *and* skill URIs**. One trap: the
+source's own **FINESCO 1.2.0-R8** distribution is not pure ESCO — 3,046 ESCO
+occupations but also 619 ISCO group URIs and **78 national extensions** under
+`data.tyomarkkinatori.fi`, plus 220 ISCED-F concepts among the skills. And the
+codeset service the docs point at (`tyomarkkinatori.fi/api/codes/...`) is
+**robots-DISALLOWED** (`Disallow: /api/`), so the region crosswalk must come from
+Statistics Finland, whose `kunta_1_20260101#nuts_2_20260101` key is labelled
+*"virallinen NUTS 2024"* and maps all 308 municipalities onto all 19 Finnish
+NUTS 3 codes.
+
 ### 7. NAV stillings-feed (NO)
 
 Official feed of **all** job ads registered with NAV since ~2019 (the law

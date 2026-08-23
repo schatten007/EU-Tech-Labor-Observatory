@@ -1,4 +1,4 @@
-.PHONY: check lint types test scrape scrape-cz scrape-adzuna scrape-adzuna-nl scrape-ft scrape-vdab scrape-nav reconcile reference-mpsv reference-ft reference-vdab reference-nav clean
+.PHONY: check lint types test scrape scrape-cz scrape-adzuna scrape-adzuna-nl scrape-ft scrape-vdab scrape-nav scrape-finland reconcile reference-mpsv reference-ft reference-vdab reference-nav reference-finland clean
 
 check: lint types test
 
@@ -60,6 +60,19 @@ scrape-vdab:
 scrape-nav:
 	uv run --offline python main.py --source no --date $(shell date -u +%Y-%m-%d)
 
+# Wired to Increment 7: Työmarkkinatori / Job Market Finland jobposting search
+# API (P67 via the KEHA Centre's Kipa platform). REQUIRES CREDENTIALS THIS LAB
+# DOES NOT HOLD: a KEHA-issued TMT_KIPA_SUBSCRIPTION_KEY in .env *and* a
+# KEHA-side IP opening on api.ahtp.fi (both Kipa hosts drop TCP 443 otherwise).
+# Without the key the collector raises before opening a socket. The API has no
+# pagination: one POST streams the whole PUBLISHED result set as NDJSON, so
+# honest runtime is one paced request plus however long the body takes to read
+# (minutes, not hours) - there is no per-page budget and --max-pages is rejected.
+# Use --max-rows 100 for the smoke pull, --status ARCHIVED for the closed set,
+# and --fresh to ignore the watermark in data/state/finland_tmt_cursor.json.
+scrape-finland:
+	uv run --offline python main.py --source fi --date $(shell date -u +%Y-%m-%d)
+
 # NOT part of check. Stamps removed_at on postings closed between the two most
 # recent MPSV sweeps (compares HMAC source_ids only; writes closures.ndjson).
 reconcile:
@@ -90,6 +103,15 @@ reference-vdab:
 # no resume state. The CSV is committed for the offline gate.
 reference-nav:
 	uv run --offline python -m scrapers.reference_nav
+
+# NOT part of check. Rebuilds the pinned Finnish kunta/maakunta -> NUTS 2024
+# crosswalk (Statistics Finland classification keys kunta#nuts and kunta#maakunta
+# x Eurostat GISCO NUTS 2024; opt-in network, no credentials). Only 3 requests,
+# so it finishes in seconds and needs no resume state. Työmarkkinatori's OWN
+# KUNTA/MAAKUNTA codesets are deliberately NOT used: tyomarkkinatori.fi/robots.txt
+# disallows /api/, which is where they live. The CSV is committed for the gate.
+reference-finland:
+	uv run --offline python -m scrapers.reference_finland
 
 clean:
 	rm -rf .mypy_cache .ruff_cache .pytest_cache

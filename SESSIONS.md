@@ -18,7 +18,7 @@ than expanding the active increment.
 | 5 | 2026-08-22 | Gate only | VDAB (BE-Flanders) **feasibility gate + re-scope, no code**: Vacature API v4 found to require an approved partnership + signed samenwerkingsovereenkomst -> recorded **blocked**, not routed around; public vdab.be job-search HTML assessed instead (robots-permitted, disclaimer allows informational re-use) and its **canary passed** (12 pages, 1.2 s, 12/12 HTTP 200, 189 unique ids); roadmap/landscape/feasibility corrected and the Increment 5 kickoff prompt rewritten. | docs only; `make check` unchanged (170 tests) |
 | 5 | 2026-08-22 | Complete | VDAB (BE-Flanders) **implementation** on the re-scoped public HTML surface: `VDABCollector` with a per-URL `robots.txt` gate (hard failure, `/api/vindeenjob/` never requested), keyword-sitemap discovery + breadth ordering by postcode, allowlist-only BeautifulSoup/lxml tile parsing, Dutch date parser, HMAC dedupe, pinned postcode->NUTS 2024 crosswalk (`scrapers/reference_vdab.py`, 528 rows), CLI `--source be` + `make scrape-vdab` / `make reference-vdab`, 45 new respx tests. | `make check` passed (215 tests); DoD sweep complete (12,282 rows, 500/500 pages, zero 4xx) |
 | 6 | 2026-08-23 | Complete | NAV stillings-feed (NO): feasibility gate (robots absent + full Nynorsk ToS review + live contract re-verification), `NAVFeedCollector` — the lab's first **event-log** source (fold per ad uuid on HMAC source_id), first **source-reported `removed_at`**, and first **native ESCO occupation URI**; token handling with disk cache + 401 rotate-and-replay, `If-Modified-Since` seek / `If-None-Match` revalidation, budgeted ad details, poll cursor, pinned SSB Klass x GISCO fylke/kommune -> NUTS 2024 crosswalk (`scrapers/reference_nav.py`, 370 rows), CLI `--source no` + `make scrape-nav` / `make reference-nav`, 93 new respx tests. | `make check` passed (313 tests); backfill 10,342 rows (20/20 pages) + poll cycle 2,239 rows (6/6, cursor-resumed), zero 4xx, token rotation handled live |
-
+| 7 | 2026-08-23 | **Blocked** (build complete, DoD pending activation) | Työmarkkinatori / Job Market Finland (FI, P67 search API via Kipa): feasibility gate first — **`tyomarkkinatori.fi/robots.txt` disallows `/api/`**, so the source's own KUNTA/MAAKUNTA/ESCO codesets were left untouched and the crosswalk was built from Statistics Finland instead; both Kipa hosts **drop TCP 443 from a non-allowlisted IP** (21 s) so there is **no sandbox** and the contract was pinned from the published OpenAPI. `FinlandTMTCollector` — key auth + optional bearer with 401 refresh-and-replay, streaming NDJSON with drained-then-retried 429/5xx, **client-side watermark** (the API has no cursor and no sentinel), loud schema-drift guard, the lab's **first `skill_mappings`** and second **source-reported `removed_at`**, five-way FINESCO classification (ESCO / ISCO group / national extension / unrecognised / absent); pinned kunta+maakunta -> NUTS 2024 crosswalk (`scrapers/reference_finland.py`, **327 rows, 19/19 NUTS 3, 0 unmatched, 0 ambiguous**); CLI `--source fi` + `--max-rows`/`--status`, `make scrape-finland` / `make reference-finland`, 54 new tests. **KEHA activation notification deliberately NOT submitted** (bound to a Finnish Y-tunnus). | `make check` passed (367 tests); **DoD not met — 0 records**: no key and no IP opening, sweep stops at the robots gate after 94.3 s, no partition written |
 ## Session Notes
 
 ### 2026-08-20 - Increment L0 (context cleanup)
@@ -780,3 +780,131 @@ feasibility gate was opened and greened before any collector code was written.
 - **Roadmap/feasibility updated:** Increment 6 marked **DONE 2026-08-23** with the
   DoD evidence; the feasibility row gains the built-crosswalk row, the validation
   run, the host-incident record and a `DONE — live DoD evidence` row.
+
+### 2026-08-23 - Increment 7 (Työmarkkinatori / Job Market Finland, FI) — collector built, DoD blocked
+
+- **Order followed.** SCRAPERS.md -> SCRAPER_ROADMAP.md -> SCRAPER_SOURCE_LANDSCAPE.md
+  -> SCRAPER_FEASIBILITY.md -> SESSIONS.md, then the feasibility gate **before**
+  any code, then reuse of `base.py` / `robots.py` / `retry.py` / `sanitize.py` /
+  `validate.py` with no new compliance helper and no restructuring of `main.py`
+  or the Makefile.
+- **The gate was opened first, and it changed the build three times.**
+  1. **`tyomarkkinatori.fi/robots.txt` disallows `/api/`** (and `/*/api/`),
+     verified with the lab's own `RobotsRule`. That is exactly where the source's
+     `KUNTA` / `MAAKUNTA` / `ESCO_AMMATTI` / `ESCO_OSAAMINEN` codesets live, so
+     they were **not fetched — not even once** (the VDAB `/api/vindeenjob/`
+     precedent). The region crosswalk was built from **Statistics Finland**
+     instead, which turned out to be the better authority anyway. Docs, the
+     OpenAPI description and `/dam/` are all robots-**allowed** and were used.
+  2. **The Kipa gateway is IP-allowlisted, not just key-gated.** `api.ahtp.fi`
+     and `api-qa.ahtp.fi` both fail the TCP handshake on 443 (**21.0 s / 21.1 s
+     timeouts**, ICMP to `13.81.203.220` succeeds) while the sibling
+     `sahkoinenasiointi.ahtp.fi` answers **200 in 0.52 s** — so this is a
+     host-level filter, not an egress problem and not an outage, exactly as the
+     technical doc says (*"the credentials … **and the IP addresses openings** are
+     provided by the KEHA Center"*). Consequence: **no public sandbox exists**,
+     QA included, so the contract was pinned from the **published OpenAPI
+     description** (`P67-tmt-provider-haku-V2`, 19,115 bytes) and every branch is
+     respx-mocked rather than measured. Every contract claim in the docstring and
+     the feasibility row is labelled as contract-derived.
+  3. **The API has no pagination, no cursor and no terminal sentinel.**
+     `FiltersV2` carries only `onlyStatus` (`PUBLISHED`/`ARCHIVED`), five
+     `{from, to}` intervals (`created`/`modified`/`published`/`archived`/
+     `expires`) and eight set filters — no offset, limit, page or continuation
+     field. One POST returns one whole result set as `application/x-ndjson` and
+     the stream ends when the body ends. So the "cursor" the prompt asked about is
+     a **client-side watermark**: the maximum `metadata.lastModified` seen,
+     persisted to `data/state/finland_tmt_cursor.json` and replayed as
+     `modified.from`. A `PUBLISHED` watermark is deliberately **not** reused for
+     an `ARCHIVED` pass, and a `--max-rows`-truncated sample **does not** advance
+     it.
+- **Onboarding: NOT STARTED, on purpose, and said plainly.** The activation
+  notification is an organisation-level commitment whose access right is *"sidottu
+  rajapinnan käyttäjän Y-tunnukseen"* (bound to the API user's Finnish business
+  id), with a KEHA suitability check and contact-person personal data under §5 of
+  the terms. This lab is not a Finnish registered organisation, so the Webropol
+  form was **not submitted** — filing it would have meant committing a
+  non-existent organisation to the Terms of Use. That is materially different from
+  Increment 4 (self-service click-through) and Increment 6 (public experimentation
+  token), and it is recorded as *not started with a reason*, never as "pending".
+  **No key is held; no credential or token is in the repository.**
+- **ToS reviewed in full** (`…/terms-of-use-for-job-market-finlands-job-posting-apis`,
+  updated 12.3.2026). Verdict **restricted, not prohibited**: automated access *is*
+  the mechanism, but the named purpose is displaying postings in the API user's own
+  service and **no statistical/analytical purpose is named** (unlike NAV). Four
+  conditions were answered structurally rather than noted and forgotten:
+  attribution (*"Source: Job Market Finland's customer information system"*, now
+  the manifest's `licence_reference`), no forwarding to third parties (nothing
+  forwardable is produced), *"removed job postings cannot be stored so that they
+  can still be retrieved"* (the output holds **no posting content at all** and
+  stamps the source's own `metadata.archived` as `removed_at`), and no marketing
+  use of the dataset.
+- **Built.** `scrapers/finland_tmt.py` (`FinlandTMTCollector`): robots fetched and
+  asserted per URL before the first request, 1 s pacing floor with `Crawl-delay`
+  adoption, `KIPA-Subscription-Key` on every call plus an optional bearer with
+  **401 refresh-once-and-replay**, a streaming POST whose retryable responses are
+  drained and closed before `scrapers.retry` retries them (so a 429/5xx retry
+  never leaks a connection), `RateLimit-Limit/Remaining/Reset` logged per
+  response, allowlist-only `extra="ignore"` models, and `--max-rows` as the
+  smoke-pull dial. Failure semantics are deliberate: a **corrupt JSON line** is
+  counted and skipped, a **structurally wrong** line raises through pydantic, and
+  a stream that yields lines but **no usable row raises rather than writing an
+  empty partition** (the silent-success trap the manifest reconciliation would
+  otherwise pass).
+- **Two lab firsts.** This is the first source to populate **`skill_mappings`**
+  (from `position.skills`, in the element shape
+  `transform/models/staging/stg_skill_mappings.sql` reads, one element per skill
+  in source order) and the second with a **source-reported `removed_at`**. The
+  FINESCO trap was measured, not assumed: the source's own published distribution
+  (`definitions.zip`, 14,062,560 bytes, `version.txt` = **FINESCO 1.2.0-R8**) holds
+  **3,046** ESCO occupation URIs but also **619** ISCO group URIs and **78 Finnish
+  national extensions** under `data.tyomarkkinatori.fi`, plus **220** ISCED-F
+  concepts among 15,163 skills. So values are classified into five honest
+  outcomes — ESCO -> `mapped`, ISCO group -> `low_confidence` with **no URI
+  written**, national extension -> `unmapped`, unrecognised -> `unmapped`, absent
+  -> `not_present` — and `occupation_mapping_confidence` stays `None` because the
+  source attaches no score (inventing "high" would be an overclaim).
+  `esco_occupation_label` stays `None` for the Increment 6 reason.
+- **Region fully mapped, 0 unmatched.** `scrapers/reference_finland.py` +
+  `data/reference/finland_tmt_region_nuts_2024.csv` (**327 rows** = 308 `kunta` +
+  19 `maakunta` + **0 `maakunta-ambiguous`**), built live in 3 paced requests.
+  Statistics Finland's `kunta_1_20260101#nuts_2_20260101` key names itself
+  *"virallinen NUTS 2024"* and returns **924 maps = 308 municipalities × NUTS
+  levels 1/2/3**; the 308 level-3 maps cover **all 19** Finnish NUTS 3 codes with
+  **0 absent from Eurostat GISCO NUTS 2024 and 0 GISCO codes without a
+  municipality** (bijective). The maakunta layer is **derived then verified**: 19
+  regions each resolving to exactly one NUTS 3 code, which is the empirical proof
+  that a Finnish maakunta *is* a NUTS 3 region. **No name join was needed** — a
+  relief, because the label mismatches that would have broken one are real
+  (Uusimaa vs Helsinki-Uusimaa, Ahvenanmaa vs Åland). One normalizer
+  (`normalize_kunta_code` / `normalize_maakunta_code`) is shared by the builder and
+  the collector so the keys cannot drift, and a maakunta that ever spanned two
+  NUTS 3 codes would be written **with no code** so the collector reports
+  `ambiguous` instead of guessing (tested).
+- **DoD: NOT MET, and not dressed up.** Roadmap DoD is *"streamed pull of active
+  postings ≥5,000 records with ESCO occupation/skill URIs populated; no 4xx/401
+  after credentials issued"*. **0 records were retrieved.** Evidence: without a key
+  the CLI **raises before opening a socket**; with a placeholder key it makes
+  exactly one host contact — `robots.txt`, which needs no credential — and after 4
+  retried attempts over **94.3 s** raises *"cannot reach
+  https://api.ahtp.fi/robots.txt: the Kipa gateway is IP-allowlisted"*. **No
+  authenticated request was sent, no partition and no watermark file were written**
+  (`data/raw/collections/` still has no `tmt/`), so nothing empty is presented as a
+  sweep. Increment 7 is recorded **BLOCKED (build complete, DoD pending KEHA
+  activation)**, not DONE.
+- **Three assumptions flagged for the first authorised sweep** rather than buried:
+  which auth header the gateway actually enforces (the technical doc says
+  `KIPA-Subscription-Key`, the OpenAPI declares `bearerAuth` for the backend
+  behind it — the collector sends both when a bearer exists), whether timestamps
+  are naive (every `date-time` is `maxLength 26`, exactly
+  `YYYY-MM-DDTHH:MM:SS.ffffff` with no room for a designator, so a naive value is
+  read as UTC), and the real rate-limit numbers (headers exist, values are
+  unpublished).
+- **Wiring and gate.** `main.py` gained a `SourceConfig` entry (slug `tmt`, scope
+  `fi-all-active`, aliases `fi`/`tmt`/`finland`, reference hash from the new
+  crosswalk, live counters appended to `coverage_limitations`) and the flags
+  `--max-rows` / `--status`, with `--max-pages` **rejected** for this source
+  because P67 has no pages; the Makefile gained `scrape-finland` and
+  `reference-finland` with honest runtime comments naming the credential and
+  IP-opening preconditions. **`make check` green: 367 tests** (313 before), ruff
+  clean, mypy strict clean; the JobTech output-contract tests pass unchanged.
