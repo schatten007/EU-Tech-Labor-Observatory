@@ -717,12 +717,16 @@ def _query_mapping(connection: duckdb.DuckDBPyConnection) -> list[MappingRow]:
 
 def _query_requirements(connection: duckdb.DuckDBPyConnection) -> list[RequirementRow]:
     """Three closed-vocabulary distributions. No limit: at most six values cannot truncate, and a
-    truncated distribution would stop summing to the sweep it was drawn from."""
+    truncated distribution would stop summing to the sweep it was drawn from.
+
+    `value_code` is the final tiebreak because two unmapped codes share the label
+    `Unrecognised code`, so label alone is not a total order and their published order would be
+    whatever the engine happened to produce."""
     rows: list[RequirementRow] = connection.execute(
         """
         select dimension, value_label, value_code, mapping_status, posting_count
         from requirement_demand_latest
-        order by dimension, posting_count desc, value_label
+        order by dimension, posting_count desc, value_label, value_code
         """
     ).fetchall()
     return rows

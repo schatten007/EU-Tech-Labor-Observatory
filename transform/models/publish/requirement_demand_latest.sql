@@ -79,8 +79,21 @@ employment_type as (
     where duration_mapping_status is not null
     group by all
 )
-select * from employment_type
+-- The three branches are combined by naming every column, not with `select *`. A positional union
+-- would keep compiling if one CTE's projection changed order, and it would publish one dimension's
+-- codes under another dimension's labels -- permanently, for that sweep, since a stored partition
+-- is never rewritten.
+select
+    source, scope_id, sweep_id, observed_at, dimension, value_code, value_label,
+    mapping_status, posting_count
+from employment_type
 union all
-select * from working_hours_type
+select
+    source, scope_id, sweep_id, observed_at, dimension, value_code, value_label,
+    mapping_status, posting_count
+from working_hours_type
 union all
-select * from duration
+select
+    source, scope_id, sweep_id, observed_at, dimension, value_code, value_label,
+    mapping_status, posting_count
+from duration

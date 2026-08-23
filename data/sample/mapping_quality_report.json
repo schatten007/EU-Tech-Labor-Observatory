@@ -1,21 +1,69 @@
 {
+  "collision_census": {
+    "basis": "Diagnostic, enforced nowhere: how many concepts the tiebreak decides share their chosen URI with another source concept that the crosswalk also calls an exact match. Requiring sole claimancy was measured and rejected, because it refuses more correct mappings than wrong ones.",
+    "occupation": {
+      "in_review_sample": 2,
+      "tiebroken_concepts": 277,
+      "with_rival_exact_match": 34
+    },
+    "skill": {
+      "in_review_sample": 2,
+      "tiebroken_concepts": 820,
+      "with_rival_exact_match": 102
+    }
+  },
   "esco_version": "1.2.1",
-  "evaluation_basis": "Regression check that the deterministic mapper reproduces the official JobTech->ESCO crosswalk on a reviewed developer-scope sample. It is not an independent accuracy audit; that requires manually labelled live job ads.",
+  "evaluation_basis": "Regression check that the deterministic mapper reproduces the official JobTech->ESCO crosswalk on a reviewed developer-scope sample, together with the reviewed audit of every concept the exact-match tiebreak decides in the published sweep. It is not an independent accuracy audit; that requires manually labelled live job ads.",
+  "inexact_match_basis": "A concept judged narrower-or-broader is scored twice: strictly as a false positive, because the chosen target is not the equivalence the crosswalk asserts, and leniently as a true positive, because it is the best target ESCO 1.2.1 contains. The rule was recorded before these figures were computed, and neither reading alone is the accuracy of the mapper.",
   "jobtech_taxonomy_version": "30",
   "occupation": {
-    "false_negatives": 0,
-    "false_positives": 0,
-    "precision": 1.0,
-    "recall": 1.0,
-    "true_positives": 2
+    "correct_refusals": 2,
+    "incorrect_refusals": 0,
+    "lenient": {
+      "false_negatives": 0,
+      "false_positives": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "true_positives": 14
+    },
+    "narrower_or_broader_rows": 2,
+    "strict": {
+      "false_negatives": 0,
+      "false_positives": 2,
+      "precision": 0.8571428571428571,
+      "recall": 1.0,
+      "true_positives": 12
+    },
+    "true_negatives": 2
   },
-  "review_date": "2026-08-15",
-  "sample_size": 3,
+  "review_date": "2026-08-23",
+  "sample_size": 32,
   "skill": {
-    "false_negatives": 1,
-    "false_positives": 0,
-    "precision": 1.0,
-    "recall": 0.75,
-    "true_positives": 3
+    "lenient": {
+      "false_negatives": 1,
+      "false_positives": 0,
+      "precision": 1.0,
+      "recall": 0.95,
+      "true_positives": 19
+    },
+    "narrower_or_broader_rows": 3,
+    "strict": {
+      "false_negatives": 1,
+      "false_positives": 3,
+      "precision": 0.8421052631578947,
+      "recall": 0.9411764705882353,
+      "true_positives": 16
+    }
+  },
+  "verdict_sources": {
+    "13a-recorded": 8,
+    "13b-rejudged": 21,
+    "crosswalk-regression": 3
+  },
+  "verdicts": {
+    "narrower-or-broader": 5,
+    "same": 23,
+    "unjudged": 3,
+    "wrong": 1
   }
 }

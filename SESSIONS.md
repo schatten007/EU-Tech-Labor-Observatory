@@ -22,6 +22,7 @@ than expanding the active increment.
 | 13 | 2026-08-21 | Complete; live effect measured but not yet published | Accept a sole `exact-match` when the crosswalk offers several candidates, and publish the posting denominator beside every ranking. Measured on the latest sweep's retained raw pages: occupation `mapped` 65 to 510 of 615. The stored partitions are immutable, so the page shows it only after the next sweep. | `make check && make live-site && make release-check` passed |
 | 13a | 2026-08-22 | Complete; rule audited, one concept vetoed, figures published | Audit the exact-match tiebreak over 100% of its live population (29 concepts): 24 `same`, 4 `narrower-or-broader`, 1 `wrong`. The `wrong` concept had no correct ESCO URI to redirect to, so a reviewed refusal was added to `manual_reviews.csv` and `load_references` was taught to honour one. Published from a fresh 627-row sweep: occupation `mapped` 65 of 615 to 519 of 627. | `make check && make sweep && make live-site && make release-check && make sample` passed |
 | 14 | 2026-08-22 | Complete; three dimensions published, one taxonomy code still unobserved | Publish employment type, working-hours type, and contract duration from three structured fields that are 100% present, mapped through a new hand-written reference to English labels. Every posting lands in exactly one row per dimension, so each published column sums to the sweep's 628 postings and `Not stated` is a visible row rather than a caveat; a new untagged assertion pins that on live partitions. Methodology version bumped to 1.2. | `make check && make sweep && make live-site && make release-check && make sample` passed |
+| 13b | 2026-08-23 | Complete; the tiebreak is scored, refusals counted, both readings published | Extend the review sample from 3 rows to 32 so it covers every concept the exact-match tiebreak decides in the published sweep - 13 occupation and 16 skill - each row recording whether its verdict was transcribed from 13a or re-judged here. `scripts/evaluate.py` scores a correct refusal as a true negative, keeps `precision`/`recall` textbook, and publishes strict and lenient figures for the five `narrower-or-broader` concepts side by side under a rule written down before the numbers. The collision census is reported and enforced nowhere. No sweep, no network, and no published figure moved. | `make check && make live-site && make release-check` passed |
 
 
 ## Session Notes
@@ -627,4 +628,159 @@ than expanding the active increment.
   desc, value_label` is not a total order once two unmapped codes share the `Unrecognised code`
   label; and the status assertion compares against the five-value `enrich.STATUSES` while the model
   contract pins three.
+
+### 2026-08-23 - Increment 13b
+
+- **Correction to the record: this file recorded 8 of the 29 tiebreak verdicts per concept, not all
+  29.** Increment 14's plan deferred this increment on the strength of the claim that 13a "records
+  every judgement call by concept id", which would have made 13b transcription plus a scoring
+  decision. It does not. Every JobTech concept id that appears anywhere in this file amounts to 16
+  distinct ids, of which 5 are sample fixtures (`CZkP_hCz_KM8`, `71Ji_irM_rSJ`, `3vry_gaE_yfQ`,
+  `jBKc_5Yx_Y6T`, `qfkh_ZRK_w4W`), 2 are occupation-field scope ids (`apaJ_2ja_LuF`,
+  `DJh5_yyF_hEM`) and 1 is the
+  rival claimant that motivated the veto (`FHwx_yXu_FAd`). The 8 audited concepts recorded
+  individually are the one `wrong` (`9yMK_8ep_D1K`), the four `narrower-or-broader`
+  (`TU7g_mwa_VzB`, `XZaM_BRb_3mM`, `iXzD_6DF_sL4`, `uvcb_DuX_NW8`) and three `same` (`fg7B_yov_smw`,
+  `Xnmr_kYS_YKY`, `xZLY_ZU5_E1q`). The other **21 `same` verdicts exist only inside the aggregate
+  "24 `same`"**, and no fuller record exists in the repo or in `.kilo/`. Nothing was lost - 13a's
+  kickoff asked for the verdict counts, every `wrong` concept and what was done about it, so the
+  per-concept judgements were never captured - but they are judged first-hand here rather than
+  transcribed, and every review row carries `13a-recorded` or `13b-rejudged` so a later reader can
+  tell the two apart.
+- **The live tiebroken population, re-derived offline before anything was judged.** Re-enriched the
+  retained raw pages of the published sweep `20260822T201202Z-f5cf1d409aa5` (7 pages, 628 hits, 628
+  distinct source ids) with `enrich_hit` against the pinned references: `exact_match_tiebreak` on
+  **12 occupation concepts / 454 postings** and **16 skill concepts / 43 posting-mentions**. The
+  rule *reaches* 13 occupation concepts / 455 postings; the thirteenth is `9yMK_8ep_D1K`, which now
+  publishes `manual_review` because of 13a's veto, so it is scored here as an expected refusal
+  rather than as a tiebreak. The same derivation over 13a's own sweep
+  (`20260820T235159Z-f5cf1d409aa5`, 615 hits) returns **identical membership** - 13 occupation and
+  16 skill concepts, none added, none dropped - with only two counts moved: `fg7B_yov_smw` 350 →
+  357 and `rQds_YGd_quU` 81 → 84, so occupation 445 → 455 postings and skill 43 → 43. The 29
+  concepts 13a audited are exactly the 29 the rule decides today, which is why re-judging the 21 is
+  a re-judgement of the same population and not a new audit.
+- **Pre-registered decision 1, how a `narrower-or-broader` concept scores. Written before any figure
+  was computed, and it stands whichever way the figures fall.** The review row's expected URI is the
+  URI the tiebreak chose, not `null`: 13a judged all four picks the best candidate ESCO 1.2.1
+  contains and refused none of them, so writing `null` would assert the mapper ought to refuse -
+  the veto decision 13a deliberately did not take for these four - and would collapse them into the
+  expected-refusal case that belongs to `9yMK_8ep_D1K` alone. The doubt is carried by the verdict
+  field instead, and the report publishes **two figures side by side off the same sample**:
+  `strict`, which counts a `narrower-or-broader` row as a false positive because an inexact mapping
+  is not the equivalence the crosswalk asserts, and `lenient`, which counts it as a true positive
+  because it is the best target the reference contains. Neither is published as *the* precision, the
+  gap between them is the honest size of the judgement, and a single flattering number is not an
+  option this decision allows. `same` rows are true positives and `9yMK_8ep_D1K` is an expected
+  refusal under both readings.
+- **Pre-registered decision 2, the true-negative treatment.** A correct refusal - a row naming an
+  occupation concept with `expected_occupation_uri: null` where the mapper produces no URI - is
+  counted as a `true_negatives` and reported; an incorrect refusal stays a false negative, which it
+  already is. `precision` and `recall` keep their textbook formulas, `tp/(tp+fp)` and `tp/(tp+fn)`,
+  and true negatives enter neither: a metric whose name no longer matches its formula is worse than
+  a missing metric. The report also carries the refusal pair `correct_refusals` /
+  `incorrect_refusals` explicitly, so "the mapper declined, correctly" is legible without
+  arithmetic. `occupation_concept_id: null` stays a different fact - the row does not test the
+  occupation side at all - and is skipped there rather than scored as a refusal; conflating the two
+  nulls would silently restore the hole this increment exists to close.
+- **Pre-registered decision 3, the fate of the `skill recall < 1.0` pin
+  (`tests/test_probe.py:593`).** It encodes "the metric is not trivially perfect", so it is
+  re-expressed, never deleted. It stays as `skill recall < 1.0` provided the enlarged sample still
+  produces at least one skill false negative - `review-002`'s `qfkh_ZRK_w4W`
+  ("Python, programmeringsspråk"), whose single candidate `Python (datorprogrammering)` is a
+  `broad-match` and therefore publishes `low_confidence` with no URI while the row expects that URI,
+  is untouched by the new rows and should still supply it - and it gains two companions that make
+  the property independent of that one row: the report shows at least one skill false negative, and
+  at least one scored refusal. If the enlarged sample were to drive skill
+  recall to exactly 1.0, the assertion becomes "the sample contains at least one mapping the mapper
+  does not reproduce", read off the report's own counters instead of off the ratio. Either way a
+  mapper that mapped everything and a mapper that refused everything must both fail the gate.
+- **Verdicts: 23 `same`, 5 `narrower-or-broader`, 1 `wrong` - one disagreement with 13a's
+  aggregate, published rather than reconciled away.** The 8 transcribed verdicts stand unchanged.
+  Of the 21 re-judged first-hand, 20 are `same`: occupation `rQds_YGd_quU` Mjukvaruutvecklare,
+  `rz2m_96d_vyF` Databasutvecklare, `bDCc_dTJ_qcd` Civilingenjör bygg, `QaQC_ozP_Bme`
+  Rekryterare/Rekryteringskonsult, `FuJx_cGT_5im` Civilingenjör elkraft, `i1F4_cZZ_PJu`
+  Systemarkitekt, `7TWG_1jQ_ULf` Datorlingvist, `KWFX_juL_yMb` Civilingenjör energi,
+  `WWXN_Y22_6fy` Fordonsingenjör; skill `TMVb_DnH_etF` Agila arbetsmetoder, `kraG_fcm_3Mo`
+  Felsökningsverktyg, `SaTd_K5z_ex1` AI, `XThy_HCH_FFc` Inbyggda system, `WQdS_Jtu_qPC` Android,
+  `t78J_nRk_xGn` IOS, `iUew_moc_BRk` Programmering, `eBgZ_cwn_FN8` Spelutvecklingsverktyg,
+  `bZ2o_tXM_Z9d` Sensorteknik, `5q4a_wi4_WYk` Molnteknik, `ksNo_7bD_ez3` Signalbehandling. The
+  disagreement is **`muKv_rHW_7ES` `Testautomatisering/Test automation` → `utveckla automatiska
+  programvarutester`, judged `narrower-or-broader` where 13a's aggregate counted it `same`**: the
+  source is a competence area and the target is a single activity inside it, which is exactly the
+  knowledge-concept-to-an-action shift 13a called `narrower-or-broader` for `Brandväggar`. ESCO's
+  own nearer knowledge concept, `verktyg för automatisering av it-tester`, is marked `narrow-match`
+  in the crosswalk, so there is no exact-level target to prefer instead.
+- **Three judgements were close and were resolved on evidence, not on the label pair.**
+  `KWFX_juL_yMb` `Civilingenjör, energi` → `energiingenjör` looks like a level-of-generality
+  mismatch until the crosswalk is read: JobTech's separate `Gnrd_Brt_15j` `Energiingenjör` claims
+  that same URI as a **`broad-match`**, so the reference does not treat the ESCO concept as broader
+  than this one - `same`. `TMVb_DnH_etF` `Agila arbetsmetoder` → `agil utveckling` keeps its
+  `same` because the genuinely narrower `agil projektledning` was offered and passed over as
+  `narrow-match`. `bZ2o_tXM_Z9d` `Sensorteknik` → `sensorer` is `same` because ESCO names
+  technology-knowledge concepts after the object (`signalbehandling` the same way) and the
+  reference carries no `sensorteknik` to prefer.
+- **The figures that followed the pre-registration, in the order the decisions demanded.** The
+  sample is **32 rows**: the 3 crosswalk-regression rows from Increment 8 plus 29 audit rows, 13
+  occupation and 16 skill. Occupation precision is **1.0 lenient and 0.857 strict** (14 true
+  positives lenient, 12 with 2 false positives strict) with recall **1.0 in both**; skill is
+  **1.0/0.95 lenient and 0.842/0.941 strict** (19 and 16 true positives, 3 strict false positives,
+  1 false negative in both). The strict-lenient gap is the whole of the judgement and nothing else:
+  no row moves between readings unless a reviewer judged it `narrower-or-broader`.
+- **A refusal is finally an outcome.** `true_negatives` is **2** - `review-003` and the vetoed
+  `9yMK_8ep_D1K`, whose expected non-mapping is now in the sample rather than absent from it - with
+  `correct_refusals` 2 and `incorrect_refusals` 0. Before this increment both rows incremented no
+  counter at all, so a mapper that refused everything would have reported `precision: null` instead
+  of being penalised. `precision` and `recall` keep their textbook formulas; the true negatives sit
+  beside them. Refusal counters are on the occupation side only, and deliberately: the skill side
+  compares URI sets and has no way to say "expect nothing for this concept", so publishing a zero
+  there would invent a measurement rather than report one.
+- **Collision census: reported, enforced nowhere - and one figure of 13a's is corrected.** Under
+  the definition that reproduces 13a's population figures exactly - a rival source concept the
+  crosswalk also calls an `exact-match` on the chosen URI - the census is **34 of 277** tiebroken
+  occupation concepts and **102 of 820** skill concepts, both reproduced to the digit. But live it
+  affects **4 concepts, not 5**: `9yMK_8ep_D1K` (the one `wrong`), `XZaM_BRb_3mM`
+  (`narrower-or-broader`), `Xnmr_kYS_YKY` and `xZLY_ZU5_E1q` (both `same`). That is 2 of 13 and 2
+  of 16, which is what 13a's own "closely matching the 2-of-13 and 2-of-16 rates" sentence says;
+  its next sentence said "5 live concepts", and that number does not reproduce. The looser reading
+  - any relation claiming the URI - gives 18 live concepts and 142/357 in the reference, so it is
+  not the definition 13a used either. The conclusion is unchanged and if anything sharper:
+  enforcing sole claimancy would refuse 4 live concepts to catch 1 wrong mapping, so it stays a
+  diagnostic. Reported in the committed report, with no threshold and no failing branch, and a test
+  pins that the census function contains neither.
+- **Four carry-overs from the Increment 14 review, all closed.** The three union branches in
+  `requirement_demand_latest.sql` now name every column, because a positional `select *` would keep
+  compiling while publishing one dimension's codes under another's labels. Each dimension's
+  vocabulary is pinned separately in `schema.yml` with a per-dimension `accepted_values` on
+  `value_code`, restricted to `mapping_status = 'mapped'` so an `Unrecognised code` row still
+  publishes instead of blocking a republish - and its teeth were checked rather than assumed: a
+  bogus mapped duration code fails only the duration pin, and the same code marked `unmapped`
+  passes. A Python test reads both the reference CSV and those `accepted_values` lists and requires
+  them to agree, so the two cannot drift while both look pinned. `scripts/publish.py` orders
+  requirement rows by `value_code` last, because two unmapped codes share the label
+  `Unrecognised code` and the previous order was not total. The page-level `Not stated` /
+  `Unrecognised code` assertions now read the `<tbody>` of the dimension each belongs to; before,
+  the definition prose satisfied them, so they would have passed on a page that dropped the rows.
+  And the requirement statuses are compared against the three values
+  `requirement_demand_latest`'s contract accepts, read out of `schema.yml` rather than restated -
+  the five-value `enrich.STATUSES` would have accepted `ambiguous` and `low_confidence`.
+- `make check` green at **63 Python tests** (three added: the two-nulls separation with the closed
+  verdict/provenance sets, the sample covering the rule's live population, and the census being
+  reported without a failing branch) and **dbt PASS=190**, up 3 for the per-dimension vocabulary
+  pins. `make live-site` runs **185** and `release_check` is clean.
+- **The negative check passed, which is the safety property of this increment.** Word-diffing the
+  rebuilt page against the one published in Increment 14 gives **6 differing spans, all
+  clock-derived**: `data-built`, the Page built stat, the footer time, the sweep age 0.1 → 0.7 days
+  in both the column and its sentence, and the coverage age 1.3 → 17.4 hours. Token count identical
+  at 5652. Every published figure - 628 postings, occupation 520 of 628, skill 48 of 628, all three
+  requirement distributions, every mapping-quality count - is byte-identical. The report is not on
+  the page, so `METHODOLOGY_VERSION` stays **1.2**: 13a's lesson was that a *rule* change under a
+  stale version breaks traceability, and bumping for internal metric work would dilute that signal.
+- **What this still does not measure, stated so it is not mistaken for more than it is.** The
+  expected URI of an audit row is the crosswalk's own sole exact match, so the metric is a
+  regression check plus a reviewed judgement of that pick - not an independent accuracy audit of
+  live ads, which would need manually labelled postings. `EVALUATION_BASIS` says exactly that. The
+  sample is pinned to the population of one sweep: a future sweep that carries a concept the rule
+  reaches for the first time will not be covered until someone re-derives the set, and
+  `test_review_sample_covers_every_tiebroken_concept_in_the_published_sweep` fails loudly if the
+  reference moves the population instead of letting it drift silently.
 

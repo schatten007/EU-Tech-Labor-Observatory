@@ -353,6 +353,19 @@ def test_manual_reviews_refuse_unreadable_rows(tmp_path: Path) -> None:
             raise AssertionError(f"{row!r} must not load")
 
 
+def _requirement_contract_statuses() -> set[str]:
+    """The mapping_status values requirement_demand_latest's own contract accepts.
+
+    Read out of schema.yml rather than restated, so the enrichment and the published contract
+    cannot drift apart while both look pinned.
+    """
+    schema = Path("transform/models/publish/schema.yml").read_text(encoding="utf-8")
+    block = schema.split("- name: requirement_demand_latest")[1].split("\n  - name:")[0]
+    match = re.search(r"name: mapping_status.*?values: \[([^\]]+)\]", block, re.S)
+    assert match is not None, "requirement_demand_latest must pin its mapping_status vocabulary"
+    return {value.strip() for value in match.group(1).split(",")}
+
+
 def test_requirement_dimensions_account_for_every_posting() -> None:
     """Each dimension must yield exactly one triple per posting, including the unresolved cases.
 
@@ -398,8 +411,15 @@ def test_requirement_dimensions_account_for_every_posting() -> None:
         "label": "Unrecognised code",
         "status": "unmapped",
     }
-    # No fourth status: the requirement triples reuse the published vocabulary.
-    assert {triple["status"] for triple in (*stated.values(), *unknown.values())} <= enrich.STATUSES
+    # No fourth status, and no fifth: the requirement triples must stay inside the three values the
+    # published model contract accepts, read from the contract instead of restated here. The
+    # five-value enrich.STATUSES is the wrong yardstick - it would accept `ambiguous` and
+    # `low_confidence`, which requirement_demand_latest's contract rejects.
+    contract = _requirement_contract_statuses()
+    assert contract == {"mapped", "unmapped", "not_present"}
+    assert contract < enrich.STATUSES
+    assert {triple["status"] for triple in (*stated.values(), *unknown.values())} <= contract
+    assert {triple["status"] for triple in empty.values()} <= contract
     try:
         enrich.requirement_mapping("salary_type", {"concept_id": "x"}, refs)
     except ValueError as error:
@@ -449,6 +469,19 @@ def test_requirement_reference_carries_the_live_vocabulary() -> None:
         assert label.isascii(), label
     provenance = enrich.reference_provenance()
     assert "jobtech_requirement_labels.csv=" in provenance["reference_hashes"]
+    # The published contract pins each dimension's codes separately, sourced from this file. Read
+    # both and require them to agree: a code added here but not there would publish as
+    # `Unrecognised code`, and a code accepted there but absent here would block a republish.
+    schema = Path("transform/models/publish/schema.yml").read_text(encoding="utf-8")
+    block = schema.split("- name: value_code")[1].split("- name: value_label")[0]
+    pinned: dict[str, set[str]] = {}
+    for values, where in re.findall(
+        r"values: \[([^\]]+)\].*?where: \"dimension = '(\w+)'", block, re.S
+    ):
+        pinned[where] = {value.strip() for value in values.split(",")}
+    assert set(pinned) == set(enrich.REQUIREMENT_DIMENSIONS)
+    for dimension, accepted in pinned.items():
+        assert accepted == {code for (owner, code) in codes if owner == dimension}
 
 
 def _render_dbt_sql(name: str) -> str:
@@ -537,15 +570,102 @@ def test_municipality_prefix_resolves_full_swedish_coverage() -> None:
 
 
 def test_mapping_evaluation_is_deterministic() -> None:
+    """Both readings of an inexact match, and both kinds of refusal, on the offline fixture.
+
+    The fixture sample carries one row of each shape the metric has to tell apart: a plain match,
+    a match a reviewer judged narrower-or-broader, a refusal the review expects (`occ-ambiguous`),
+    a refusal it does not (`occ-two-exact`, where the review names a target and the rule declines),
+    and a skill-only row that must not be scored on the occupation side at all.
+    """
     refs = enrich.load_references(FIXTURE_REFERENCE)
     report = evaluate.evaluate(sample=FIXTURE_REVIEW, references=refs)
 
-    assert report["sample_size"] == 3
-    assert report["occupation"]["precision"] == 1.0
-    assert report["occupation"]["recall"] == 1.0
-    assert report["skill"]["precision"] == 1.0
-    assert report["skill"]["recall"] == 0.75
+    assert report["sample_size"] == 6
+    # Lenient credits the narrower-or-broader pick, strict charges it as a false positive. Recall
+    # is untouched by that choice, because an inexact target is not a mapping the reference offers.
+    assert report["occupation"]["lenient"]["true_positives"] == 3
+    assert report["occupation"]["lenient"]["precision"] == 1.0
+    assert report["occupation"]["strict"]["true_positives"] == 2
+    assert report["occupation"]["strict"]["false_positives"] == 1
+    assert report["occupation"]["strict"]["precision"] == 2 / 3
+    assert report["skill"]["lenient"]["recall"] == 0.8
+    assert report["skill"]["strict"]["false_positives"] == 1
+    # A correct refusal is scored, an incorrect one is a false negative, and the skill-only row is
+    # neither: its null occupation concept means the row does not test that side.
+    assert report["occupation"]["true_negatives"] == 1
+    assert report["occupation"]["correct_refusals"] == 1
+    assert report["occupation"]["incorrect_refusals"] == 1
+    assert report["occupation"]["lenient"]["false_negatives"] == 1
+    assert report["verdicts"] == {
+        "same": 1,
+        "narrower-or-broader": 2,
+        "wrong": 0,
+        "unjudged": 3,
+    }
     assert "JobTech->ESCO" in report["evaluation_basis"]
+
+
+def test_mapping_evaluation_keeps_the_two_nulls_apart(tmp_path: Path) -> None:
+    """A skill-only row must not be scored on the occupation side, however the metric is read.
+
+    `occupation_concept_id: null` means the row does not test the occupation side.
+    `expected_occupation_uri: null` on a row that names a concept means the mapper is expected to
+    refuse. Collapsing them would credit a true negative for a question nobody asked, which is the
+    exact hole this metric had before increment 13b.
+    """
+    refs = enrich.load_references(FIXTURE_REFERENCE)
+    skill_only = {
+        "review_id": "probe-skill-only",
+        "occupation_concept_id": None,
+        "skill_concept_ids": ["skill-python"],
+        "expected_occupation_uri": None,
+        "expected_skill_uris": ["http://data.europa.eu/esco/skill/fixture-python"],
+        "reviewed_at": "2026-08-23",
+        "verdict": "same",
+        "verdict_source": "fixture",
+    }
+    refusal = dict(skill_only, review_id="probe-refusal", occupation_concept_id="occ-ambiguous")
+    sample = tmp_path / "rows.ndjson"
+    sample.write_text(json.dumps(skill_only) + "\n", encoding="utf-8")
+    untested = evaluate.evaluate(sample=sample, references=refs)
+    sample.write_text(json.dumps(refusal) + "\n", encoding="utf-8")
+    refused = evaluate.evaluate(sample=sample, references=refs)
+
+    # The provenance of a verdict is a closed set: a typo must fail loudly rather than be counted
+    # as a fourth kind of provenance that no reader can interpret.
+    sample.write_text(
+        json.dumps(dict(skill_only, verdict_source="invented-provenance")) + "\n", encoding="utf-8"
+    )
+    try:
+        evaluate.evaluate(sample=sample, references=refs)
+    except ValueError as error:
+        assert "unknown verdict source" in str(error)
+    else:
+        raise AssertionError("a provenance outside the closed set must not evaluate")
+    sample.write_text(
+        json.dumps(dict(skill_only, verdict="invented-verdict")) + "\n", encoding="utf-8"
+    )
+    try:
+        evaluate.evaluate(sample=sample, references=refs)
+    except ValueError as error:
+        assert "unknown mapping verdict" in str(error)
+    else:
+        raise AssertionError("a verdict outside the closed set must not evaluate")
+
+    assert untested["occupation"]["true_negatives"] == 0
+    assert untested["occupation"]["correct_refusals"] == 0
+    assert untested["occupation"]["lenient"] == {
+        "true_positives": 0,
+        "false_positives": 0,
+        "false_negatives": 0,
+        "precision": None,
+        "recall": None,
+    }
+    assert refused["occupation"]["true_negatives"] == 1
+    assert refused["occupation"]["correct_refusals"] == 1
+    # The same row scores the skill side identically either way.
+    assert untested["skill"]["lenient"]["true_positives"] == 1
+    assert refused["skill"]["lenient"]["true_positives"] == 1
 
 
 def test_committed_reference_has_no_placeholder_uris() -> None:
@@ -587,10 +707,101 @@ def test_geography_reference_covers_all_swedish_lan() -> None:
 
 
 def test_real_evaluation_is_honest_and_nontrivial() -> None:
+    """The committed sample must cover the rule that decides the page, and must not score 1.0.
+
+    `skill recall < 1.0` is the original expression of "this metric is not trivially perfect": one
+    reviewed skill (`qfkh_ZRK_w4W`, whose only candidate is a `broad-match`) is expected and not
+    produced. The pin is kept and joined by counter-level assertions, so the property survives even
+    if that ratio ever moves: a mapper that mapped everything and one that refused everything must
+    both fail here.
+    """
     report = evaluate.evaluate()
     assert "JobTech->ESCO" in report["evaluation_basis"]
-    assert report["sample_size"] == 3
-    assert report["skill"]["recall"] is not None and report["skill"]["recall"] < 1.0
+    assert report["sample_size"] == 32
+    for reading in ("strict", "lenient"):
+        recall = report["skill"][reading]["recall"]
+        assert recall is not None and recall < 1.0
+        assert report["skill"][reading]["false_negatives"] >= 1
+    # Refusal is an outcome the sample scores, in both directions.
+    assert report["occupation"]["correct_refusals"] >= 1
+    assert report["occupation"]["true_negatives"] == report["occupation"]["correct_refusals"]
+    # Every audited verdict carries its provenance, and only these three are provenance the
+    # committed sample may claim: `fixture` belongs to the offline fixture alone.
+    assert set(report["verdict_sources"]) == {
+        "13a-recorded",
+        "13b-rejudged",
+        "crosswalk-regression",
+    }
+    assert report["verdicts"]["unjudged"] == 3
+    judged = report["verdicts"]
+    assert judged["same"] + judged["narrower-or-broader"] + judged["wrong"] == 29
+    # Both readings are published, and strict is not quietly the same number as lenient.
+    strict = report["occupation"]["strict"]["precision"]
+    lenient = report["occupation"]["lenient"]["precision"]
+    assert strict is not None and lenient is not None and strict < lenient
+
+
+def test_review_sample_covers_every_tiebroken_concept_in_the_published_sweep() -> None:
+    """The audit sample must be the rule's live population, not a sample of it.
+
+    Increment 13a audited 13 occupation and 16 skill concepts by hand; nothing repeated that
+    automatically. These are the concepts the tiebreak decides in the published sweep, so a
+    reference change that moves the rule's population shows up here instead of going unnoticed.
+    """
+    rows = [
+        json.loads(line)
+        for line in Path("data/sample/mapping_review_sample.ndjson")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip()
+    ]
+    audited = {row["review_id"]: row for row in rows if row["verdict"] is not None}
+    assert len(rows) == 32
+    assert len(audited) == 29
+    refs = enrich.load_references()
+    occupation = [row for row in audited.values() if row["occupation_concept_id"] is not None]
+    skills = [row for row in audited.values() if row["skill_concept_ids"]]
+    assert len(occupation) == 13
+    assert len(skills) == 16
+    # Every audited row is a concept the crosswalk offers several candidates for, of which exactly
+    # one is an exact match: that is the rule under test, spelled out rather than assumed.
+    for row in occupation:
+        options = refs.occupations[row["occupation_concept_id"]]
+        assert len([option for option in options if option.relation == "exact-match"]) == 1
+        assert len(options) > 1
+    for row in skills:
+        options = refs.skills[row["skill_concept_ids"][0]]
+        assert len([option for option in options if option.relation == "exact-match"]) == 1
+        assert len(options) > 1
+    # The vetoed concept is in the sample as an expected refusal, not as an absence.
+    vetoed = audited["audit-occ-9yMK_8ep_D1K"]
+    assert vetoed["expected_occupation_uri"] is None
+    assert vetoed["verdict"] == "wrong"
+
+
+def test_collision_census_is_reported_and_enforced_nowhere() -> None:
+    """The census is a diagnostic. It has no threshold here and no failing branch anywhere.
+
+    Requiring the sole exact match to be the only claimant of its URI was measured in 13a and
+    rejected: on the published sweep it refuses four live concepts of which three are correct.
+    """
+    report = evaluate.evaluate()
+    census = report["collision_census"]
+    assert census["occupation"]["tiebroken_concepts"] == 277
+    assert census["occupation"]["with_rival_exact_match"] == 34
+    assert census["skill"]["tiebroken_concepts"] == 820
+    assert census["skill"]["with_rival_exact_match"] == 102
+    # Two occupation and two skill concepts of the audited population share their chosen URI with
+    # another concept the crosswalk also calls an exact match. Three of the four are correct
+    # mappings, which is why this is reported and not enforced.
+    assert census["occupation"]["in_review_sample"] == 2
+    assert census["skill"]["in_review_sample"] == 2
+    assert "enforced nowhere" in census["basis"]
+    # No threshold and no failing branch: the census counts and returns, whatever it finds.
+    body = Path("scripts/evaluate.py").read_text(encoding="utf-8")
+    body = body.split("def _collision_census(")[1].split("\ndef ")[0]
+    assert "raise" not in body
+    assert "assert" not in body
 
 
 def test_sample_does_not_leak_source_concept_ids() -> None:
@@ -1533,23 +1744,31 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
         "Latest postings by contract duration",
     ):
         assert caption in page
-    assert "Permanent employment (probationary period possible)" in page
-    assert "Unrecognised code" in page
-    assert "Not stated" in page
     assert 'data-dimension="employment_type"' in page
     assert "our English translations of the Swedish taxonomy labels" in page
-    assert "kpPX_CNN_gDU" in page
     # Every column reconciles by inspection, so no requirement table carries - or needs - a
     # denominator sentence, and the two that do are still the two rankings.
     requirements = page.split('id="requirements"')[1].split("</section>")[0]
     assert 'class="denominator"' not in requirements
+    bodies: dict[str, str] = {}
     for identifier, total in (
         ("table-requirements-employment-type", 3),
         ("table-requirements-working-hours-type", 3),
         ("table-requirements-duration", 3),
     ):
         body = page.split(f'id="{identifier}"')[1].split("</tbody>")[0]
+        bodies[identifier] = body
         assert sum(int(cell) for cell in re.findall(r'class="count">(\d+)<', body)) == total
+    # Both unresolved kinds must be published as table rows in the dimension they belong to. The
+    # definition prose names them too, so a page-wide substring check is satisfied by the text
+    # alone - it would pass on a page that dropped the rows, which is the failure the row shape
+    # exists to prevent.
+    employment = bodies["table-requirements-employment-type"]
+    assert "Permanent employment (probationary period possible)" in employment
+    assert "kpPX_CNN_gDU" in employment
+    assert "Unrecognised code" in employment
+    assert "zzzz_zzz_zzz" in employment
+    assert "Not stated" in bodies["table-requirements-working-hours-type"]
     problems = release_check.check_page(page)
     # This fixture writes posting_flows directly, so its small counts never pass through the dbt
     # mask and the disclosure rule has to see them. Every other release rule must pass.
