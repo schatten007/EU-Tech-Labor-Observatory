@@ -139,7 +139,7 @@ BA_COVERAGE_LIMITATIONS = (
     "location string's city name via the pinned German crosswalk (BKG "
     "VZ250_GEM municipality register x destatis Kreise NUTS 2024 key x "
     "destatis Anschriftenverzeichnis). Cities matching multiple NUTS 3 codes "
-    "(397 such names) are reported as ambiguous. ThePLZ from the detail page "
+    "(397 such names) are reported as ambiguous. The PLZ from the detail page "
     "is available for enrichment but not collected in the standard sweep. "
     "Occupation is not present on the search page (no code exposed). "
     "last_modified and removed_at are not exposed; closures are absence-based "
