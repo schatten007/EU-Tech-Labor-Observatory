@@ -12,6 +12,8 @@ from pathlib import Path
 
 import duckdb
 
+from scripts import insights
+
 ROOT = Path(__file__).resolve().parents[1]
 DATABASE = ROOT / os.environ.get("DUCKDB_PATH", "data/dev.duckdb")
 TARGET = ROOT / "site" / "build" / "index.html"
@@ -65,7 +67,11 @@ WORKFLOW = (
 # 1.2: three requirement dimensions are published from a new reference file, mapped by rules this
 # version claims to cover. 13a's lesson was exactly this: a mapping change under a stale version
 # breaks the traceability the version exists to provide.
-METHODOLOGY_VERSION = "1.2"
+# 1.3: this page publishes derived statements (scripts/insights.py) that are definitions in the
+# only sense that matters - a median, a share, a superlative, each with its own rule for when it
+# appears and which denominator it carries. 1.2 published no such sentence at all, so the bump is a
+# fact about the page, decided before the first insight rendered.
+METHODOLOGY_VERSION = "1.3"
 # Mirrors the offline default in transform/models/staging/stg_postings.sql.
 SAMPLE_OBSERVATIONS = "data/sample/postings_sample.ndjson"
 SOURCE_TERMS = {
@@ -851,10 +857,16 @@ def _render_filters(
     )
 
 
+def _insight_paragraph(text: str) -> str:
+    """One generated sentence, server-rendered and escaped like every other string."""
+    return f'<p class="insight">{escape(text)}</p>'
+
+
 def _render_overview(
     demand: Sequence[DemandRow],
     coverage: Sequence[CoverageRow],
     flows: Sequence[FlowRow],
+    digest: Sequence[insights.Insight],
 ) -> str:
     steps = "".join(f"<li>{escape(step)}</li>" for step in WORKFLOW)
     # ponytail: the headline trend must stay inside one scope, so pick the leading demand scope
@@ -908,6 +920,7 @@ def _render_overview(
         f'<ol class="workflow">{steps}</ol>'
         "<h3>Where the data stands now</h3>"
         f'<dl class="stats">{stats}</dl>'
+        + "".join(_insight_paragraph(insight.text) for insight in digest)
         + _definition(
             "Active postings are postings observed as open in the latest complete sweep for one "
             "source and scope. Freshness compares the observation age with the source threshold; "
@@ -970,6 +983,7 @@ def _render_status(
     coverage: Sequence[CoverageRow],
     frequency: Sequence[FrequencyRow],
     built: datetime,
+    section_insights: Sequence[insights.Insight],
 ) -> str:
     """Operational run summary: what the last sweep did per scope and how to read that state."""
     cadence = {(row[7], row[0]): row for row in frequency}
@@ -1006,7 +1020,8 @@ def _render_status(
             f'<td class="wrap">{escape(_run_state(row))}</td></tr>'
         )
     return (
-        '<p class="lede">Whether the figures on this page are current, per source and scope. '
+        "".join(_insight_paragraph(insight.text) for insight in section_insights)
+        + '<p class="lede">Whether the figures on this page are current, per source and scope. '
         "A stale or partially covered scope stays published and labelled rather than hidden.</p>"
         + _definition(
             "Only sweeps whose own manifest reports a complete run are loaded, so a failed run is "
@@ -1160,6 +1175,7 @@ def _render_occupations(
     skills: Sequence[DimensionRow],
     mapping: Sequence[MappingRow],
     coverage: Sequence[MappingCoverageRow],
+    section_insights: Sequence[insights.Insight],
 ) -> str:
     def ranked(rows: Sequence[DimensionRow]) -> str:
         return "".join(
@@ -1177,7 +1193,8 @@ def _render_occupations(
     )
     columns = (("Rank", True), ("Value", False), ("Reference version", False), ("Postings", True))
     return (
-        _definition(
+        "".join(_insight_paragraph(insight.text) for insight in section_insights)
+        + _definition(
             "Mappings use pinned reference data: NUTS 2024 regions, JobTech Taxonomy v30, and ESCO "
             "1.2.1. Only structured taxonomy fields are used; job titles and free text are never "
             "classified. Sweden only: no German posting source has passed the approval gate. "
@@ -1226,7 +1243,10 @@ def _render_occupations(
     )
 
 
-def _render_requirements(requirements: Sequence[RequirementRow]) -> str:
+def _render_requirements(
+    requirements: Sequence[RequirementRow],
+    section_insights: Sequence[insights.Insight],
+) -> str:
     """Three closed-vocabulary distributions, each accounting for every posting in the sweep.
 
     Unlike the rankings above, nothing here is filtered to mapped values and nothing is truncated,
@@ -1252,7 +1272,8 @@ def _render_requirements(requirements: Sequence[RequirementRow]) -> str:
         for slug, heading, noun in REQUIREMENT_SECTIONS
     )
     return (
-        '<p class="lede">What the postings in the latest sweep actually offer: permanent or '
+        "".join(_insight_paragraph(insight.text) for insight in section_insights)
+        + '<p class="lede">What the postings in the latest sweep actually offer: permanent or '
         "fixed-term, full or part time, and for how long.</p>"
         + _definition(
             "Read from three structured JobTech Taxonomy v30 fields on each posting — employment "
@@ -1275,6 +1296,7 @@ def _render_survival(
     survival: Sequence[SurvivalRow],
     flows: Sequence[FlowRow],
     countries: dict[str, str],
+    section_insights: Sequence[insights.Insight],
 ) -> str:
     survival_body = "".join(
         f"<tr{_attrs(source=source, country=countries.get(scope_id))}>"
@@ -1308,7 +1330,8 @@ def _render_survival(
         if series
     )
     return (
-        _definition(
+        "".join(_insight_paragraph(insight.text) for insight in section_insights)
+        + _definition(
             "A posting leaving the source is reported as posting duration or inferred removal, "
             "never as time to hire: the observatory cannot see hiring outcomes. Active postings are "
             "right-censored lower bounds, not completed durations. Advertised vacancies are counted "
@@ -1644,14 +1667,38 @@ def build_site(database: Path, target: Path) -> int:
     # the country selector apply to the survival, flow, and frequency rows too.
     countries = {row[1]: row[2] for row in demand if row[2]}
     countries.update({row[1]: row[2] for row in coverage if row[2]})
+    insights_by_section = insights.build(
+        demand,
+        coverage,
+        occupations,
+        skills,
+        mapping_coverage,
+        requirements,
+        survival,
+        flows,
+        frequency,
+    )
+    digest = [
+        insight for slug, _heading in SECTIONS for insight in insights_by_section.get(slug, [])
+    ]
     built = datetime.now(UTC)
     rendered = {
-        "overview": _render_overview(demand, coverage, flows),
-        "status": _render_status(coverage, frequency, built),
+        "overview": _render_overview(demand, coverage, flows, digest),
+        "status": _render_status(coverage, frequency, built, insights_by_section.get("status", [])),
         "countries": _render_countries(demand, regions),
-        "occupations": _render_occupations(occupations, skills, mapping, mapping_coverage),
-        "requirements": _render_requirements(requirements),
-        "survival": _render_survival(survival, flows, countries),
+        "occupations": _render_occupations(
+            occupations,
+            skills,
+            mapping,
+            mapping_coverage,
+            insights_by_section.get("occupations", []),
+        ),
+        "requirements": _render_requirements(
+            requirements, insights_by_section.get("requirements", [])
+        ),
+        "survival": _render_survival(
+            survival, flows, countries, insights_by_section.get("survival", [])
+        ),
         "quality": _render_quality(coverage, frequency, mapping, countries),
         "methodology": _render_methodology(provenance),
         "governance": _render_governance(provenance),

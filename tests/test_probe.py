@@ -1,6 +1,7 @@
 import json
 import re
 import sys
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from email.message import Message
 from pathlib import Path
@@ -10,7 +11,7 @@ from urllib.error import HTTPError
 import duckdb
 from pytest import MonkeyPatch
 
-from scripts import collect, enrich, evaluate, probe, publish, release_check, sanitize
+from scripts import collect, enrich, evaluate, insights, probe, publish, release_check, sanitize
 
 KEY = b"test-only-key-with-at-least-32-bytes"
 
@@ -473,7 +474,7 @@ def test_requirement_reference_carries_the_live_vocabulary() -> None:
     # both and require them to agree: a code added here but not there would publish as
     # `Unrecognised code`, and a code accepted there but absent here would block a republish.
     schema = Path("transform/models/publish/schema.yml").read_text(encoding="utf-8")
-    block = schema.split("- name: value_code")[1].split("- name: value_label")[0]
+    block = schema.split("- name: value_code")[1].split("- {name: value_label")[0]
     pinned: dict[str, set[str]] = {}
     for values, where in re.findall(
         r"values: \[([^\]]+)\].*?where: \"dimension = '(\w+)'", block, re.S
@@ -1769,6 +1770,32 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
     assert "Unrecognised code" in employment
     assert "zzzz_zzz_zzz" in employment
     assert "Not stated" in bodies["table-requirements-working-hours-type"]
+    # Iteration 16: the insights are server-rendered, escaped, and reproducible from the tables
+    # beneath them. This fixture fires exactly three - the latest count, the leading occupation,
+    # and the leading skill - because the fixed-term, part-time, closed-duration, and trend rules
+    # all have unmet preconditions and must stay silent.
+    latest = "The latest complete sweep observed 1 active posting(s) on 2026-08-06."
+    occupation = (
+        "The most frequently mapped occupation is IKT-programutvecklare, in 1 of 1 "
+        "mapped posting(s)."
+    )
+    skill = (
+        "The most frequently mapped skill is C#, asked for in 1 of 1 posting(s) with "
+        "a mapped skill."
+    )
+    assert page.count('class="insight"') == 5
+    assert f'<p class="insight">{latest}</p>' in page
+    assert f'<p class="insight">{occupation}</p>' in page
+    assert f'<p class="insight">{skill}</p>' in page
+    assert "read the figures with care" not in page.lower()
+    assert "are permanent employment" not in page
+    assert "are full-time and" not in page
+    assert "median observed duration" not in page
+    overview = page.split('id="overview"')[1].split("</section>")[0]
+    assert latest in overview and occupation in overview and skill in overview
+    occupations_panel = page.split('id="occupations"')[1].split("</section>")[0]
+    assert occupation in occupations_panel and skill in occupations_panel
+    assert latest not in occupations_panel
     problems = release_check.check_page(page)
     # This fixture writes posting_flows directly, so its small counts never pass through the dbt
     # mask and the disclosure rule has to see them. Every other release rule must pass.
@@ -1955,9 +1982,12 @@ def test_methodology_version_covers_the_requirement_dimensions() -> None:
 
     1.1 published no requirement dimension at all. Publishing three of them under 1.1 would make
     two files named `...-methodology-1-1.csv` carry figures from two different definition sets,
-    which is exactly the traceability hole Increment 13a found and closed.
+    which is exactly the traceability hole Increment 13a found and closed. 1.3 adds the insight
+    sentences, which are definitions in the same sense - a rule deciding whether a number is
+    stated, and against which denominator - so a page carrying them must not share a version with
+    one that does not.
     """
-    assert publish.METHODOLOGY_VERSION == "1.2"
+    assert publish.METHODOLOGY_VERSION == "1.3"
     assert [slug for slug, _heading in publish.SECTIONS if slug == "requirements"] == [
         "requirements"
     ]
@@ -1982,6 +2012,541 @@ def test_publish_refuses_to_pool_two_collecting_scopes() -> None:
         assert "_query_dimension" in str(error)
     else:
         raise AssertionError("two scopes with postings must not be published as one ranking")
+
+
+def _numeric_tokens(text: str) -> set[str]:
+    """Dates and numbers in a sentence, as they were written."""
+    pattern = re.compile(r"\d{4}-\d{2}-\d{2}|\d[\d,]*(?:\.\d+)?")
+    return set(pattern.findall(text))
+
+
+def _row_tokens(rows: Iterable[tuple[object, ...]]) -> set[str]:
+    """Every numeric token a built insight may claim, read off the source rows."""
+    tokens: set[str] = set()
+    for row in rows:
+        for value in row:
+            if isinstance(value, datetime):
+                tokens.add(value.strftime("%Y-%m-%d"))
+            elif isinstance(value, int) and not isinstance(value, bool):
+                tokens.add(str(value))
+                tokens.add(f"{value:,}")
+            elif isinstance(value, float):
+                tokens.add(str(value))
+                tokens.add(f"{value:.1f}")
+            elif isinstance(value, str):
+                tokens.update(_numeric_tokens(value))
+    return tokens
+
+
+RichRows = tuple[
+    list[insights.DemandRow],
+    list[insights.CoverageRow],
+    list[insights.DimensionRow],
+    list[insights.DimensionRow],
+    list[insights.MappingCoverageRow],
+    list[insights.RequirementRow],
+    list[insights.SurvivalRow],
+    list[insights.FlowRow],
+    list[insights.FrequencyRow],
+]
+
+
+def _rich_rows() -> RichRows:
+    """One scope with every rule's preconditions met, so each fires exactly once."""
+    demand: list[insights.DemandRow] = [
+        (
+            "jobtech",
+            "jobtech-scope",
+            "SE",
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            628,
+            "v1",
+            "licence",
+            "api",
+            "fresh",
+            "covered",
+        )
+    ]
+    coverage: list[insights.CoverageRow] = [
+        (
+            "jobtech",
+            "jobtech-scope",
+            "SE",
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            628,
+            628,
+            "fresh",
+            "covered",
+            1.0,
+            None,
+            48,
+        )
+    ]
+    occupations: list[insights.DimensionRow] = [
+        ("occupation", "Systemutvecklare/Programmerare", "1.2.1", 357)
+    ]
+    skills: list[insights.DimensionRow] = [("skill", "Programmering", "1.2.1", 30)]
+    mapping_coverage: list[insights.MappingCoverageRow] = [
+        ("jobtech", "jobtech-scope", "occupation", 628, 628, 520),
+        ("jobtech", "jobtech-scope", "skill", 628, 61, 48),
+    ]
+    requirements: list[insights.RequirementRow] = [
+        (
+            "employment_type",
+            "Permanent employment (probationary period possible)",
+            "kpPX_CNN_gDU",
+            "mapped",
+            160,
+        ),
+        ("employment_type", "Fixed-term employment", "sTu5_NBQ_udq", "mapped", 27),
+        ("employment_type", "Regular employment", "PFZr_Syz_cUq", "mapped", 428),
+        ("employment_type", "On-demand employment", "1paU_aCR_nGn", "mapped", 13),
+        ("working_hours_type", "Full-time", "6YE1_gAC_R2G", "mapped", 610),
+        ("working_hours_type", "Part-time", "947z_JGS_Uk2", "mapped", 6),
+        ("working_hours_type", "Not stated", None, "not_present", 12),
+    ]
+    survival: list[insights.SurvivalRow] = [
+        ("jobtech-scope", "active", True, 628, 806, 3.0, 1.0, 7.0, 90, "jobtech"),
+        ("jobtech-scope", "inferred_absence", False, 58, 68, 1.0, 0.0, 2.0, 5, "jobtech"),
+    ]
+    flows: list[insights.FlowRow] = []
+    frequency: list[insights.FrequencyRow] = [
+        (
+            "jobtech-scope",
+            14,
+            datetime(2026, 8, 15, 9, 0, tzinfo=UTC),
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            4.0,
+            48,
+            None,
+            "jobtech",
+        )
+    ]
+    return (
+        demand,
+        coverage,
+        occupations,
+        skills,
+        mapping_coverage,
+        requirements,
+        survival,
+        flows,
+        frequency,
+    )
+
+
+def test_insight_rules_state_findings_with_their_denominators() -> None:
+    (
+        demand,
+        coverage,
+        occupations,
+        skills,
+        mapping_coverage,
+        requirements,
+        survival,
+        flows,
+        frequency,
+    ) = _rich_rows()
+    results = insights.build(
+        demand,
+        coverage,
+        occupations,
+        skills,
+        mapping_coverage,
+        requirements,
+        survival,
+        flows,
+        frequency,
+    )
+    fired = {insight.text for section in results.values() for insight in section}
+    assert fired == {
+        "The latest complete sweep observed 628 active posting(s) on 2026-08-22.",
+        (
+            "The most frequently mapped occupation is Systemutvecklare/Programmerare, "
+            "in 357 of 520 mapped posting(s)."
+        ),
+        (
+            "The most frequently mapped skill is Programmering, asked for in 30 of 48 "
+            "posting(s) with a mapped skill."
+        ),
+        (
+            "Of 628 postings in the latest sweep, 160 are permanent employment and 27 "
+            "are fixed-term employment."
+        ),
+        "Of 628 postings in the latest sweep, 610 are full-time and 6 are part-time.",
+        (
+            "The median observed duration is 1.0 days across the 58 closed posting(s); "
+            "postings still open are right-censored and are excluded."
+        ),
+    }
+    # The gated trend rule stays silent: its gate needs sweeps this row set does not have.
+    assert not any("Active postings" in text for text in fired)
+
+
+def test_insight_traceability_every_number_appears_in_the_source_rows() -> None:
+    (
+        demand,
+        coverage,
+        occupations,
+        skills,
+        mapping_coverage,
+        requirements,
+        survival,
+        flows,
+        frequency,
+    ) = _rich_rows()
+    results = insights.build(
+        demand,
+        coverage,
+        occupations,
+        skills,
+        mapping_coverage,
+        requirements,
+        survival,
+        flows,
+        frequency,
+    )
+    tokens = _row_tokens(
+        [
+            *demand,
+            *coverage,
+            *occupations,
+            *skills,
+            *mapping_coverage,
+            *requirements,
+            *survival,
+            *flows,
+            *frequency,
+        ]
+    )
+    for _section, section_insights in results.items():
+        for insight in section_insights:
+            for token in _numeric_tokens(insight.text):
+                assert token in tokens, f"{token!r} in {insight.text!r} is not in the source rows"
+            assert insight.evidence, f"{insight.text!r} carries no evidence"
+
+
+def test_insight_sentences_never_mention_a_second_scope() -> None:
+    (
+        demand,
+        coverage,
+        occupations,
+        skills,
+        mapping_coverage,
+        requirements,
+        survival,
+        flows,
+        frequency,
+    ) = _rich_rows()
+    coverage = [
+        *coverage,
+        (
+            "jobtech",
+            "jobtech-zero",
+            "SE",
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            0,
+            0,
+            "stale",
+            "covered",
+            27.0,
+            None,
+            24,
+        ),
+        (
+            "jobtech",
+            "jobtech-archive",
+            "SE",
+            datetime(2026, 7, 1, 9, 0, tzinfo=UTC),
+            12,
+            9,
+            "stale",
+            "invalid",
+            900.0,
+            None,
+            72,
+        ),
+    ]
+    results = insights.build(
+        demand,
+        coverage,
+        occupations,
+        skills,
+        mapping_coverage,
+        requirements,
+        survival,
+        flows,
+        frequency,
+    )
+    assert results
+    scopes = {"jobtech-scope", "jobtech-zero", "jobtech-archive"}
+    for section_insights in results.values():
+        for insight in section_insights:
+            assert insight.scope == "jobtech-scope"
+            assert not any(other in insight.text for other in scopes - {insight.scope})
+
+
+def test_insight_rules_with_unmet_preconditions_emit_nothing() -> None:
+    scope = "jobtech-scope"
+    # A ranking with no mapped postings has no stated denominator.
+    zero = [("jobtech", scope, "occupation", 628, 628, 0)]
+    assert (
+        insights.rule_most_requested_occupation([("occupation", "A", "1.2.1", 2)], zero, scope)
+        is None
+    )
+    # A tie at the top is not "most requested".
+    tied = [("occupation", "A", "1.2.1", 5), ("occupation", "B", "1.2.1", 5)]
+    assert (
+        insights.rule_most_requested_occupation(
+            tied, [("jobtech", scope, "occupation", 628, 628, 10)], scope
+        )
+        is None
+    )
+    # A count above the stated denominator cannot be published.
+    assert (
+        insights.rule_most_requested_occupation(
+            [("occupation", "A", "1.2.1", 7)],
+            [("jobtech", scope, "occupation", 628, 628, 5)],
+            scope,
+        )
+        is None
+    )
+    # A missing requirement bucket silences the share.
+    reqs = [
+        (
+            "employment_type",
+            "Permanent employment (probationary period possible)",
+            "kpPX_CNN_gDU",
+            "mapped",
+            5,
+        )
+    ]
+    assert insights.rule_employment_shares(reqs, scope) is None
+    # A suppressed duration group is never read.
+    survival = [
+        ("jobtech-scope", "inferred_absence", False, None, None, None, None, None, None, "jobtech")
+    ]
+    assert insights.rule_median_duration(survival, scope) is None
+    # A gap next to the newest bucket silences the trend.
+    gapped = [
+        ("scope", "day", datetime(2026, 8, 19, 9, 0, tzinfo=UTC), 1, 1, 606, 900, "jobtech"),
+        ("scope", "day", datetime(2026, 8, 22, 9, 0, tzinfo=UTC), 1, 1, 628, 950, "jobtech"),
+    ]
+    frequency = [
+        (
+            "scope",
+            14,
+            datetime(2026, 8, 1, 9, 0, tzinfo=UTC),
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            4.0,
+            48,
+            None,
+            "jobtech",
+        )
+    ]
+    assert insights.rule_trend(gapped, frequency, "scope") is None
+    # Too few sweeps, and a span under a week, both silence the trend.
+    adjacent = [
+        ("scope", "day", datetime(2026, 8, 21, 9, 0, tzinfo=UTC), 1, 1, 615, 900, "jobtech"),
+        ("scope", "day", datetime(2026, 8, 22, 9, 0, tzinfo=UTC), 1, 1, 628, 950, "jobtech"),
+    ]
+    short_span = [
+        (
+            "scope",
+            14,
+            datetime(2026, 8, 20, 9, 0, tzinfo=UTC),
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            4.0,
+            48,
+            None,
+            "jobtech",
+        )
+    ]
+    assert insights.rule_trend(adjacent, short_span, "scope") is None
+    few_sweeps = [
+        (
+            "scope",
+            3,
+            datetime(2026, 8, 1, 9, 0, tzinfo=UTC),
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            4.0,
+            48,
+            None,
+            "jobtech",
+        )
+    ]
+    assert insights.rule_trend(adjacent, few_sweeps, "scope") is None
+
+
+def test_insight_freshness_warning_states_the_missing_state() -> None:
+    scope = "jobtech-scope"
+    stale = [
+        (
+            "jobtech",
+            scope,
+            "SE",
+            datetime(2026, 8, 20, 9, 0, tzinfo=UTC),
+            628,
+            628,
+            "stale",
+            "covered",
+            26.0,
+            None,
+            24,
+        )
+    ]
+    warning = insights.rule_freshness_warning(stale, scope)
+    assert warning is not None
+    assert "26 hours old, past its freshness threshold" in warning.text
+    partial = [
+        (
+            "jobtech",
+            scope,
+            "SE",
+            datetime(2026, 8, 20, 9, 0, tzinfo=UTC),
+            628,
+            620,
+            "fresh",
+            "invalid",
+            1.0,
+            None,
+            24,
+        )
+    ]
+    warning = insights.rule_freshness_warning(partial, scope)
+    assert warning is not None
+    assert "620 of 628 expected row(s)" in warning.text
+    healthy = [
+        (
+            "jobtech",
+            scope,
+            "SE",
+            datetime(2026, 8, 20, 9, 0, tzinfo=UTC),
+            628,
+            628,
+            "fresh",
+            "covered",
+            1.0,
+            None,
+            24,
+        )
+    ]
+    assert insights.rule_freshness_warning(healthy, scope) is None
+
+
+def test_insight_trend_fires_only_when_the_gate_is_met() -> None:
+    scope = "jobtech-scope"
+    adjacent = [
+        (
+            "jobtech-scope",
+            "day",
+            datetime(2026, 8, 21, 9, 0, tzinfo=UTC),
+            1,
+            1,
+            615,
+            900,
+            "jobtech",
+        ),
+        (
+            "jobtech-scope",
+            "day",
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            1,
+            1,
+            628,
+            950,
+            "jobtech",
+        ),
+    ]
+    gate_met = [
+        (
+            "jobtech-scope",
+            14,
+            datetime(2026, 8, 15, 9, 0, tzinfo=UTC),
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            4.0,
+            48,
+            None,
+            "jobtech",
+        )
+    ]
+    trend = insights.rule_trend(adjacent, gate_met, scope)
+    assert trend is not None
+    assert trend.text == "Active postings rose from 615 on 2026-08-21 to 628 on 2026-08-22."
+    unchanged = [
+        (
+            "jobtech-scope",
+            "day",
+            datetime(2026, 8, 21, 9, 0, tzinfo=UTC),
+            1,
+            1,
+            628,
+            900,
+            "jobtech",
+        ),
+        (
+            "jobtech-scope",
+            "day",
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            1,
+            1,
+            628,
+            950,
+            "jobtech",
+        ),
+    ]
+    held = insights.rule_trend(unchanged, gate_met, scope)
+    assert held is not None and "were unchanged at 628" in held.text
+
+
+def test_insight_build_refuses_two_scopes() -> None:
+    demand: list[insights.DemandRow] = [
+        (
+            "jobtech",
+            "scope-a",
+            "SE",
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            10,
+            "v1",
+            "licence",
+            "api",
+            "fresh",
+            "covered",
+        ),
+        (
+            "jobtech",
+            "scope-b",
+            "SE",
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            20,
+            "v1",
+            "licence",
+            "api",
+            "fresh",
+            "covered",
+        ),
+    ]
+    no_coverage: list[insights.CoverageRow] = []
+    no_dimension: list[insights.DimensionRow] = []
+    no_mapping: list[insights.MappingCoverageRow] = []
+    no_requirements: list[insights.RequirementRow] = []
+    no_survival: list[insights.SurvivalRow] = []
+    no_flows: list[insights.FlowRow] = []
+    no_frequency: list[insights.FrequencyRow] = []
+    assert (
+        insights.build(
+            demand,
+            no_coverage,
+            no_dimension,
+            no_dimension,
+            no_mapping,
+            no_requirements,
+            no_survival,
+            no_flows,
+            no_frequency,
+        )
+        == {}
+    )
 
 
 def masked_views(flows_cells: str, basis_cells: str = "<td>Active</td><td>7</td><td>0</td>") -> str:

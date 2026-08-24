@@ -118,20 +118,23 @@ models:
       # `dimension` column are not enough on their own: nothing else would notice a duration code
       # published under employment_type. Restricted to `mapped` rows on purpose, because an
       # `Unrecognised code` row exists precisely to publish a code this list does not carry, and
-      # blocking it would trade a visible row for a blocked republish.
+      # blocking it would trade a visible row for a blocked republish. Severity is `warn`, not
+      # error, because these pins run on the publish path against immutable partitions: a sweep
+      # carrying a newly observed mapped code must never hold up every republish while the pin is
+      # updated. The Python gate still requires the pinned list and the reference file to agree.
       - name: value_code
         data_type: varchar
         data_tests:
           - accepted_values:
               arguments: {values: [PFZr_Syz_cUq, kpPX_CNN_gDU, sTu5_NBQ_udq, 1paU_aCR_nGn]}
-              config: {where: "dimension = 'employment_type' and mapping_status = 'mapped'"}
+              config: {where: "dimension = 'employment_type' and mapping_status = 'mapped'", severity: warn}
           - accepted_values:
               arguments: {values: [6YE1_gAC_R2G, 947z_JGS_Uk2]}
-              config: {where: "dimension = 'working_hours_type' and mapping_status = 'mapped'"}
+              config: {where: "dimension = 'working_hours_type' and mapping_status = 'mapped'", severity: warn}
           - accepted_values:
               arguments:
                 values: [a7uU_j21_mkL, Sy9J_aRd_ALx, Xj7x_7yZ_jEn, gJRb_akA_95y, qQUd_4qe_NDT, 9RGe_UxD_FZw]
-              config: {where: "dimension = 'duration' and mapping_status = 'mapped'"}
+              config: {where: "dimension = 'duration' and mapping_status = 'mapped'", severity: warn}
       - {name: value_label, data_type: varchar, data_tests: [not_null]}
       - {name: mapping_status, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [mapped, unmapped, not_present]}}]}
       - {name: posting_count, data_type: bigint, data_tests: [not_null]}

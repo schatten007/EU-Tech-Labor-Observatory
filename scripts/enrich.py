@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -148,6 +149,14 @@ def load_references(root: Path = REFERENCE_ROOT) -> ReferenceTables:
     return ReferenceTables(geography, occupations, skills, manual, requirements, hashes)
 
 
+def sole_exact_match(options: Sequence[MappingCandidate]) -> MappingCandidate | None:
+    """The candidate the tiebreak picks, or None when the rule does not decide this concept."""
+    if len(options) <= 1:
+        return None
+    exact = [option for option in options if option.relation == "exact-match"]
+    return exact[0] if len(exact) == 1 else None
+
+
 def _mapping(
     dimension: str,
     source_id: str | None,
@@ -205,9 +214,9 @@ def _mapping(
         # to it on their own terms. Two exact matches are a genuine conflict and stay refused.
         # The method is recorded separately from plain crosswalk so every such decision can be
         # audited later; this is a provenance rule, not a measured accuracy gain.
-        exact = [option for option in options if option.relation == "exact-match"]
-        if len(exact) == 1:
-            selected = exact[0]
+        selected_match = sole_exact_match(options)
+        if selected_match is not None:
+            selected = selected_match
             status = "mapped"
             method = "exact_match_tiebreak"
         else:

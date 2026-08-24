@@ -33,6 +33,7 @@ from scripts.enrich import (
     ReferenceTables,
     enrich_hit,
     load_references,
+    sole_exact_match,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -119,14 +120,6 @@ def _rows(sample: Path) -> Iterator[dict[str, Any]]:
                 yield json.loads(line)
 
 
-def _sole_exact(options: tuple[MappingCandidate, ...]) -> MappingCandidate | None:
-    """The candidate the tiebreak picks, or None when the rule does not decide this concept."""
-    if len(options) <= 1:
-        return None
-    exact = [option for option in options if option.relation == "exact-match"]
-    return exact[0] if len(exact) == 1 else None
-
-
 def _collision_census(
     table: dict[str, tuple[MappingCandidate, ...]], audited: set[str]
 ) -> dict[str, int]:
@@ -139,7 +132,7 @@ def _collision_census(
     with_rival = 0
     in_sample = 0
     for source_id, options in table.items():
-        chosen = _sole_exact(options)
+        chosen = sole_exact_match(options)
         if chosen is None:
             continue
         tiebroken += 1

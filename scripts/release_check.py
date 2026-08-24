@@ -90,6 +90,8 @@ class Page(HTMLParser):
         self.tables: list[Table] = []
         self.text: list[str] = []
         self.attributes: list[str] = []
+        self.insights: list[str] = []
+        self.overview_insights = 0
         self._quiet = 0
         self._label = 0
         self._table: Table | None = None
@@ -98,6 +100,9 @@ class Page(HTMLParser):
         self._cell: list[str] | None = None
         self._denominator: list[str] | None = None
         self._denominator_tag = ""
+        self._insight: list[str] | None = None
+        self._insight_tag = ""
+        self._section = ""
         self._pending = ""
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
@@ -140,6 +145,11 @@ class Page(HTMLParser):
         if "denominator" in values.get("class", "").split():
             self._denominator = []
             self._denominator_tag = tag
+        if "insight" in values.get("class", "").split():
+            self._insight = []
+            self._insight_tag = tag
+        if tag == "section" and values.get("data-panel"):
+            self._section = values["data-panel"]
         if tag == "table":
             self._table = Table(values.get("id", ""))
             # Consumed, not copied: two ranked tables must not lean on one denominator sentence.
@@ -171,6 +181,14 @@ class Page(HTMLParser):
         if self._denominator is not None and tag == self._denominator_tag:
             self._pending = BLANK.sub(" ", "".join(self._denominator)).strip()
             self._denominator = None
+        if self._insight is not None and tag == self._insight_tag:
+            text = BLANK.sub(" ", "".join(self._insight)).strip()
+            self.insights.append(text)
+            if text and self._section == "overview":
+                self.overview_insights += 1
+            self._insight = None
+        if tag == "section":
+            self._section = ""
         if tag in {"th", "td"} and self._cell is not None:
             text = BLANK.sub(" ", "".join(self._cell)).strip()
             if self._table and self._head and tag == "th":
@@ -191,6 +209,8 @@ class Page(HTMLParser):
             self._cell.append(data)
         if self._denominator is not None:
             self._denominator.append(data)
+        if self._insight is not None:
+            self._insight.append(data)
 
 
 def _small(value: str) -> bool:
@@ -337,6 +357,17 @@ def check_page(html: str) -> list[str]:
             f"page methodology version {page.version or '(missing)'} "
             f"does not match {METHODOLOGY_VERSION}"
         )
+
+    # The inference layer is a new page shape: generated sentences must be present, non-empty,
+    # and digestible on Overview. A blank sentence says nothing, and a page carrying section
+    # insights without the Overview digest hides the summary the digest exists to provide.
+    for index, text in enumerate(page.insights, start=1):
+        if not text:
+            problems.append(
+                f"insight paragraph {index} is empty, so a generated sentence says nothing"
+            )
+    if page.insights and not page.overview_insights:
+        problems.append("the page renders insights but the Overview digest is missing")
     return problems
 
 

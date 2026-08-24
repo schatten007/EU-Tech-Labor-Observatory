@@ -23,6 +23,7 @@ than expanding the active increment.
 | 13a | 2026-08-22 | Complete; rule audited, one concept vetoed, figures published | Audit the exact-match tiebreak over 100% of its live population (29 concepts): 24 `same`, 4 `narrower-or-broader`, 1 `wrong`. The `wrong` concept had no correct ESCO URI to redirect to, so a reviewed refusal was added to `manual_reviews.csv` and `load_references` was taught to honour one. Published from a fresh 627-row sweep: occupation `mapped` 65 of 615 to 519 of 627. | `make check && make sweep && make live-site && make release-check && make sample` passed |
 | 14 | 2026-08-22 | Complete; three dimensions published, one taxonomy code still unobserved | Publish employment type, working-hours type, and contract duration from three structured fields that are 100% present, mapped through a new hand-written reference to English labels. Every posting lands in exactly one row per dimension, so each published column sums to the sweep's 628 postings and `Not stated` is a visible row rather than a caveat; a new untagged assertion pins that on live partitions. Methodology version bumped to 1.2. | `make check && make sweep && make live-site && make release-check && make sample` passed |
 | 13b | 2026-08-23 | Complete; the tiebreak is scored, refusals counted, both readings published | Extend the review sample from 3 rows to 32 so it covers every concept the exact-match tiebreak decides in the published sweep - 13 occupation and 16 skill - each row recording whether its verdict was transcribed from 13a or re-judged here. `scripts/evaluate.py` scores a correct refusal as a true negative, keeps `precision`/`recall` textbook, and publishes strict and lenient figures for the five `narrower-or-broader` concepts side by side under a rule written down before the numbers. The collision census is reported and enforced nowhere. No sweep, no network, and no published figure moved. | `make check && make live-site && make release-check` passed |
+| 16 | 2026-08-24 | Complete; findings published, trend gate silent | State the findings instead of making the reader derive them: a pure stdlib inference layer (`scripts/insights.py`) renders a digest on Overview and one line at the top of the Occupations, Requirements, Survival, and Status sections, every sentence built from the tables beneath it with its denominator stated and every numeric token proven - by test - to appear in the source rows. Methodology bumped to 1.3 before the first insight rendered. The trend gate was pre-registered at N=14 sweeps / M=7 days and stays silent on 8 sweeps and 3 daily buckets with a gap at 08-21, exactly as pre-registered. Three 13b review carry-overs closed. | `make check && make live-site && make release-check` passed |
 
 
 ## Session Notes
@@ -783,4 +784,129 @@ than expanding the active increment.
   reaches for the first time will not be covered until someone re-derives the set, and
   `test_review_sample_covers_every_tiebroken_concept_in_the_published_sweep` fails loudly if the
   reference moves the population instead of letting it drift silently.
+
+### 2026-08-24 - Increment 16, pre-registration
+
+Written before `scripts/insights.py` existed and before any figure was computed, because a gate
+chosen after seeing whether it fires is not a gate. Everything below stands whichever way the
+figures fall.
+
+- **The trend gate: `TREND_MIN_SWEEPS = 14`, `TREND_MIN_SPAN_DAYS = 7`.** The span comes first
+  because it is the binding idea. A daily bucket's active stock is one point-in-time reading taken
+  at the last sweep in that day, so a day-over-day change is a single transition. Swedish postings
+  are published on working days, which means a Friday-to-Saturday reading moves for calendar
+  reasons and a Sunday-to-Monday reading moves the other way for the same reason. Seven days is
+  the shortest span that contains every weekday once, so it is the shortest record in which a
+  day-over-day claim can be read against data that holds its own counterexample. Below that the
+  observatory cannot distinguish "demand rose" from "Monday is bigger than Sunday", and stating
+  the former would be exactly the overstatement this increment must not make. The sweep count
+  follows from the span: 14 complete sweeps is two per day across those seven days, the weakest
+  cadence under which the last sweep of a bucket is plausibly near the end of that bucket, so two
+  adjacent daily readings are taken at comparable points in their days rather than at whatever
+  hour a single daily sweep happened to run. One sweep per day would satisfy the span while
+  comparing a 06:00 reading against a 23:00 one and calling the difference a day of demand.
+- **The trend rule reads the two most recent observed buckets and requires them to be adjacent. It
+  never searches backwards for an older pair that happens to be adjacent.** Skipping over a gap to
+  find a usable pair is the interpolation the guard forbids, wearing a different hat: it would
+  publish a transition from days ago as though it were the current movement, and the sentence would
+  be true of a period the reader is not looking at. A gap next to the newest bucket silences the
+  rule, full stop.
+- **`METHODOLOGY_VERSION` bumps to 1.3, pinned by a test.** The version claims to cover "the
+  definitions, mapping rules, and suppression rule described on this page", and this increment adds
+  published statements that are definitions in the only sense that matters: a median, a share, a
+  superlative, each with its own rule for when it appears and which denominator it carries. Under a
+  stale 1.2 a reader could not tell a page carrying those sentences from one that does not, which
+  is 13a's lesson (a rule change under a stale version) rather than 13b's exception (internal
+  metric work that publishes nothing). 1.2 published no derived sentence at all, so the bump is a
+  fact about the page and not a courtesy.
+- **No insight ever appears in a CSV export.** The CSV control serialises one table's `thead` and
+  `tbody`; a sentence is not a row and would have to invent a column to become one. Exports stay
+  tabular. Nothing is lost, because every insight is derived from the table it sits above, so the
+  CSV of that table already contains the numbers needed to reproduce the sentence.
+- **The precondition list the shared guard enforces, and the reason each one exists.**
+  1. **A stated, non-zero denominator.** A rule refuses when its denominator is absent, zero, or
+     not positive, and the denominator is interpolated into the sentence, so a sentence cannot
+     exist without one.
+  2. **Never read a suppressed cell.** `posting_flows` and `posting_survival` mask groups of 1 to 4
+     by publishing NULL, which arrives as `None`. Any `None` the rule needs disqualifies it. The
+     same treatment covers "never observed", which is also `None`, and both must be refusals: a
+     rule that could tell them apart would be reconstructing the masked value.
+  3. **One scope per sentence.** Every insight carries exactly one scope, and a rule handed rows
+     from two scopes returns `None` instead of pooling them. No sentence names two scopes, two
+     sources or two countries.
+  4. **A share's numerator cannot exceed its stated denominator.** A >100% share is a caller bug,
+     not a finding. This is not hypothetical: the skill column legitimately exceeds its
+     mapped-posting denominator because a posting is counted in every skill it asks for, so the
+     skill rule states a count against its denominator and must never turn it into a share.
+  5. **A duration claim states the closed-posting count and carries the right-censoring caveat**,
+     and refuses outright for a group flagged right-censored, because an open posting's duration is
+     a lower bound and a median of lower bounds is not a median duration.
+  6. **A trend claim** needs the two constants above, plus two adjacent most-recent observed
+     buckets with an unsuppressed value in each.
+  7. **Purity, so the rules are testable at all.** Rows in, `None` or `Insight(scope, text,
+     evidence)` out. No query, no file, no clock. Every numeric token in the text is in `evidence`
+     and in the rows it was built from, and a test proves that rather than trusting it.
+
+### 2026-08-24 - Increment 16, completion
+
+- **The trend gate fires or stays silent exactly as pre-registered: it stays silent.** The live
+  data has 8 complete sweeps against `TREND_MIN_SWEEPS = 14` and 3 observed daily buckets
+  (08-19 active 606, 08-20 615, 08-22 628) against a `TREND_MIN_SPAN_DAYS = 7` span, so the gate
+  fails on both counts before the rule ever looks at a pair of buckets. And the one adjacent pair
+  that does exist, 08-19 -> 08-20, is not the two most recent observed buckets, which are 08-20
+  and 08-22 separated by the 08-21 gap - so the adjacency clause would have silenced it too. No
+  trend sentence renders, and the reason is recorded here rather than implied.
+- **Every non-gated rule fired and every sentence states its denominator, byte-matched against
+  the tables beneath it.** Overview digest and section lines: "The latest complete sweep observed
+  628 active posting(s) on 2026-08-22"; "The most frequently mapped occupation is
+  IKT-systemutvecklare, in 382 of 520 mapped posting(s)"; "The most frequently mapped skill is
+  C++, asked for in 16 of 48 posting(s) with a mapped skill"; "Of 628 postings in the latest
+  sweep, 160 are permanent employment and 27 are fixed-term employment"; "Of 628 postings in the
+  latest sweep, 610 are full-time and 6 are part-time"; "The median observed duration is 1.0 days
+  across the 58 closed posting(s); postings still open are right-censored and are excluded."
+  Each number was verified against the live rows the sentence was built from: the occupation and
+  skill counts are the ranking's first row and the coverage denominator, the requirement counts
+  are the published `posting_count` values, the duration median and count are the one closed
+  basis (`inferred_absence`, 58 postings, median 1.0, not right-censored) with the caveat
+  appended.
+- **The rules that stayed silent, and why each one is silent.** The freshness/coverage warning is
+  silent because the live scope is `fresh` and `covered` - an absence of a warning is not itself
+  a finding. The trend rule is silent per the gate above. The fixture exercises the silence
+  branches the live data does not: a suppressed duration group, a missing fixed-term or part-time
+  bucket, a ranking tie, a count above its stated denominator, a gap next to the newest bucket,
+  and a second collecting scope all render nothing.
+- **`METHODOLOGY_VERSION` is 1.3, pinned by a test**, as pre-registered. 1.2 published no derived
+  sentence at all, and the version claims to cover "the definitions, mapping rules, and
+  suppression rule described on this page", so a page carrying insight sentences must not share a
+  version with one that does not. No insight text appears in any CSV export: the CSV control
+  serialises one table's rows, a sentence is not a row, and the table beneath each sentence
+  already holds the numbers needed to reproduce it.
+- **The traceability contract is a test, run over both the synthetic fixture and the live
+  partition rows.** `test_insight_traceability_every_number_appears_in_the_source_rows` asserts
+  that every numeric token in every generated sentence appears in the rows it was built from; a
+  re-run against the live `dev.duckdb` rows reports the same sentences and no missing token. The
+  contract also forced a wording choice worth recording: percentages are derived numbers the rows
+  cannot vouch for, so the employment and working-hours rules state the two counts and the total
+  and let the reader see the share - "160 permanent and 27 fixed-term of 628 postings", never a
+  percentage.
+- **Three carry-overs from the 13b review, closed.** (1) `tests/test_probe.py` now anchors the
+  vocabulary-guard block on `- {name: value_label`, the flow-style the schema actually writes,
+  instead of a `- name: value_label` that never matches and silently spanned the rest of the
+  file. (2) `scripts/evaluate.py`'s `_sole_exact` is gone; the tiebreak predicate now lives once,
+  as `enrich.sole_exact_match`, used by `enrich._mapping`, the collision census, and (indirectly)
+  the sample-coverage test, so there is no second copy to drift. (3) The three error-severity
+  `accepted_values` pins on `requirement_demand_latest.value_code` are now `severity: warn`,
+  because they run on the publish path against immutable partitions and a newly observed mapped
+  code must never hold up every republish while the pin catches up; the Python test still
+  requires the pinned list and the reference file to agree. The equality assertion was kept, not
+  relaxed to a subset, because a subset would let the pin lag while dbt silently blocked - the
+  worse failure mode.
+- **`make check` green at 70 Python tests** (seven added: the firing set with denominators, the
+  traceability contract, the one-scope sentence property, the unmet-precondition silence, the
+  freshness warning, the trend gate firing case, and the two-scope refusal; plus the 
+  `METHODOLOGY_VERSION` pin moved to 1.3) and **dbt PASS=190 WARN=0** unchanged, since the
+  severity change alters a test's config, not the resource count. `make live-site` runs 185 with
+  the fixture-tagged tests excluded, and `release_check` reports 0 problems on the live page,
+  including the two new rules: no empty insight paragraph, and the Overview digest present
+  whenever the page renders any insight.
 
