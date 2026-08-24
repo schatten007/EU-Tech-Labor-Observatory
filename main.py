@@ -39,6 +39,19 @@ from scrapers.adzuna import (
     CountryAdapter,
     adzuna_credentials,
 )
+from scrapers.ba_jobsuche import (
+    BA_ACCESS_METHOD,
+    BA_COVERAGE_LIMITATIONS,
+    BA_FRESHNESS_THRESHOLD_HOURS,
+    BA_LICENCE_REFERENCE,
+    BA_SCOPE_ID,
+    BA_SCOPE_PARAMS,
+    BA_SOURCE_VERSION,
+    BAJobsucheCollector,
+)
+from scrapers.ba_jobsuche import (
+    crosswalk_reference_hashes as ba_crosswalk_reference_hashes,
+)
 from scrapers.base import BaseCollector, SweepWriter, utc_iso
 from scrapers.czech_mpsv import (
     MPSV_ACCESS_METHOD,
@@ -154,6 +167,24 @@ def _poland(
         sweep_id=sweep_id,
         observed_at=observed_at,
         hmac_key=hmac_key,
+        max_pages=max_pages,
+    )
+
+
+def _ba_jobsuche(
+    scope_id: str,
+    sweep_id: str,
+    observed_at: _dt.datetime,
+    hmac_key: bytes,
+    max_pages: int | None,
+    **_: object,
+) -> BaseCollector:
+    return BAJobsucheCollector(
+        scope_id=scope_id,
+        sweep_id=sweep_id,
+        observed_at=observed_at,
+        hmac_key=hmac_key,
+        reference_dir=DEFAULT_REFERENCE,
         max_pages=max_pages,
     )
 
@@ -317,6 +348,20 @@ def source_config(source: str, country: str = "de") -> SourceConfig:
             reference_hashes="",
             build=_poland,
         )
+    if source in ("ba", "ba_jobsuche", "de"):
+        return SourceConfig(
+            slug="ba",
+            scope_id=BA_SCOPE_ID,
+            scope_params=BA_SCOPE_PARAMS,
+            source_version=BA_SOURCE_VERSION,
+            licence_reference=BA_LICENCE_REFERENCE,
+            access_method=BA_ACCESS_METHOD,
+            expected_country="DE",
+            freshness_threshold_hours=BA_FRESHNESS_THRESHOLD_HOURS,
+            coverage_limitations=BA_COVERAGE_LIMITATIONS,
+            reference_hashes=ba_crosswalk_reference_hashes(DEFAULT_REFERENCE),
+            build=_ba_jobsuche,
+        )
     if source == "adzuna":
         adapter = ADZUNA_ADAPTERS.get(country, ADZUNA_DE)
         return SourceConfig(
@@ -413,6 +458,9 @@ def build_parser() -> argparse.ArgumentParser:
             "mpsv",
             "cz",
             "adzuna",
+            "ba",
+            "ba_jobsuche",
+            "de",
             "francetravail",
             "ft",
             "fr",
@@ -426,9 +474,10 @@ def build_parser() -> argparse.ArgumentParser:
         ),
         default="pl",
         help="source slug (pl/cbop = CBOP/ePraca Poland; cz/mpsv = Úřad práce "
-        "Czechia; adzuna = Adzuna multi-country API; ft/fr/francetravail = "
-        "France Travail Offres d'emploi v2; be/vdab = VDAB public job-search "
-        "website, Belgium/Flanders; no/nav = NAV stillings-feed, Norway; "
+        "Czechia; adzuna = Adzuna multi-country API; ba/ba_jobsuche/de = BA "
+        "Jobsuche public website, Germany; ft/fr/francetravail = France Travail "
+        "Offres d'emploi v2; be/vdab = VDAB public job-search website, "
+        "Belgium/Flanders; no/nav = NAV stillings-feed, Norway; "
         "fi/tmt/finland = Työmarkkinatori jobposting search API, Finland)",
     )
     parser.add_argument(
@@ -597,6 +646,17 @@ async def run_sweep(args: argparse.Namespace) -> int:
                 f" Largest per-segment total advertised by a fetched landing page: "
                 f"{collector.max_advertised_total} jobs."
             )
+
+    if isinstance(collector, BAJobsucheCollector):
+        coverage += (
+            f" Sweep window: {collector.completed_pages} search pages fetched "
+            f"({collector.total_pages} planned; {collector.empty_pages} empty after the "
+            f"10,000-listing query window closed), {collector.failed_pages} non-200; "
+            f"{collector.items_seen} items parsed, {collector.duplicates_dropped} "
+            f"duplicates dropped on HMAC source_id. Rows collected: {len(rows)} of the "
+            "10,000-listing per-query window the unscoped search advertises — a "
+            "windowed sample of the active stock, not a complete snapshot."
+        )
 
     if isinstance(collector, NAVFeedCollector):
         coverage += (

@@ -21,6 +21,7 @@ than expanding the active increment.
 | 7 | 2026-08-23 | **Blocked** (build complete, DoD pending activation) | Työmarkkinatori / Job Market Finland (FI, P67 search API via Kipa): feasibility gate first — **`tyomarkkinatori.fi/robots.txt` disallows `/api/`**, so the source's own KUNTA/MAAKUNTA/ESCO codesets were left untouched and the crosswalk was built from Statistics Finland instead; both Kipa hosts **drop TCP 443 from a non-allowlisted IP** (21 s) so there is **no sandbox** and the contract was pinned from the published OpenAPI. `FinlandTMTCollector` — key auth + optional bearer with 401 refresh-and-replay, streaming NDJSON with drained-then-retried 429/5xx, **client-side watermark** (the API has no cursor and no sentinel), loud schema-drift guard, the lab's **first `skill_mappings`** and second **source-reported `removed_at`**, five-way FINESCO classification (ESCO / ISCO group / national extension / unrecognised / absent); pinned kunta+maakunta -> NUTS 2024 crosswalk (`scrapers/reference_finland.py`, **327 rows, 19/19 NUTS 3, 0 unmatched, 0 ambiguous**); CLI `--source fi` + `--max-rows`/`--status`, `make scrape-finland` / `make reference-finland`, 54 new tests. **KEHA activation notification deliberately NOT submitted** (bound to a Finnish Y-tunnus). | `make check` passed (367 tests); **DoD not met — 0 records**: no key and no IP opening, sweep stops at the robots gate after 94.3 s, no partition written |
 | P1 | 2026-08-23 | Complete | **Germany — active lane architecture** (planning, no code): user re-ordered the roadmap to make Germany the active build target; every German surface probed live and the grey-HTML chain **re-ordered by evidence to 10 → 9 → 8** (Stellenanzeigen → Joblift → Kimeta). Key findings: **Kimeta is robots-blocked for this lab** (`*` → `Disallow: /`, verified with `RobotsRule` — DENY on `/jobs/berlin`, `/search`, `/api/job-pdf`); **Joblift is CloudFront-403 at the edge** (robots.txt and its partner-API page both blocked from this egress); **Stellenanzeigen.de is robots-permitted with three advertised sitemaps and `JobPosting` JSON-LD on detail pages** (community scrapers confirm "passive Cloudflare, no active challenge") — it becomes the primary German build; BA portal is robots-allow-all but the Jobsuche data stays agreement-only (access track); BKG Geodatenzentrum robots permits (only GPTBot blocked) and destatis allows with `Crawl-delay: 30`, confirming the German region-crosswalk authority. Germany has **400 NUTS 3 codes** (GISCO 2024, verified). Plan recorded: coverage stack, lanes, mandatory foolproof mechanisms, predetermined backup chain, cross-source overlap stance, and the new `reference_germany.py` prerequisite. | docs only; `make check` unchanged (367 tests) |
 | P2 | 2026-08-23 | Complete | **Germany re-assessment under the relaxed constraint** (planning, no code): user **relaxed the ToS/robots gate** for this private educational project. Live probes found the plan's #1 source is now the **BA Jobsuche public website** (~1.9M, SSR plain HTTP, no anti-bot, native ref IDs; its internal REST API is WAF-403 even from a browser); **StepStone** (~1.5M+, SSR, JSON-LD, no Akamai challenge on search) and **Indeed** (~1.5M+, SSR, `data-jk` ids, **litigation history flagged**) are also plain-HTTP accessible; **Kimeta** has no technical anti-bot. **Monster** (DataDome) and **Joblift** (CloudFront 403) and **Interamt** (JS redirect loop) are technically blocked — probe rows. Roadmap tiered German stack rewritten (BA Jobsuche → StepStone → Indeed → Kimeta → Stellenanzeigen → probes → Arbeitnow), feasibility table rewritten from legal to technical verdicts, landscape + risk matrix updated. `reference_germany.py` remains the build prerequisite. | docs only; `make check` unchanged (367 tests) |
+| 8 | 2026-08-24 | **Complete** | **BA Jobsuche — Germany #1** (primary build, Germany active lane). Deliverable 1: `scrapers/reference_germany.py` + `data/reference/germany_plz_nuts_2024.csv` (22,140 rows = 4,862 PLZ + 11,000 municipality + 400 Kreis; 400/400 NUTS 3 codes, 0 unmatched; destatis Kreise official AGS→NUTS 2024 key × BKG VZ250_GEM × destatis Anschriftenverzeichnis Zustell-PLZ, validated against Eurostat GISCO; 11 ambiguous PLZ × 397 ambiguous city names; 121 Thuringian stale-VZ250 deviations recorded). Deliverable 2: `scrapers/ba_jobsuche.py` (BAJobsucheCollector — SSR HTML parser, allowlist-only, robots-as-evidence, city→NUTS via crosswalk, 403-rate-limit with 45s cooldown+retry, HMAC dedupe, 25 items/page, 400-page window). `main.py` SourceConfig slug `ba`, `make scrape-ba-jobsuche` / `make reference-germany`. 22 new respx tests (389 total). **DoD verified live:** 400/400 pages, 10,000 rows, `status=complete`, `expected_pages == completed_pages`, `expected_rows == row_count`, zero 4xx, 10,000 unique 64-hex HMAC source_ids, 100% first_published coverage, 358/400 distinct NUTS 3 codes mapped (6,448 mapped, 3,497 unmapped, 55 ambiguous), zero PII. **Honest bound:** 10,000-listing per-query window (400 pages × 25), plus BA rate-limits with 403 after ~50 requests (Apache edge token bucket, ~45s idle recovers); 7 throttle events absorbed in the live sweep. | `make check` passed (389 tests); DoD sweep complete (10,000 rows) |
 ## Session Notes
 
 ### 2026-08-20 - Increment L0 (context cleanup)
@@ -1009,3 +1010,47 @@ feasibility gate was opened and greened before any collector code was written.
   (`reference_germany.py`, BKG × GISCO, 400 NUTS 3 codes) remains the build
   prerequisite. Next session: `reference_germany.py`, then the BA Jobsuche
   feasibility gate and collector.
+
+### 2026-08-24 — Increment 8 (BA Jobsuche Germany #1 build)
+
+**Deliverable 1 — German region crosswalk:**
+
+Built `scrapers/reference_germany.py` + `data/reference/germany_plz_nuts_2024.csv`
++ `reference_manifest_germany.json`. Three-authority chain: **destatis Kreise
+table** (AGS-Kreis 5-digit → NUTS 2024, the official key, covers 400/400 GISCO
+codes) × **BKG VZ250_GEM** (Orts-/Gemeindeverzeichnis, 11,001 municipalities
+with AGS + Kreis, `dl-de/by-2-0`) × **destatis Anschriftenverzeichnis** (10,749
+municipalities with Zustell-PLZ). Pinned CSV: 22,140 rows (4,862 PLZ + 11,000
+municipality + 400 Kreis), 400/400 NUTS 3 codes, 0 unmatched, 121 Thuringian
+VZ250 stale-NUTS deviations recorded. 11 PLZ codes span >1 NUTS 3 (ambiguous),
+397 municipality names in >1 NUTS 3 (ambiguous). `make reference-germany` target
+added. First commit: `e8c0553` (feat). Second commit: `810d057` (fix — the BKG
+VZ250_GEM `.dbf` stores names as UTF-8; the builder decoded them as latin-1,
+double-encoding umlauts in the pinned CSV; rebuilt).
+
+**Deliverable 2 — BA Jobsuche feasibility gate + collector:**
+
+Live probes of the public SSR search interface (25 items/page, `&page=N`
+pagination, 400-page = 10,000-listing window, 403 Apache-edge throttle after
+~50 requests, recovers after ~30 s idle). Full feasibility row added to
+`SCRAPER_FEASIBILITY.md`.
+
+`scrapers/ba_jobsuche.py`: BAJobsucheCollector — SSR HTML parser, allowlist-only
+(ref ID + date + city only), robots-as-evidence (disallow logs, 403 stops),
+city→NUTS 3 via German crosswalk (mapped/ambiguous/unmapped), 403 handled as
+rate-limit with 45 s cooldown-then-retry (Apache edge token bucket), HMAC
+dedupe, 25 items/page, 400-page window (10,000 max). `main.py` SourceConfig
+slug `ba` with `--source ba` / `--source ba_jobsuche` / `--source de`. 22 new
+respx tests for parsing, crosswalk, robots, PII, dedupe, 429, schema drift,
+page budget.
+
+**DoD verification (foreground, serial, ≥1 s pacing):**
+
+Sweep 400/400 pages, 10,000 rows, `status=complete`, `expected_pages ==
+completed_pages == 400`, `expected_rows == row_count == 10,000 NDJSON lines`,
+zero 4xx, 10,000 unique 64-hex HMAC source_ids, 100% first_published coverage,
+358/400 distinct NUTS 3 codes mapped (6,448 mapped, 3,497 unmapped, 55
+ambiguous), zero PII. 7 throttle events absorbed (45 s cooldown each). Honest
+bound: 10,000-listing per-query window, plus ~50-request burst throttle.
+
+**make check:** 389 tests passed (367 + 22), ruff + mypy strict + pytest green.

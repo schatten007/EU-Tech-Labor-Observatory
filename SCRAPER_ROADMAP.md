@@ -316,7 +316,7 @@ not serially. Increment 7 (Finland) stays parked-BLOCKED.
 
 | # | Source | Volume | Technical access (verified) | Role |
 | --- | --- | --- | --- | --- |
-| 1 | **BA Jobsuche** (public website) | ~1.9M | **SSR, plain HTTP, no anti-bot.** `www.arbeitsagentur.de/jobsuche/suche?was=...&wo=...` → 200, 370 KB, server-rendered HTML with job titles, employer, publish date, location+distance, salary, employment type, homeoffice, native ref IDs (`Stellenangebot 10000-1202838080-S`). robots.txt absent (404) on the search host. | **PRIMARY BUILD — the single biggest German prize** |
+| 1 | **BA Jobsuche** (public website) | ~1.9M | **SSR, plain HTTP, no anti-bot.** `www.arbeitsagentur.de/jobsuche/suche?was=...&wo=...` → 200, 370 KB, server-rendered HTML with job titles, employer, publish date, location+distance, salary, employment type, homeoffice, native ref IDs (`Stellenangebot 10000-1202838080-S`). robots.txt absent (404) on the search host. | **BUILT 2026-08-24** — 10,000 rows/sweep, `make scrape-ba-jobsuche` |
 | 2 | **StepStone.de** | ~1.5M+ | **SSR, plain HTTP, JSON-LD on detail pages.** `www.stepstone.de/jobs/...` → 200, 1.1 MB, `application/ld+json` present. Akamai Bot Manager not visible on search pages. | **SECONDARY BUILD** |
 | 3 | **Indeed.de** | ~1.5M+ | **SSR, plain HTTP, data-jk ids.** `de.indeed.com/Jobs?q=...` → 200, 1.3 MB, `data-jk="..."` for HMAC. **Litigation risk** — Indeed has sued scrapers. | **TERTIARY — gate evaluates risk** |
 | 4 | **Kimeta.de** | ~1.5–1.8M | **No anti-bot technical barrier.** robots.txt `*`→`Disallow:/` is the only barrier (relaxed). Homepage 200, 214 KB; search API at `/api/mutation/create-jobalert-and-search`; content pages at `/stellenangebote`, `/stellenmarkt`. | **FOURTH BUILD** |
@@ -349,6 +349,9 @@ every German source needs location → NUTS 3 2024. Germany has **400 NUTS 3 cod
 cross-checked with **destatis.de** (allow, `Crawl-delay: 30`), validated against
 GISCO. Deliverable `scrapers/reference_germany.py` + pinned
 `germany_plz_nuts_2024.csv`, 0-unmatched bar, built before any HTML collector.
+**BUILT 2026-08-24** — 22,140 rows, 400/400 NUTS 3, 0 unmatched, 0 unbounded
+GISCO codes. PLZ/Stadt → NUTS 2024 join via destatis Kreise official AGS→NUTS
+key × BKG VZ250_GEM × destatis Anschriftenverzeichnis Zustell-PLZ.
 
 **Access tracks running in parallel (no scraper, no code):** the BA Jobsuche
 agreement (HR-BA-XML) and the EURES arrangement. These are the structured-data
@@ -360,10 +363,16 @@ accepted and stated per source in `coverage_limitations`.
 
 **Germany execution order (next sessions):**
 1. `reference_germany.py` (BKG × GISCO, 400 codes, 0 unmatched) — needed by every
-   German collector.
-2. **BA Jobsuche** feasibility gate (probe the detail page, pagination, extract the
-   native ref ID pattern, location fields) → `BAJobsucheCollector` → canary → DoD
-   sweep.
+   German collector. **DONE 2026-08-24** — `data/reference/germany_plz_nuts_2024.csv`
+   (22,140 rows, 400/400 NUTS 3, 0 unmatched; commits `e8c0553`, `810d057`).
+2. **BA Jobsuche** feasibility gate → `BAJobsucheCollector` → canary → DoD sweep.
+   **DONE 2026-08-24** — feasibility row live-evidenced; collector built; DoD
+   sweep complete: **400/400 pages, 10,000 rows, `status=complete`, zero 4xx,
+   10,000 unique HMAC source_ids, 358/400 distinct NUTS 3 mapped, zero PII**.
+   Honest bound: the unscoped query window is 400 pages × 25 = **10,000 listings
+   max** (page 401+ empty), and BA rate-limits with 403 after ~50 requests
+   (Apache edge token bucket; 45 s idle cooldown absorbs it — 7 events in the
+   live sweep). Next: StepStone.
 3. **StepStone** feasibility gate → `StepStoneCollector` → canary → DoD sweep.
 4. **Indeed** gate evaluates litigation risk → build or flag.
 5. Subsequent sources in technical-feasibility order.
@@ -469,10 +478,10 @@ feasibility row but does not block a build.
 
 | Source | Reason |
 | --- | --- |
-| BA Jobsuche | ToS-prohibited; only implementable via a BA/HR-BA-XML data agreement (an access-request increment, not a scraper) |
+| BA Jobsuche REST API | The **public website** is BUILT (Increment 8, 10,000 rows/sweep). Its internal REST API (`rest.arbeitsagentur.de`) remains **WAF-403 even from a browser** and is not used. |
 | Meinestadt.de | ToS-prohibited + Akamai Bot Manager |
-| StepStone | ToS-prohibited + Akamai Bot Manager |
-| Indeed | ToS-prohibited + Cloudflare + litigation history |
+| StepStone | Legacy row — **now SECONDARY BUILD** under the relaxed gate (see Germany — ACTIVE LANE). |
+| Indeed | Litigation history — tertiary, risk-gated (see Germany — ACTIVE LANE). |
 | Jobnet (DK) | Restricted B2B agreement only |
 | VDAB Vacature API v4 | Requires a VDAB-approved partnership + signed *samenwerkingsovereenkomst* (verified 2026-08-22). Only implementable as an access-request task, not a scraper. **The public vdab.be job-search site remains in scope as Increment 5** (robots-permitted, disclaimer allows informational re-use). |
 
