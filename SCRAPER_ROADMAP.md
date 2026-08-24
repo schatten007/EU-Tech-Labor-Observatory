@@ -374,7 +374,8 @@ accepted and stated per source in `coverage_limitations`.
    (Apache edge token bucket; 45 s idle cooldown absorbs it — 7 events in the
    live sweep). Next: StepStone.
 2a. **BA Jobsuche segmented regional census** (`de-stock-segmented`).
-   **BUILT 2026-08-24** — plan `.kilo/plans/1787577245495-ba-segment-provenance-de-coverage.md`.
+   **BUILT 2026-08-24 — census in progress (resumable).** Plan
+   `.kilo/plans/1787577245495-ba-segment-provenance-de-coverage.md`.
    Gate probes decided the segment axes (Bundesland ✓, municipality ✓, PLZ ✓,
    **`wo=Landkreis+…` broken** — all return the same 7 Rosenheim postings — so
    the level-2 backbone is municipality/PLZ segments, not Kreis names; `umkreis=0`
@@ -385,13 +386,16 @@ accepted and stated per source in `coverage_limitations`.
    --min-level L --umkreis K`), per-segment completeness oracle, breadth-first
    regional ordering (all level-2 segments before any subdivision), scope
    `de-stock-segmented`, `make scrape-ba-segmented` / `make check-ba-segmented`.
-   **Live canary chunks (2026-08-24): 85 segments, 14,458 distinct rows, 100%
-   mapped, zero 4xx, all partitions `status=complete` and reconciled.** The DoD
+   **Live census progress (2026-08-24, 63 chunks): 65 reconciled partitions,
+   203,674 rows, mapped 99.77%, unmapped 0%, ambiguous 0.23% (non-geographic
+   markers), per-tier 186,761/2,284/14,170, PII scan clean, zero 4xx, München
+   subdivided at the 400-page cap, zero truncated left unsubdivided.** The DoD
    thresholds (≥85% mapped, ≥390/400 NUTS 3, ≤5% unmapped) are asserted by
-   `make check-ba-segmented`; the full ~10,600-segment census continues across
-   resumable chunks (frontier persists). Honest bound: a segment ends complete
-   when its pagination closes before the 400-page cap; truncated metros
-   (Berlin/Hamburg/München) subdivide into PLZ/recency children.
+   `make check-ba-segmented`; at the session boundary the gate reports
+   **124/400 NUTS 3** — the remaining ~8,171 frontier segments (~20 h) complete
+   the breadth. Honest bound: a segment ends complete when its pagination
+   closes before the 400-page cap; truncated metros (Berlin/Hamburg/München)
+   subdivide into PLZ/recency children.
 3. **StepStone** feasibility gate → `StepStoneCollector` → canary → DoD sweep.
 4. **Indeed** gate evaluates litigation risk → build or flag.
 5. Subsequent sources in technical-feasibility order.

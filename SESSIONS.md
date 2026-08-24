@@ -23,7 +23,7 @@ than expanding the active increment.
 | P2 | 2026-08-23 | Complete | **Germany re-assessment under the relaxed constraint** (planning, no code): user **relaxed the ToS/robots gate** for this private educational project. Live probes found the plan's #1 source is now the **BA Jobsuche public website** (~1.9M, SSR plain HTTP, no anti-bot, native ref IDs; its internal REST API is WAF-403 even from a browser); **StepStone** (~1.5M+, SSR, JSON-LD, no Akamai challenge on search) and **Indeed** (~1.5M+, SSR, `data-jk` ids, **litigation history flagged**) are also plain-HTTP accessible; **Kimeta** has no technical anti-bot. **Monster** (DataDome) and **Joblift** (CloudFront 403) and **Interamt** (JS redirect loop) are technically blocked — probe rows. Roadmap tiered German stack rewritten (BA Jobsuche → StepStone → Indeed → Kimeta → Stellenanzeigen → probes → Arbeitnow), feasibility table rewritten from legal to technical verdicts, landscape + risk matrix updated. `reference_germany.py` remains the build prerequisite. | docs only; `make check` unchanged (367 tests) |
 | 8 | 2026-08-24 | **Complete** | **BA Jobsuche — Germany #1** (primary build, Germany active lane). Deliverable 1: `scrapers/reference_germany.py` + `data/reference/germany_plz_nuts_2024.csv` (22,140 rows = 4,862 PLZ + 11,000 municipality + 400 Kreis; 400/400 NUTS 3 codes, 0 unmatched; destatis Kreise official AGS→NUTS 2024 key × BKG VZ250_GEM × destatis Anschriftenverzeichnis Zustell-PLZ, validated against Eurostat GISCO; 11 ambiguous PLZ × 397 ambiguous city names; 121 Thuringian stale-VZ250 deviations recorded). Deliverable 2: `scrapers/ba_jobsuche.py` (BAJobsucheCollector — SSR HTML parser, allowlist-only, robots-as-evidence, city→NUTS via crosswalk, 403-rate-limit with 45s cooldown+retry, HMAC dedupe, 25 items/page, 400-page window). `main.py` SourceConfig slug `ba`, `make scrape-ba-jobsuche` / `make reference-germany`. 22 new respx tests (389 total). **DoD verified live:** 400/400 pages, 10,000 rows, `status=complete`, `expected_pages == completed_pages`, `expected_rows == row_count`, zero 4xx, 10,000 unique 64-hex HMAC source_ids, 100% first_published coverage, 358/400 distinct NUTS 3 codes mapped (6,448 mapped, 3,497 unmapped, 55 ambiguous), zero PII. **Honest bound:** 10,000-listing per-query window (400 pages × 25), plus BA rate-limits with 403 after ~50 requests (Apache edge token bucket, ~45s idle recovers); 7 throttle events absorbed in the live sweep. | `make check` passed (389 tests); DoD sweep complete (10,000 rows) |
 | P3 | 2026-08-24 | **Complete** | **EU coverage + main-app push-readiness assessment** (planning, no code) — the prep step before the Increment 9 segmented-DE build. Counted rows per EU country across all 11 collection partitions (**379,395 rows, ~322.8k distinct postings** in 7 countries); computed advertised-vs-collected coverage per source (CZ 100% / PL 100% by construction, FR 43.2%, BE 5.3%, NL 2.6%, DE 0.4–0.5% of the ~1.9M stock, NO n/a — event log); verified lab output is byte-compatible with the main app's `stg_postings.sql`/`stg_collection_manifests.sql`; identified `accepted_values: [DE, SE]` (`schema.yml:66`) as the **only** gate blocker — DE is already eligible, the other 6 countries are a main-checkout decision (out of the lab's remit); concluded DE is **pipeline-ready but not coverage-sufficient** (14,841 rows ≈ 0.5% of stock; BA region mapping 64.5%, below the 80% bar) — the Increment 9 plan is the correct readiness step. | docs only; `make check` unchanged (389 tests) |
-| 9 | 2026-08-24 | **Complete** | **BA Jobsuche — segment-provenance German regional coverage** (Increment 9, Germany step 2; plan `.kilo/plans/1787577245495-ba-segment-provenance-de-coverage.md`). **Gate probes (live, ~40 paced requests, zero 4xx):** Bundesland/city/PLZ all resolve as `wo=`; **`wo=Landkreis+…` is broken** (every variant returns the same 7 Rosenheim postings — a fuzzy-match miss) and compound `-Kreis` names are unreliable (`Rhein-Sieg-Kreis` → Rüdesheim), so the level-2 backbone uses **municipality/PLZ segments** (10,761 from the crosswalk: 10,085 unique-name municipalities + PLZ for the 397 ambiguous names, each PLZ a single NUTS 3); `umkreis=0` confirmed tight ⇒ **Tier 3 = `mapped`**; no server-rendered total ⇒ page-400 oracle; `veroeffentlichtseit` filter works (level-4 axis); Berlin/München/Hamburg truncate at 400 pages. **Built:** `scrapers/ba_segments.py` (Segment/SegmentFrontier, `build_initial_frontier`, Bundesländer with city-state pre-subdivision), `normalize_location()` in `scrapers/ba_jobsuche.py` (Tier-1 qualifier strip + NUTS-1 alias map, Tier-2 segment-context disambiguation, Tier-3 single-NUTS-3 provenance gated on `umkreis=0`, non-geographic markers → `ambiguous`), segmented `BAJobsucheCollector` mode (completeness oracle, breadth-first region ordering, atomic segments, resumable frontier saved after every segment), scope `de-stock-segmented`, `main.py` `--segmented/--max-segments/--min-level/--umkreis`, per-chunk timestamped partitions, `make scrape-ba-segmented` + `make check-ba-segmented` (push-readiness gate: ≥85% mapped, ≥390/400 NUTS 3, ≤5% unmapped). 21 new respx tests (410 total). **Live evidence:** two bounded chunks — 85 segments, 14,458 distinct rows, **100% mapped, 0 unmapped**, zero 4xx, 13 throttles absorbed, every partition `status=complete` and reconciled; the frontier persists for the remaining ~10,600-segment census. | `make check` passed (410 tests); live chunks complete; full census continues resumably |
+| 9 | 2026-08-24 | **In progress — live census** | **BA Jobsuche — segment-provenance German regional coverage** (Increment 9, Germany step 2; plan `.kilo/plans/1787577245495-ba-segment-provenance-de-coverage.md`). **Gate probes (live, ~40 paced requests, zero 4xx):** Bundesland/city/PLZ all resolve as `wo=`; **`wo=Landkreis+…` is broken** (every variant returns the same 7 Rosenheim postings — a fuzzy-match miss) and compound `-Kreis` names are unreliable (`Rhein-Sieg-Kreis` → Rüdesheim), so the level-2 backbone uses **municipality/PLZ segments** (10,761 from the crosswalk: 10,085 unique-name municipalities + PLZ for the 397 ambiguous names, each PLZ a single NUTS 3); `umkreis=0` confirmed tight ⇒ **Tier 3 = `mapped`**; no server-rendered total ⇒ page-400 oracle; `veroeffentlichtseit` filter works (level-4 axis); Berlin/München/Hamburg truncate at 400 pages. **Built:** `scrapers/ba_segments.py` (Segment/SegmentFrontier, `build_initial_frontier`, Bundesländer with city-state pre-subdivision), `normalize_location()` in `scrapers/ba_jobsuche.py` (Tier-1 qualifier strip + NUTS-1 alias map, Tier-2 segment-context disambiguation, Tier-3 single-NUTS-3 provenance gated on `umkreis=0`, non-geographic markers → `ambiguous`), segmented `BAJobsucheCollector` mode (completeness oracle, breadth-first region ordering, atomic segments, resumable frontier saved after every segment), scope `de-stock-segmented`, `main.py` `--segmented/--max-segments/--min-level/--umkreis`, per-chunk timestamped partitions, `make scrape-ba-segmented` + `make check-ba-segmented` (push-readiness gate: ≥85% mapped, ≥390/400 NUTS 3, ≤5% unmapped). 21 new respx tests (410 total). **Live census progress (63 chunks, ~6 h of paced collection):** 65 reconciled partitions, **203,674 rows**, **mapped 203,215 (99.77%), ambiguous 459 (all non-geographic markers), unmapped 0, low_confidence 0**; Tier breakdown 186,761 / 2,284 / 14,170 (Tier 1/2/3); **PII scan clean** (0 e-mails/URLs/native refs/PLZ/city strings); **zero 4xx**, throttles absorbed as `throttle_events`; München subdivided at the 400-page cap (PLZ children enqueued), **zero truncated segments left unsubdivided**; every partition `status=complete` and reconciled. **Remaining:** ~8,171 frontier segments (~20 h at the current pace) until `make check-ba-segmented` passes (124/400 NUTS 3 at session end). | `make check` passed (410 tests); census resumable at `data/state/ba_segment_frontier.json` |
 ## Session Notes
 
 ### 2026-08-20 - Increment L0 (context cleanup)
@@ -1163,22 +1163,37 @@ PLZ → single NUTS 3), 400/400 NUTS 3 covered by PLZ rows.
 - `SCRAPER_FEASIBILITY.md` — "BA Jobsuche — segmented stock" sub-row with all
   probe results and the locked segment-key strategy.
 
-**Live evidence:** two bounded chunks (`--max-segments 25 + 60`, foreground,
-`--min-level 2`, 1 s pacing) — 85 segments processed, 14,458 distinct rows,
-**100% mapped (no ambiguous, no unmapped — the covered region is Stuttgart/Böblingen
-where all labels resolve via Tier 1), 0 unmapped, 0 low_confidence**, 13 throttle
-events absorbed (all cooldowns succeeded), every partition `status=complete` with
-matching `expected_pages == completed_pages` and `expected_rows == row_count`.
-The frontier at `data/state/ba_segment_frontier.json` has 10,690 pending segments
-ready for the next session's continuation. The readiness check (`make check-ba-segmented`)
-correctly rejects the partial state (5/400 NUTS 3) — the full census will clear
-the ≥390/400 threshold.
+**Live evidence (two sessions, 63 bounded chunks of `--max-segments 40`):**
+65 partitions under `de-stock-segmented`, every one `status=complete` with
+matching `expected_pages == completed_pages` and `expected_rows == row_count`;
+**203,674 distinct rows** (deduped on HMAC source_id across partitions),
+**mapped 203,215 (99.77%), ambiguous 459 (the non-geographic markers —
+`Verschiedene Arbeitsorte` / `Deutschland` / `Bundesweit` — classified
+`ba_location_multiple`/`ba_location_nationwide`), unmapped 0, low_confidence 0**.
+**Per-tier breakdown: Tier 1 186,761 (city crosswalk + qualifier), Tier 2 2,284
+(segment-context disambiguation), Tier 3 14,170 (segment provenance)** — the
+inference is doing real work in production: 16,454 rows recovered from labels
+the crosswalk alone cannot resolve. PII scan of all NDJSON: **0 e-mails, 0 URLs,
+0 native refs, 0 PLZ, 0 city strings**. Zero unresolved 4xx; all throttles
+absorbed as `throttle_events` (45 s cooldown each). **München (DE212) truncated
+at the 400-page cap and was subdivided** into its crosswalk PLZ children with
+the segment marked `subdivided`; **zero truncated segments left unsubdivided**.
+Structural DoD holds at the session boundary: all Bundesländer complete or
+subdivided, all processed Kreise complete or subdivided. The frontier at
+`data/state/ba_segment_frontier.json` has **8,171 pending segments** (2,604
+complete, 4 subdivided) ready for the next session.
 
 **make check:** 410 tests passed (389 + 21), ruff + mypy strict + pytest green.
 
-**Next session:** run `make scrape-ba-segmented` with `--max-segments 40` repeatedly
-(foreground, serial) until the readiness check passes. Each chunk is ~5–15 minutes
-depending on which segments come up. The frontier is durable; a reap loses at most
-one segment. Once the readiness check passes, the `de-stock-segmented` scope is
-push-ready for the main app (the only main-side blocker is `_verify_single_scope`
-— a multi-scope orchestration constraint, not a data-quality issue).
+**Next session:** run `make scrape-ba-segmented` with `--max-segments 40`
+repeatedly (foreground, serial, ~5–15 min per chunk; do NOT pass `--fresh`,
+which would discard the frontier) until `make check-ba-segmented` passes. The
+remaining ~8,171 segments are the level-2 backbone's tail (Bavaria regions,
+the DExx–DEGx states) plus the level-0 unscoped catch-all and level-1
+Bundesland probes that come after the backbone; Berlin and Hamburg will each
+truncate at 400 pages and subdivide like München. Remaining runtime is on the
+order of ~20 h at the measured ~10 chunks/hour; the frontier is durable and a
+reap loses at most one segment. Once `make check-ba-segmented` passes, the
+`de-stock-segmented` scope is push-ready for the main app (the only main-side
+blocker is `_verify_single_scope` — a multi-scope orchestration constraint,
+not a data-quality issue).

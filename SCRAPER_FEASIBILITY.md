@@ -311,3 +311,12 @@ NUTS 3. For the 397 ambiguous names the PLZ child segment carries the single
 NUTS 3 instead. Bundesland and unscoped segments carry no single-NUTS-3
 provenance and therefore never invoke Tier 3 (they keep Tier-1/2 semantics
 only).
+
+**Census progress (live, 2026-08-24, 63 bounded chunks of `--max-segments 40`):**
+65 partitions under `de-stock-segmented`, all `status=complete` and reconciled;
+**203,674 distinct rows, mapped 99.77% (203,215), ambiguous 459 (non-geographic
+markers), unmapped 0, low_confidence 0**; per-tier 186,761 / 2,284 / 14,170
+(Tier 1/2/3); PII scan clean; zero unresolved 4xx; München subdivided at the
+400-page cap; zero truncated segments left unsubdivided. Readiness gate
+(`make check-ba-segmented`) reports **124/400 NUTS 3** — the remaining ~8,171
+frontier segments complete the ≥390/400 breadth target.
