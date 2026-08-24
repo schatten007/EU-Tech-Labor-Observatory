@@ -373,6 +373,25 @@ accepted and stated per source in `coverage_limitations`.
    max** (page 401+ empty), and BA rate-limits with 403 after ~50 requests
    (Apache edge token bucket; 45 s idle cooldown absorbs it — 7 events in the
    live sweep). Next: StepStone.
+2a. **BA Jobsuche segmented regional census** (`de-stock-segmented`).
+   **BUILT 2026-08-24** — plan `.kilo/plans/1787577245495-ba-segment-provenance-de-coverage.md`.
+   Gate probes decided the segment axes (Bundesland ✓, municipality ✓, PLZ ✓,
+   **`wo=Landkreis+…` broken** — all return the same 7 Rosenheim postings — so
+   the level-2 backbone is municipality/PLZ segments, not Kreis names; `umkreis=0`
+   confirmed tight ⇒ Tier 3 = `mapped`). New: three-tier region inference
+   (`normalize_location` — qualifier strip/alias, segment-context disambiguation,
+   single-NUTS-3 provenance), the resumable frontier
+   (`data/state/ba_segment_frontier.json`; `--segmented --max-segments N --fresh
+   --min-level L --umkreis K`), per-segment completeness oracle, breadth-first
+   regional ordering (all level-2 segments before any subdivision), scope
+   `de-stock-segmented`, `make scrape-ba-segmented` / `make check-ba-segmented`.
+   **Live canary chunks (2026-08-24): 85 segments, 14,458 distinct rows, 100%
+   mapped, zero 4xx, all partitions `status=complete` and reconciled.** The DoD
+   thresholds (≥85% mapped, ≥390/400 NUTS 3, ≤5% unmapped) are asserted by
+   `make check-ba-segmented`; the full ~10,600-segment census continues across
+   resumable chunks (frontier persists). Honest bound: a segment ends complete
+   when its pagination closes before the 400-page cap; truncated metros
+   (Berlin/Hamburg/München) subdivide into PLZ/recency children.
 3. **StepStone** feasibility gate → `StepStoneCollector` → canary → DoD sweep.
 4. **Indeed** gate evaluates litigation risk → build or flag.
 5. Subsequent sources in technical-feasibility order.

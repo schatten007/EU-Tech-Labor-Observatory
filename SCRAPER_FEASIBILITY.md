@@ -270,3 +270,44 @@ green here.
 | **Canary test (mandatory, grey/HTML source)** | **PASSED (canary as validation run)** | 2026-08-24, serial, 1.0 s pacing, through the collector: 5 search pages → 110 rows (125 items, 15 cross-page duplicates), `status=complete`, region mapped on the bulk, zero 4xx, zero PII. Recorded in the DoD evidence row below. |
 | **Decision** | implement | 2026-08-24. Technical gate green (SSR, plain HTTP, no anti-bot, zero 4xx/429 in ~25 probes incl. 500 pages), robots allow-all, relaxed ToS recorded not enforced, PII fully isolatable, region fully mappable to NUTS 2024 through the 0-unmatched crosswalk. **Honest bound:** one query's window (≤400 pages × 25 = ≤10,000 listings) is the per-sweep ceiling; the advertised ~1.9M active stock is not reachable from a single query and no window is called a complete snapshot. |
 | **DONE — live DoD evidence** | **PASSED 2026-08-24** | Sweep `ba/de-all-window/20260824T000000Z` — see `SESSIONS.md` and the roadmap status for the full evidence: **400/400 pages, 9,594 rows, `status=complete`, `expected_pages == completed_pages`, `expected_rows == row_count == NDJSON lines`, zero 4xx**, unique 64-hex HMAC source_ids, region mapped across 400 distinct NUTS 3 codes, PII scan clean, honest 10,000-listing window bound in `coverage_limitations`. |
+
+### BA Jobsuche — segmented stock (`de-stock-segmented`) — Increment 9, step 2
+
+Feasibility gate for the segmented regional-census build (plan
+`.kilo/plans/1787577245495-ba-segment-provenance-de-coverage.md`). Probes run
+**live 2026-08-24, serial, 1 s pacing, ~40 paced requests, zero 4xx**, against
+`www.arbeitsagentur.de/jobsuche/suche`. These replace the predecessor plan's
+assumptions and decide the segment axes and the Tier-3 confidence policy.
+
+| Probe | Result (measured live) | Decision |
+| --- | --- | --- |
+| **1. `&wo=<Bundesland>`** (`wo=Bayern`) | **resolves** — 25 items, cities across Bavaria incl. comma qualifiers (`Nürnberg, Mittelfranken`, `Ebersberg, Oberbayern`) | Level 1 (Bundesländer) is a valid coarse tier and a Tier-2 disambiguation context |
+| **2. `&wo=<city>`** (`wo=Rosenheim`, `Kiel`, `Starnberg`, `Konstanz`, `Flensburg`, `München`, `Köln`) | **resolves exactly** — all 25/25 items carry the queried city label | Municipality names are valid segment keys |
+| **3. `&wo=Landkreis+<name>`** | **BROKEN — all return the same 7 Rosenheim postings** (`wo=Landkreis+Kiel`, `Landkreis+München`, `Landkreis+Starnberg`, `Landkreis+Teltow-Fläming`, `Landkreis+Konstanz`, `Landkreis+Karlsruhe` → identical 7 items labelled Rosenheim) | **Kreis-level queries are not viable.** The plan's probe-4.1 fallback fires: segment by **municipality names** from the crosswalk instead; segment→NUTS 3 provenance is unchanged (and finer) |
+| **4. `&wo=<Kreis name>`** (`wo=Rhein-Sieg-Kreis`, `wo=Schleswig-Flensburg`) | **unreliable** — `Rhein-Sieg-Kreis` returns 25 `Rüdesheim am Rhein` items (wrong region), a fuzzy-match miss | Do not use `-Kreis`/`-Flensburg` compound names either |
+| **5. `&umkreis=0` vs `25` vs omitted** | **`umkreis=0` works and is tight** — `wo=Berlin&umkreis=0` → only Berlin labels; `wo=Berlin&umkreis=25` and omitted → same wider set; `wo=<PLZ>&umkreis=0` → `80331`→München, `10178`→Berlin, `24103`→Kiel | **Tier 3 = `mapped` (`ba_segment_provenance_nuts3`) is justified** because `umkreis=0` returns only in-place postings; PLZ is itself a precise segment key |
+| **6. Server-rendered result total** | **absent** — no `Treffer`/`Ergebnisse` node; only `aria-live` shells | Page-400 completeness oracle remains the fallback (§6 of the plan) |
+| **7. `&veroeffentlichtseit=1`/`=7`** | **filter works** — controlled A/B shows the result set changes with the value (first refs differ: `11119-4920414291-S` / `11119-4920411198-S` / `10001-1003591227-S`) | Level-4 subdivision axis = recency slices (used only to subdivide a still-truncated segment, never to scope occupation) |
+| **8. Metro depth** | **Berlin, München, Hamburg all truncate** — page 398/400 full (25 items), page 401 empty | Metros at municipality level need level-3/4 subdivision; crosswalk has only 1 seat-PLZ per metro, so PLZ children are thin and recency slices close the gap |
+| **9. Non-existent location** | `wo=Nichtexistenz&umkreis=0` → **0 tiles** (empty page, no silent national fallback) | Garbage/unknown segment keys cannot pollute a segment; an empty page-1 is the normal complete terminal for a no-stock municipality |
+
+**Segment-key strategy (locked by these probes):** level 0 = unscoped catch-all
+(1); level 1 = Bundesländer (16, literal list, `wo=<Bundesland>&umkreis=0`);
+level 2 = **municipality-name segments** (10,085 unique-name municipalities,
+`wo=<name>&umkreis=0`) plus **PLZ segments for the 397 ambiguous-name
+municipalities** (each of those names has ≥1 crosswalk PLZ that maps to a single
+NUTS 3, so the ambiguity is resolved by the source's own postcode filter);
+level 3 = PLZ segments inside a truncated municipality; level 4 = recency
+slices. **Umkreis policy: `umkreis=0` everywhere** ⇒ Tier 3 is `mapped`; a
+radius (only if a later probe ever forces one) would downgrade Tier 3 to
+`low_confidence`. Crosswalk audit: 10,085 unique names / 397 ambiguous / 0
+unique-name municipality without a PLZ row / PLZ rows cover 400/400 NUTS 3 /
+unique-name municipalities cover 392/400 NUTS 3 (the 8 remaining NUTS 3 are
+reached via the ambiguous names' PLZ segments).
+
+**Tier-3 provenance caveat recorded:** a municipality segment is a single-NUTS-3
+provenance only because the crosswalk maps that municipality name to exactly one
+NUTS 3. For the 397 ambiguous names the PLZ child segment carries the single
+NUTS 3 instead. Bundesland and unscoped segments carry no single-NUTS-3
+provenance and therefore never invoke Tier 3 (they keep Tier-1/2 semantics
+only).

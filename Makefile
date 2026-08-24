@@ -81,6 +81,18 @@ scrape-finland:
 scrape-ba-jobsuche:
 	uv run --offline python main.py --source ba --date $(shell date -u +%Y-%m-%d)
 
+# Wired to Increment 9 (Germany, step 2): BA Jobsuche segmented regional census.
+# Walks the resumable frontier (data/state/ba_segment_frontier.json) instead of
+# one unscoped window: every Bundesland (probed), every municipality/PLZ segment
+# walked to completeness, truncated metros subdivided into PLZ/recency children.
+# Honest runtime: ~1 s per page, so a small municipality is ~2 pages and the
+# full ~10,500-segment census is many hours; run in bounded resumable chunks
+# with --max-segments N (checked BETWEEN segments, never mid-segment). Default
+# resumes pending segments; use --fresh to rebuild the frontier. --umkreis 0
+# (default) keeps Tier-3 provenance mapped; a radius downgrades Tier 3.
+scrape-ba-segmented:
+	uv run --offline python main.py --source ba --segmented --date $(shell date -u +%Y-%m-%d)
+
 # NOT part of check. Rebuilds the pinned German PLZ/Stadt -> NUTS 2024 crosswalk
 # (destatis Kreise AGS->NUTS official key x BKG VZ250_GEM municipality register
 # x destatis Anschriftenverzeichnis Zustell-PLZ, validated against Eurostat
@@ -88,6 +100,14 @@ scrape-ba-jobsuche:
 # data/reference/.cache. The CSV is committed for the offline gate.
 reference-germany:
 	uv run --offline python -m scrapers.reference_germany
+
+# NOT part of check. Increment 9 DoD proof (plan §9): loads every partition
+# under ba/de-stock-segmented, reconciles the manifests, and asserts the
+# app-derived thresholds (mapped share >=85%, >=390/400 NUTS 3 with >=1 mapped
+# posting, unmapped <=5%). Run after the segmented census chunks; fails loudly
+# if the DE slice is not push-ready.
+check-ba-segmented:
+	uv run --offline python scripts/check_ba_segmented_readiness.py
 
 # NOT part of check. Stamps removed_at on postings closed between the two most
 # recent MPSV sweeps (compares HMAC source_ids only; writes closures.ndjson).

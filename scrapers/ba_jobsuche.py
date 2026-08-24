@@ -73,6 +73,7 @@ import httpx
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, ConfigDict, Field
 
+from scrapers.ba_segments import BA_BUNDESLAENDER, BA_LEVEL4_RECENCY_DAYS, Segment, SegmentFrontier
 from scrapers.base import (
     REQUEST_TIMEOUT_SECONDS,
     BaseCollector,
@@ -96,6 +97,19 @@ BA_SCOPE_PARAMS: dict[str, str] = {
     "surface": "public-html-search",
     "query": "all-active",
     "segmentation": "unscoped",
+}
+#: Increment 9 scope: per-segment regional census (see SCRAPER_FEASIBILITY.md
+#: "BA Jobsuche — segmented stock"). The scope_hash distinguishes partitions
+#: from the two strategies; the main app must not be fed both DE scopes at once
+#: (`scripts/publish.py:756` `_verify_single_scope` raises on a second scope).
+BA_SEGMENTED_SCOPE_ID = "de-stock-segmented"
+BA_SEGMENTED_SCOPE_PARAMS: dict[str, str] = {
+    "source": "ba",
+    "country": "DE",
+    "surface": "public-html-search",
+    "query": "segmented-regional-census",
+    "segmentation": "segment-provenance",
+    "region_inference": "three-tier",
 }
 BA_LICENCE_REFERENCE = "https://www.arbeitsagentur.de/"
 BA_ACCESS_METHOD = "robots-permitted-html"
@@ -255,6 +269,139 @@ class RegionResolution(BaseModel):
     method: str = "not_available"
 
 
+#: Non-geographic location markers BA states on the search page. These are not
+#: lookup failures: the source stated a location it cannot narrow to one NUTS 3,
+#: so they resolve to ``ambiguous`` with a distinct method, never to ``unmapped``
+#: (which keeps ``unmapped`` meaning "our lookup failed" — the honest signal
+#: that drives mapper work). Lowercased marker -> (status, method).
+BA_NON_GEOGRAPHIC_MARKERS: dict[str, tuple[MappingStatus, str]] = {
+    "verschiedene arbeitsorte": ("ambiguous", "ba_location_multiple"),
+    "deutschland": ("ambiguous", "ba_location_nationwide"),
+    "bundesweit": ("ambiguous", "ba_location_nationwide"),
+    "ausland": ("ambiguous", "ba_location_foreign"),
+}
+
+#: Comma-qualifier -> NUTS-1 prefix alias map (the German Bundesland is
+#: ``nuts_code[:3]``: DE1=BW … DEG=TH). BA disambiguates same-named places with
+#: a qualifier (``Heidelberg, Neckar``, ``Neunkirchen, Saar``,
+#: ``Rosenheim, Oberbayern``); filtering the city's NUTS-3 candidates by the
+#: qualifier's NUTS-1 prefix resolves them without rebuilding the crosswalk.
+BA_NUTS1_ALIASES: dict[str, str] = {
+    "baden": "DE1",
+    "württemberg": "DE1",
+    "neckar": "DE1",
+    "hegau": "DE1",
+    "oberbayern": "DE2",
+    "niederbayern": "DE2",
+    "oberpfalz": "DE2",
+    "oberfranken": "DE2",
+    "mittelfranken": "DE2",
+    "unterfranken": "DE2",
+    "schwaben": "DE2",
+    "bayern": "DE2",
+    "rheinland": "DEA",
+    "westfalen": "DEA",
+    "nordrhein-westfalen": "DEA",
+    "pfalz": "DEB",
+    "eifel": "DEB",
+    "rheinland-pfalz": "DEB",
+    "hessen": "DE7",
+    "saar": "DEC",
+    "saarland": "DEC",
+    "sachsen": "DED",
+    "anhalt": "DEE",
+    "sachsen-anhalt": "DEE",
+    "holstein": "DEF",
+    "schleswig": "DEF",
+    "schleswig-holstein": "DEF",
+    "thüringen": "DEG",
+    "mecklenburg": "DE8",
+    "mecklenburg-vorpommern": "DE8",
+    "pommern": "DE8",
+    "brandenburg": "DE4",
+    "niedersachsen": "DE9",
+    "berlin": "DE3",
+    "hamburg": "DE6",
+    "bremen": "DE5",
+}
+
+
+def normalize_location(
+    crosswalk: GermanCrosswalk,
+    city: str | None,
+    *,
+    segment_nuts1: str | None = None,
+    segment_nuts3: str | None = None,
+) -> RegionResolution:
+    """Shared three-tier-aware location normalizer (plan §5).
+
+    Tier 1: the city resolves to exactly one NUTS 3 -> ``mapped``. A comma
+    qualifier is first stripped, and when it names a known NUTS-1 region the
+    candidates are filtered by that prefix. Tier 2: an ambiguous city is
+    narrowed by the current segment's NUTS-1/NUTS-3 context -> ``mapped`` /
+    ``ba_segment_disambiguated``. Non-geographic markers map to ``ambiguous``.
+    Tier 3 (segment provenance) is applied by the collector's ``normalize``,
+    not here, because it needs the segment's ``umkreis`` policy.
+    """
+    if not city:
+        return RegionResolution(method="not_available")
+    text = city.strip()
+    lower = text.lower()
+    for marker, (status, method) in BA_NON_GEOGRAPHIC_MARKERS.items():
+        if lower == marker or lower.startswith(f"{marker} "):
+            return RegionResolution(status=status, method=method)
+
+    base = text
+    qualifier: str | None = None
+    if "," in text:
+        parts = [part.strip() for part in text.split(",", 1)]
+        base, qualifier = parts[0], parts[1]
+
+    candidates = crosswalk.candidates_for_name(base)
+    qualifier_prefix = BA_NUTS1_ALIASES.get(qualifier.lower()) if qualifier else None
+    if qualifier_prefix and candidates:
+        filtered = [c for c in candidates if c[0].startswith(qualifier_prefix)]
+        if filtered:
+            distinct = {(c[0], c[1]) for c in filtered}
+            if len(distinct) == 1:
+                nuts, label = next(iter(distinct))
+                return RegionResolution(
+                    nuts_code=nuts,
+                    nuts_label=label,
+                    status="mapped",
+                    method="ba_city_qualifier_nuts3",
+                )
+            candidates = filtered
+
+    if candidates:
+        distinct = {(c[0], c[1]) for c in candidates}
+        if len(distinct) == 1:
+            nuts, label = next(iter(distinct))
+            return RegionResolution(
+                nuts_code=nuts,
+                nuts_label=label,
+                status="mapped",
+                method="ba_city_municipality_nuts3",
+            )
+        # Tier 2: the segment's own region narrows an ambiguous city.
+        narrowed: list[tuple[str, str, str]] = []
+        if segment_nuts3:
+            narrowed = [c for c in candidates if c[0] == segment_nuts3]
+        if not narrowed and segment_nuts1:
+            narrowed = [c for c in candidates if c[0].startswith(segment_nuts1)]
+        if len({(c[0], c[1]) for c in narrowed}) == 1:
+            nuts, label, _kreis = next(iter(narrowed))
+            return RegionResolution(
+                nuts_code=nuts,
+                nuts_label=label,
+                status="mapped",
+                method="ba_segment_disambiguated",
+            )
+        return RegionResolution(status="ambiguous", method="ba_city_municipality_ambiguous")
+
+    return RegionResolution(method="not_available")
+
+
 class GermanCrosswalk:
     """Loads the pinned German PLZ/Stadt -> NUTS 2024 table and resolves regions.
 
@@ -274,6 +421,9 @@ class GermanCrosswalk:
         self._name_map: dict[str, list[tuple[str, str, str]]] = {}
         # plz -> list of (nuts_code, nuts_label, kreis_name)
         self._plz_map: dict[str, list[tuple[str, str, str]]] = {}
+        # municipality_name -> list of (plz, (nuts_code, nuts_label, kreis_name))
+        # built from PLZ rows only, used to disambiguate multi-NUTS-3 names.
+        self._plz_name_map: dict[str, list[tuple[str, tuple[str, str, str]]]] = {}
 
         with path.open(encoding="utf-8", newline="") as handle:
             for row in csv.DictReader(handle):
@@ -287,33 +437,59 @@ class GermanCrosswalk:
                     self._name_map.setdefault(name, []).append((nuts, label, kreis))
                 elif st == "plz" and code:
                     self._plz_map.setdefault(code, []).append((nuts, label, kreis))
+                    if name:
+                        self._plz_name_map.setdefault(name, []).append((code, (nuts, label, kreis)))
 
         if not self._name_map:
             raise ValueError(f"German crosswalk reference is empty: {path}")
 
-    def resolve_by_city(self, city: str | None) -> RegionResolution:
-        if not city:
-            return RegionResolution(method="not_available")
-        candidates = self._name_map.get(city.strip())
+    # -- shared accessors (segment building + normalizer) -------------------
+
+    def candidates_for_name(self, name: str) -> list[tuple[str, str, str]]:
+        """All ``(nuts_code, nuts_label, kreis_name)`` candidates for a city name."""
+        name = name.strip()
+        candidates = self._name_map.get(name)
         if not candidates:
-            # Try case-insensitive match
-            normalized = city.strip().lower()
-            for name, c in self._name_map.items():
-                if name.lower() == normalized:
+            normalized = name.lower()
+            for known, c in self._name_map.items():
+                if known.lower() == normalized:
                     candidates = c
                     break
-        if not candidates:
-            return RegionResolution(method="not_available")
-        distinct = {(c[0], c[1]) for c in candidates}
-        if len(distinct) == 1:
-            nuts, label = next(iter(distinct))
-            return RegionResolution(
-                nuts_code=nuts,
-                nuts_label=label,
-                status="mapped",
-                method="ba_city_municipality_nuts3",
-            )
-        return RegionResolution(status="ambiguous", method="ba_city_municipality_ambiguous")
+        return list(candidates or ())
+
+    def municipality_names_by_nuts3(self) -> dict[str, set[str]]:
+        """Distinct municipality names -> set of NUTS-3 codes they appear in."""
+        out: dict[str, set[str]] = {}
+        for name, candidates in self._name_map.items():
+            out[name] = {c[0] for c in candidates}
+        return out
+
+    def plz_rows_for_name(self, name: str) -> list[tuple[str, str]]:
+        """PLZ rows belonging to a municipality name: ``(plz, nuts_code)`` pairs."""
+        name = name.strip()
+        return [(plz, nuts) for plz, (nuts, _label, _kreis) in self._plz_name_map.get(name, [])]
+
+    def plz_codes_for_nuts(self, nuts_code: str) -> list[str]:
+        """PLZ codes whose NUTS 3 matches, for subdividing a truncated segment."""
+        return [
+            plz
+            for plz, candidates in self._plz_map.items()
+            if any(c[0] == nuts_code for c in candidates)
+        ]
+
+    def resolve_by_city(self, city: str | None) -> RegionResolution:
+        return normalize_location(self, city)
+
+    def resolve_by_city_segmented(
+        self,
+        city: str | None,
+        *,
+        segment_nuts1: str | None = None,
+        segment_nuts3: str | None = None,
+    ) -> RegionResolution:
+        return normalize_location(
+            self, city, segment_nuts1=segment_nuts1, segment_nuts3=segment_nuts3
+        )
 
     def resolve_by_plz(self, plz: str | None) -> RegionResolution:
         if not plz:
@@ -370,6 +546,14 @@ class BAJobsucheCollector(BaseCollector):
         pacing_interval: float = BA_PACING_SECONDS,
         policy: RetryPolicy | None = None,
         timeout: float = REQUEST_TIMEOUT_SECONDS,
+        # Segmented mode (Increment 9). When ``frontier`` is given, the sweep
+        # walks that frontier's pending segments instead of the single unscoped
+        # query; ``max_pages`` is then ignored (segments are atomic).
+        frontier: SegmentFrontier | None = None,
+        frontier_path: Path = Path("data/state/ba_segment_frontier.json"),
+        max_segments: int | None = None,
+        min_level: int = 0,
+        umkreis: int = 0,
     ) -> None:
         super().__init__(
             scope_id=scope_id, sweep_id=sweep_id, observed_at=observed_at, timeout=timeout
@@ -392,6 +576,31 @@ class BAJobsucheCollector(BaseCollector):
         self.duplicates_dropped = 0
         self.empty_pages = 0
         self.throttle_events = 0
+        # Segmented-mode counters (populated only when a frontier is given).
+        self._frontier = frontier
+        self._frontier_path = frontier_path
+        self._max_segments = max_segments
+        self._min_level = min_level
+        self._umkreis = umkreis
+        self.segments_processed = 0
+        self.segments_complete = 0
+        self.segments_truncated = 0
+        self.segments_subdivided = 0
+        self.segments_failed = 0
+        self.active_segment: Segment | None = None
+
+    @property
+    def frontier(self) -> SegmentFrontier | None:
+        return self._frontier
+
+    @property
+    def measured_stock_lower_bound(self) -> int:
+        """Sum of rows over complete segments — the measured active-stock lower bound."""
+        if self._frontier is None:
+            return 0
+        return sum(
+            s.rows_yielded for s in self._frontier.segments.values() if s.status == "complete"
+        )
 
     # -- robots (evidence only) --------------------------------------------
 
@@ -453,7 +662,225 @@ class BAJobsucheCollector(BaseCollector):
     # -- fetch -------------------------------------------------------------
 
     def fetch(self) -> AsyncIterator[RawRecord]:
+        if self._frontier is not None:
+            return self._fetch_segmented()
         return self._fetch()
+
+    def _segment_url(self, key: str, page_num: int) -> str:
+        """Build the full BA search URL for a segment key at a given page."""
+        if key:
+            return f"{BA_SEARCH_URL}&{key}&page={page_num}"
+        return f"{BA_SEARCH_URL}&page={page_num}"
+
+    async def _fetch_segmented(self) -> AsyncIterator[RawRecord]:
+        assert self._frontier is not None
+        await self._load_robots()
+        seen: set[str] = set()
+        self.total_pages = 0
+        self.completed_pages = 0
+
+        for segment in self._frontier.pending(min_level=self._min_level):
+            if self._max_segments is not None and self.segments_processed >= self._max_segments:
+                break
+
+            self.active_segment = segment
+            try:
+                if segment.level == 0:
+                    # Unscoped national catch-all: walk fully. It is the only
+                    # source of the non-geographic tail (Verschiedene
+                    # Arbeitsorte / Deutschland / Bundesweit).
+                    async for rec in self._walk_segment(segment, seen):
+                        yield rec
+                    if segment.status == "truncated":
+                        self._subdivide_segment(segment)
+                elif segment.level == 1:
+                    # Bundesland: structural truncation probe (page 400 full =>
+                    # >10k postings, provably truncated). Either way it ends
+                    # ``subdivided``: its municipality children (already seeded
+                    # at level 2) are the collection units, so no Bundesland
+                    # pages are walked — a walk would duplicate municipality
+                    # rows at ~2 h of runtime for zero marginal NUTS-3 breadth.
+                    truncated = await self._truncation_probe(segment)
+                    if truncated:
+                        self.segments_truncated += 1
+                    self._subdivide_segment(segment)
+                else:
+                    # Level 2 (municipalities / PLZ backbone) and level 3/4
+                    # (subdivision children): walk fully with the oracle.
+                    async for rec in self._walk_segment(segment, seen):
+                        yield rec
+                    if segment.status == "truncated":
+                        self._subdivide_segment(segment)
+            except RuntimeError:
+                # Schema drift and hard blocks are systemic — fail loudly,
+                # never mark a segment failed and continue collecting garbage.
+                raise
+            except Exception as exc:  # noqa: BLE001
+                self._log.error("ba_segment_failed", key=segment.key, error=str(exc))
+                segment.status = "failed"
+                self.segments_failed += 1
+
+            self.segments_processed += 1
+            self.active_segment = None
+            self._frontier.save(self._frontier_path)
+
+        self.total_elements = len(seen)
+        self.total_pages = self.completed_pages  # reconcile the manifest
+        self._log.info(
+            "ba_segmented_sweep_summary",
+            search_pages=self.completed_pages,
+            segments_processed=self.segments_processed,
+            segments_complete=self.segments_complete,
+            segments_truncated=self.segments_truncated,
+            segments_subdivided=self.segments_subdivided,
+            segments_failed=self.segments_failed,
+            items=self.items_seen,
+            unique_rows=self.total_elements,
+            duplicates=self.duplicates_dropped,
+        )
+
+    async def _truncation_probe(self, segment: Segment) -> bool:
+        """Fetch page ``BA_MAX_QUERY_PAGES`` once; 25 items proves truncation."""
+        url = self._segment_url(segment.key, BA_MAX_QUERY_PAGES)
+        response = await self._get(url)
+        if response.status_code != 200:
+            return False
+        items = parse_page(response.text)
+        segment.pages_fetched += 1
+        self.completed_pages += 1
+        return len(items) == BA_ITEMS_PER_PAGE
+
+    def _subdivide_segment(self, segment: Segment) -> None:
+        """Enqueue child segments for a truncated node, then mark subdivided."""
+        assert self._frontier is not None
+        level = segment.level
+        children: list[Segment] = []
+
+        if level == 0:
+            # Children = 16 Bundesländer.
+            for name, nuts1 in BA_BUNDESLAENDER.items():
+                from urllib.parse import quote
+
+                children.append(
+                    Segment(
+                        key=f"wo={quote(name)}&umkreis={self._umkreis}",
+                        level=1,
+                        nuts_code=None,
+                        nuts1=nuts1,
+                        parent=segment.key,
+                        umkreis=self._umkreis,
+                    )
+                )
+        elif level == 1:
+            # Children = the municipality segments whose NUTS-1 prefix matches.
+            # Those are already seeded at level 2 from ``build_initial_frontier``,
+            # so enqueue is a no-op; kept for the tree's structural completeness.
+            for child in self._frontier.segments.values():
+                if child.level == 2 and child.nuts1 == segment.nuts1:
+                    children.append(child)
+        elif level == 2 and segment.nuts_code:
+            # PLZ sub-segments inside this NUTS 3 (the crosswalk's PLZ rows).
+            for plz in self._crosswalk.plz_codes_for_nuts(segment.nuts_code):
+                children.append(
+                    Segment(
+                        key=f"wo={plz}&umkreis={self._umkreis}",
+                        level=3,
+                        nuts_code=segment.nuts_code,
+                        nuts1=segment.nuts1,
+                        parent=segment.key,
+                        umkreis=self._umkreis,
+                    )
+                )
+        elif level == 3:
+            # Level-4 recency slices for a still-truncating PLZ.
+            for days in BA_LEVEL4_RECENCY_DAYS:
+                children.append(
+                    Segment(
+                        key=f"{segment.key}&veroeffentlichtseit={days}",
+                        level=4,
+                        nuts_code=segment.nuts_code,
+                        nuts1=segment.nuts1,
+                        parent=segment.key,
+                        umkreis=self._umkreis,
+                        recency_days=days,
+                    )
+                )
+
+        for child in children:
+            self._frontier.enqueue(child)
+        segment.status = "subdivided"
+        self.segments_subdivided += 1
+
+    async def _walk_segment(
+        self,
+        segment: Segment,
+        seen: set[str],
+    ) -> AsyncIterator[RawRecord]:
+        """Walk pages of one segment until complete or truncated.
+
+        Oracle: a segment is *complete* iff its pagination ends with an empty
+        (or sub-25) page at P ≤ 400; a *full* 400th page proves truncation.
+        Schema drift is detected only where emptiness is abnormal (level 0/1
+        page 1); a level-2+ segment with no postings is legitimately complete.
+        """
+        for page_num in range(1, BA_MAX_QUERY_PAGES + 1):
+            url = self._segment_url(segment.key, page_num)
+            response = await self._get(url)
+            if response.status_code != 200:
+                self.failed_pages += 1
+                self._log.warning("ba_page_failed", url=url, status=response.status_code)
+                continue
+            self.completed_pages += 1
+            segment.pages_fetched += 1
+
+            items = parse_page(response.text)
+            if not items:
+                self.empty_pages += 1
+                if page_num == 1 and segment.level in (0, 1):
+                    raise RuntimeError(
+                        f"BA Jobsuche segment {segment.key!r} page 1 returned 0 results — "
+                        "the page structure may have changed (schema drift)"
+                    )
+                segment.last_page_full = False
+                segment.status = "complete"
+                self.segments_complete += 1
+                break
+
+            self.items_seen += len(items)
+            is_full = len(items) == BA_ITEMS_PER_PAGE
+
+            for item in items:
+                source_id = pseudonymize(item.native_id, self._hmac_key)
+                if source_id in seen:
+                    self.duplicates_dropped += 1
+                    continue
+                seen.add(source_id)
+                segment.rows_yielded += 1
+                yield RawRecord(
+                    native_id=item.native_id,
+                    payload={
+                        "native_id": item.native_id,
+                        "first_published": item.first_published,
+                        "location_city": item.location_city,
+                        "segment_key": segment.key,
+                        "segment_nuts3": segment.nuts_code,
+                        "segment_nuts1": segment.nuts1,
+                        "segment_level": segment.level,
+                        "umkreis": self._umkreis,
+                    },
+                )
+
+            if not is_full:
+                segment.last_page_full = False
+                segment.status = "complete"
+                self.segments_complete += 1
+                break
+
+            if page_num == BA_MAX_QUERY_PAGES:
+                segment.last_page_full = True
+                segment.status = "truncated"
+                self.segments_truncated += 1
+                break
 
     async def _fetch(self) -> AsyncIterator[RawRecord]:
         await self._load_robots()
@@ -518,10 +945,38 @@ class BAJobsucheCollector(BaseCollector):
             "native_id": raw.payload["native_id"],
             "first_published": raw.payload.get("first_published"),
             "location_city": raw.payload.get("location_city"),
+            "segment_nuts3": raw.payload.get("segment_nuts3"),
+            "segment_nuts1": raw.payload.get("segment_nuts1"),
+            "segment_level": raw.payload.get("segment_level"),
+            "umkreis": raw.payload.get("umkreis", 0),
         }
 
     def normalize(self, parsed: dict[str, Any]) -> NormalizedRecord:
-        region = self._crosswalk.resolve_by_city(parsed["location_city"])
+        # Tier 1 (municipality crosswalk, comma-qualifier strip/alias) and
+        # Tier 2 (segment-context disambiguation of an ambiguous city).
+        region = self._crosswalk.resolve_by_city_segmented(
+            parsed["location_city"],
+            segment_nuts1=parsed.get("segment_nuts1"),
+            segment_nuts3=parsed.get("segment_nuts3"),
+        )
+        # Tier 3 (segment provenance): a posting collected under a single-NUTS-3
+        # segment with umkreis=0 is ``mapped`` by the source's own location
+        # filter; a radius downgrades it to ``low_confidence`` (map-excluded).
+        # Non-geographic markers and Tier-1/2 ambiguous results are never
+        # overridden — the source stated a multi-location/nationwide workplace.
+        if region.status == "unmapped" and parsed.get("segment_nuts3"):
+            if parsed.get("umkreis") == 0:
+                region = RegionResolution(
+                    nuts_code=parsed["segment_nuts3"],
+                    status="mapped",
+                    method="ba_segment_provenance_nuts3",
+                )
+            else:
+                region = RegionResolution(
+                    nuts_code=parsed["segment_nuts3"],
+                    status="low_confidence",
+                    method="ba_segment_radius_nuts3",
+                )
         return NormalizedRecord(
             source=self.source,
             source_id=pseudonymize(parsed["native_id"], self._hmac_key),

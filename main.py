@@ -46,12 +46,16 @@ from scrapers.ba_jobsuche import (
     BA_LICENCE_REFERENCE,
     BA_SCOPE_ID,
     BA_SCOPE_PARAMS,
+    BA_SEGMENTED_SCOPE_ID,
+    BA_SEGMENTED_SCOPE_PARAMS,
     BA_SOURCE_VERSION,
     BAJobsucheCollector,
+    GermanCrosswalk,
 )
 from scrapers.ba_jobsuche import (
     crosswalk_reference_hashes as ba_crosswalk_reference_hashes,
 )
+from scrapers.ba_segments import SegmentFrontier, build_initial_frontier
 from scrapers.base import BaseCollector, SweepWriter, utc_iso
 from scrapers.czech_mpsv import (
     MPSV_ACCESS_METHOD,
@@ -137,6 +141,8 @@ from scrapers.vdab import (
 
 DEFAULT_ROOT = Path("data")
 DEFAULT_REFERENCE = Path("data/reference")
+DEFAULT_STATE = Path("data/state")
+BA_FRONTIER_PATH = DEFAULT_STATE / "ba_segment_frontier.json"
 
 
 @dataclass(frozen=True)
@@ -186,6 +192,39 @@ def _ba_jobsuche(
         hmac_key=hmac_key,
         reference_dir=DEFAULT_REFERENCE,
         max_pages=max_pages,
+    )
+
+
+def _ba_jobsuche_segmented(
+    scope_id: str,
+    sweep_id: str,
+    observed_at: _dt.datetime,
+    hmac_key: bytes,
+    max_pages: int | None = None,
+    max_segments: int | None = None,
+    min_level: int = 0,
+    umkreis: int = 0,
+    fresh: bool = False,
+    **_: object,
+) -> BaseCollector:
+    crosswalk = GermanCrosswalk(DEFAULT_REFERENCE)
+    if fresh or not BA_FRONTIER_PATH.exists():
+        frontier = build_initial_frontier(crosswalk, umkreis=umkreis)
+        BA_FRONTIER_PATH.parent.mkdir(parents=True, exist_ok=True)
+        frontier.save(BA_FRONTIER_PATH)
+    else:
+        frontier = SegmentFrontier.load(BA_FRONTIER_PATH)
+    return BAJobsucheCollector(
+        scope_id=scope_id,
+        sweep_id=sweep_id,
+        observed_at=observed_at,
+        hmac_key=hmac_key,
+        reference_dir=DEFAULT_REFERENCE,
+        frontier=frontier,
+        frontier_path=BA_FRONTIER_PATH,
+        max_segments=max_segments,
+        min_level=min_level,
+        umkreis=umkreis,
     )
 
 
@@ -328,11 +367,12 @@ def _adzuna(adapter: CountryAdapter) -> Callable[..., BaseCollector]:
     return build
 
 
-def source_config(source: str, country: str = "de") -> SourceConfig:
+def source_config(source: str, country: str = "de", *, segmented: bool = False) -> SourceConfig:
     """Manifest constants and collector factory per source slug.
 
     ``country`` selects the Adzuna ``CountryAdapter`` (``de`` default,
-    ``nl`` etc.); it is ignored for single-country sources.
+    ``nl`` etc.); it is ignored for single-country sources. ``segmented``
+    switches BA to the Increment 9 ``de-stock-segmented`` scope and frontier.
     """
     if source in ("cbop", "pl"):
         return SourceConfig(
@@ -351,8 +391,8 @@ def source_config(source: str, country: str = "de") -> SourceConfig:
     if source in ("ba", "ba_jobsuche", "de"):
         return SourceConfig(
             slug="ba",
-            scope_id=BA_SCOPE_ID,
-            scope_params=BA_SCOPE_PARAMS,
+            scope_id=BA_SEGMENTED_SCOPE_ID if segmented else BA_SCOPE_ID,
+            scope_params=BA_SEGMENTED_SCOPE_PARAMS if segmented else BA_SCOPE_PARAMS,
             source_version=BA_SOURCE_VERSION,
             licence_reference=BA_LICENCE_REFERENCE,
             access_method=BA_ACCESS_METHOD,
@@ -360,7 +400,7 @@ def source_config(source: str, country: str = "de") -> SourceConfig:
             freshness_threshold_hours=BA_FRESHNESS_THRESHOLD_HOURS,
             coverage_limitations=BA_COVERAGE_LIMITATIONS,
             reference_hashes=ba_crosswalk_reference_hashes(DEFAULT_REFERENCE),
-            build=_ba_jobsuche,
+            build=_ba_jobsuche_segmented if segmented else _ba_jobsuche,
         )
     if source == "adzuna":
         adapter = ADZUNA_ADAPTERS.get(country, ADZUNA_DE)
@@ -497,6 +537,35 @@ def build_parser() -> argparse.ArgumentParser:
         "--max-pages", type=int, default=None, help="limit the sweep to N pages (canary mode)"
     )
     parser.add_argument(
+        "--segmented",
+        action="store_true",
+        help="BA only: run the segmented regional census (scope de-stock-segmented) "
+        "against the resumable frontier at data/state/ba_segment_frontier.json "
+        "instead of the single unscoped 10,000-listing window",
+    )
+    parser.add_argument(
+        "--max-segments",
+        type=int,
+        default=None,
+        help="BA segmented only: stop after N segments. The budget is checked "
+        "between segments, never mid-segment, so a segment is never half-recorded.",
+    )
+    parser.add_argument(
+        "--min-level",
+        type=int,
+        default=0,
+        help="BA segmented only: skip segments below this level (2 = municipalities "
+        "backbone only, skipping the unscoped catch-all and Bundesland probes; "
+        "a canary dial)",
+    )
+    parser.add_argument(
+        "--umkreis",
+        type=int,
+        default=0,
+        help="BA segmented only: search radius in km. 0 (default) keeps Tier-3 "
+        "provenance mapped; any radius downgrades Tier 3 to low_confidence.",
+    )
+    parser.add_argument(
         "--since",
         type=int,
         default=None,
@@ -514,7 +583,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--fresh",
         action="store_true",
-        help="NAV/TMT only: ignore the persisted poll cursor or watermark instead of resuming it",
+        help="NAV/TMT only: ignore the persisted poll cursor or watermark instead of "
+        "resuming it. BA segmented: rebuild the frontier from the crosswalk instead "
+        "of resuming pending segments.",
     )
     parser.add_argument(
         "--max-rows",
@@ -547,13 +618,17 @@ def build_collector(
     use_cursor: bool = True,
     max_rows: int | None = None,
     only_status: str = TMT_STATUS_PUBLISHED,
+    max_segments: int | None = None,
+    min_level: int = 0,
+    umkreis: int = 0,
 ) -> BaseCollector:
     """Build the configured collector.
 
     ``since_days`` / ``max_details`` are NAV's feed-window and detail-budget
-    dials, ``max_rows`` / ``only_status`` are Työmarkkinatori's stream dials, and
-    ``use_cursor`` is shared by both cursor-bearing sources; every other source's
-    factory ignores them.
+    dials, ``max_rows`` / ``only_status`` are Työmarkkinatori's stream dials,
+    ``use_cursor`` is shared by both cursor-bearing sources, and
+    ``max_segments`` / ``min_level`` / ``umkreis`` are BA segmented-mode dials;
+    every other source's factory ignores them.
     """
     return config.build(
         scope_id=scope_id,
@@ -566,6 +641,10 @@ def build_collector(
         use_cursor=use_cursor,
         max_rows=max_rows,
         only_status=only_status,
+        max_segments=max_segments,
+        min_level=min_level,
+        umkreis=umkreis,
+        fresh=not use_cursor,
     )
 
 
@@ -588,10 +667,18 @@ async def run_sweep(args: argparse.Namespace) -> int:
     observed_at = _dt.datetime.combine(args.date, _dt.time.min, tzinfo=_dt.UTC)
     # Compact filesystem-safe sweep stamp (colons are invalid in Windows paths).
     sweep_id = observed_at.strftime("%Y%m%dT%H%M%SZ")
+    if args.segmented:
+        # A segmented census runs in bounded resumable chunks; each chunk is a
+        # separate invocation that walks the shared frontier. Stamp every chunk
+        # with its run start so a resumed run writes a NEW partition instead of
+        # overwriting the previous chunk's data — accumulation across chunks is
+        # the consumer's job (the main app reads all partitions under the
+        # scope; the push-readiness test dedupes on source_id).
+        sweep_id = _dt.datetime.now(_dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     run_id = utc_iso(_dt.datetime.now(_dt.UTC))
     started_at = _dt.datetime.now(_dt.UTC)
 
-    config = source_config(args.source, country=args.country)
+    config = source_config(args.source, country=args.country, segmented=args.segmented)
     collector = build_collector(
         config,
         scope_id=config.scope_id,
@@ -604,6 +691,9 @@ async def run_sweep(args: argparse.Namespace) -> int:
         use_cursor=not args.fresh,
         max_rows=args.max_rows,
         only_status=args.status,
+        max_segments=args.max_segments,
+        min_level=args.min_level,
+        umkreis=args.umkreis,
     )
 
     rows = []
@@ -648,15 +738,56 @@ async def run_sweep(args: argparse.Namespace) -> int:
             )
 
     if isinstance(collector, BAJobsucheCollector):
-        coverage += (
-            f" Sweep window: {collector.completed_pages} search pages fetched "
-            f"({collector.total_pages} planned; {collector.empty_pages} empty after the "
-            f"10,000-listing query window closed), {collector.failed_pages} non-200; "
-            f"{collector.items_seen} items parsed, {collector.duplicates_dropped} "
-            f"duplicates dropped on HMAC source_id. Rows collected: {len(rows)} of the "
-            "10,000-listing per-query window the unscoped search advertises — a "
-            "windowed sample of the active stock, not a complete snapshot."
-        )
+        if collector.frontier is not None:
+            from collections import Counter
+
+            methods = Counter(r.region_mapping_method for r in rows)
+            statuses = Counter(r.region_mapping_status for r in rows)
+            mapped = statuses.get("mapped", 0)
+            total = len(rows)
+            tier1 = methods.get("ba_city_municipality_nuts3", 0) + methods.get(
+                "ba_city_qualifier_nuts3", 0
+            )
+            tier2 = methods.get("ba_segment_disambiguated", 0)
+            tier3 = methods.get("ba_segment_provenance_nuts3", 0) + methods.get(
+                "ba_segment_radius_nuts3", 0
+            )
+            pending = sum(
+                1 for s in collector.frontier.segments.values() if s.status in ("pending", "failed")
+            )
+            coverage += (
+                f" Segmented regional census: {collector.segments_processed} segment(s) "
+                f"processed ({collector.segments_complete} complete, "
+                f"{collector.segments_subdivided} subdivided, "
+                f"{collector.segments_failed} failed); {pending} segment(s) still "
+                f"pending in the frontier (data/state/ba_segment_frontier.json); "
+                f"{collector.completed_pages} search pages fetched; "
+                f"{collector.items_seen} items parsed, {collector.duplicates_dropped} "
+                f"cross-segment duplicates dropped on HMAC source_id. Rows: {len(rows)} "
+                f"this run ({collector.total_elements} distinct source_ids). Measured "
+                f"German active-stock lower bound over complete segments: "
+                f"{collector.measured_stock_lower_bound} postings. Region mapping: "
+                f"mapped {mapped}/{total} ({100.0 * mapped / total:.1f}%), "
+                f"unmapped {statuses.get('unmapped', 0)} ("
+                f"{100.0 * statuses.get('unmapped', 0) / total:.1f}%), ambiguous "
+                f"{statuses.get('ambiguous', 0)}, low_confidence "
+                f"{statuses.get('low_confidence', 0)}; Tier 1 {tier1} / Tier 2 {tier2} / "
+                f"Tier 3 {tier3} rows. Per-query cap: 400 pages x 25 = 10,000 listings; "
+                f"every segment walked to completeness or provable truncation. Region "
+                f"inference (Tiers 2/3) only resolves the region of real collected "
+                f"postings; it never fabricates or scales rows. Non-geographic markers "
+                f"classified ambiguous, never silently dropped."
+            )
+        else:
+            coverage += (
+                f" Sweep window: {collector.completed_pages} search pages fetched "
+                f"({collector.total_pages} planned; {collector.empty_pages} empty after the "
+                f"10,000-listing query window closed), {collector.failed_pages} non-200; "
+                f"{collector.items_seen} items parsed, {collector.duplicates_dropped} "
+                f"duplicates dropped on HMAC source_id. Rows collected: {len(rows)} of the "
+                "10,000-listing per-query window the unscoped search advertises — a "
+                "windowed sample of the active stock, not a complete snapshot."
+            )
 
     if isinstance(collector, NAVFeedCollector):
         coverage += (
