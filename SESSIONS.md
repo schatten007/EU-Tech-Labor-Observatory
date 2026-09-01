@@ -23,7 +23,8 @@ than expanding the active increment.
 | P2 | 2026-08-23 | Complete | **Germany re-assessment under the relaxed constraint** (planning, no code): user **relaxed the ToS/robots gate** for this private educational project. Live probes found the plan's #1 source is now the **BA Jobsuche public website** (~1.9M, SSR plain HTTP, no anti-bot, native ref IDs; its internal REST API is WAF-403 even from a browser); **StepStone** (~1.5M+, SSR, JSON-LD, no Akamai challenge on search) and **Indeed** (~1.5M+, SSR, `data-jk` ids, **litigation history flagged**) are also plain-HTTP accessible; **Kimeta** has no technical anti-bot. **Monster** (DataDome) and **Joblift** (CloudFront 403) and **Interamt** (JS redirect loop) are technically blocked — probe rows. Roadmap tiered German stack rewritten (BA Jobsuche → StepStone → Indeed → Kimeta → Stellenanzeigen → probes → Arbeitnow), feasibility table rewritten from legal to technical verdicts, landscape + risk matrix updated. `reference_germany.py` remains the build prerequisite. | docs only; `make check` unchanged (367 tests) |
 | 8 | 2026-08-24 | **Complete** | **BA Jobsuche — Germany #1** (primary build, Germany active lane). Deliverable 1: `scrapers/reference_germany.py` + `data/reference/germany_plz_nuts_2024.csv` (22,140 rows = 4,862 PLZ + 11,000 municipality + 400 Kreis; 400/400 NUTS 3 codes, 0 unmatched; destatis Kreise official AGS→NUTS 2024 key × BKG VZ250_GEM × destatis Anschriftenverzeichnis Zustell-PLZ, validated against Eurostat GISCO; 11 ambiguous PLZ × 397 ambiguous city names; 121 Thuringian stale-VZ250 deviations recorded). Deliverable 2: `scrapers/ba_jobsuche.py` (BAJobsucheCollector — SSR HTML parser, allowlist-only, robots-as-evidence, city→NUTS via crosswalk, 403-rate-limit with 45s cooldown+retry, HMAC dedupe, 25 items/page, 400-page window). `main.py` SourceConfig slug `ba`, `make scrape-ba-jobsuche` / `make reference-germany`. 22 new respx tests (389 total). **DoD verified live:** 400/400 pages, 10,000 rows, `status=complete`, `expected_pages == completed_pages`, `expected_rows == row_count`, zero 4xx, 10,000 unique 64-hex HMAC source_ids, 100% first_published coverage, 358/400 distinct NUTS 3 codes mapped (6,448 mapped, 3,497 unmapped, 55 ambiguous), zero PII. **Honest bound:** 10,000-listing per-query window (400 pages × 25), plus BA rate-limits with 403 after ~50 requests (Apache edge token bucket, ~45s idle recovers); 7 throttle events absorbed in the live sweep. | `make check` passed (389 tests); DoD sweep complete (10,000 rows) |
 | P3 | 2026-08-24 | **Complete** | **EU coverage + main-app push-readiness assessment** (planning, no code) — the prep step before the Increment 9 segmented-DE build. Counted rows per EU country across all 11 collection partitions (**379,395 rows, ~322.8k distinct postings** in 7 countries); computed advertised-vs-collected coverage per source (CZ 100% / PL 100% by construction, FR 43.2%, BE 5.3%, NL 2.6%, DE 0.4–0.5% of the ~1.9M stock, NO n/a — event log); verified lab output is byte-compatible with the main app's `stg_postings.sql`/`stg_collection_manifests.sql`; identified `accepted_values: [DE, SE]` (`schema.yml:66`) as the **only** gate blocker — DE is already eligible, the other 6 countries are a main-checkout decision (out of the lab's remit); concluded DE is **pipeline-ready but not coverage-sufficient** (14,841 rows ≈ 0.5% of stock; BA region mapping 64.5%, below the 80% bar) — the Increment 9 plan is the correct readiness step. | docs only; `make check` unchanged (389 tests) |
-| 9 | 2026-08-24 | **In progress — live census** | **BA Jobsuche — segment-provenance German regional coverage** (Increment 9, Germany step 2; plan `.kilo/plans/1787577245495-ba-segment-provenance-de-coverage.md`). **Gate probes (live, ~40 paced requests, zero 4xx):** Bundesland/city/PLZ all resolve as `wo=`; **`wo=Landkreis+…` is broken** (every variant returns the same 7 Rosenheim postings — a fuzzy-match miss) and compound `-Kreis` names are unreliable (`Rhein-Sieg-Kreis` → Rüdesheim), so the level-2 backbone uses **municipality/PLZ segments** (10,761 from the crosswalk: 10,085 unique-name municipalities + PLZ for the 397 ambiguous names, each PLZ a single NUTS 3); `umkreis=0` confirmed tight ⇒ **Tier 3 = `mapped`**; no server-rendered total ⇒ page-400 oracle; `veroeffentlichtseit` filter works (level-4 axis); Berlin/München/Hamburg truncate at 400 pages. **Built:** `scrapers/ba_segments.py` (Segment/SegmentFrontier, `build_initial_frontier`, Bundesländer with city-state pre-subdivision), `normalize_location()` in `scrapers/ba_jobsuche.py` (Tier-1 qualifier strip + NUTS-1 alias map, Tier-2 segment-context disambiguation, Tier-3 single-NUTS-3 provenance gated on `umkreis=0`, non-geographic markers → `ambiguous`), segmented `BAJobsucheCollector` mode (completeness oracle, breadth-first region ordering, atomic segments, resumable frontier saved after every segment), scope `de-stock-segmented`, `main.py` `--segmented/--max-segments/--min-level/--umkreis`, per-chunk timestamped partitions, `make scrape-ba-segmented` + `make check-ba-segmented` (push-readiness gate: ≥85% mapped, ≥390/400 NUTS 3, ≤5% unmapped). 21 new respx tests (410 total). **Live census progress (63 chunks, ~6 h of paced collection):** 65 reconciled partitions, **203,674 rows**, **mapped 203,215 (99.77%), ambiguous 459 (all non-geographic markers), unmapped 0, low_confidence 0**; Tier breakdown 186,761 / 2,284 / 14,170 (Tier 1/2/3); **PII scan clean** (0 e-mails/URLs/native refs/PLZ/city strings); **zero 4xx**, throttles absorbed as `throttle_events`; München subdivided at the 400-page cap (PLZ children enqueued), **zero truncated segments left unsubdivided**; every partition `status=complete` and reconciled. **Remaining:** ~8,171 frontier segments (~20 h at the current pace) until `make check-ba-segmented` passes (124/400 NUTS 3 at session end). | `make check` passed (410 tests); census resumable at `data/state/ba_segment_frontier.json` |
+| 9 | 2026-08-24 | **Cancelled 2026-08-31** — census completion cut (see P4); 203,674 rows / 65 partitions stand untouched | **BA Jobsuche — segment-provenance German regional coverage** (Increment 9, Germany step 2; plan `.kilo/plans/1787577245495-ba-segment-provenance-de-coverage.md`). **Gate probes (live, ~40 paced requests, zero 4xx):** Bundesland/city/PLZ all resolve as `wo=`; **`wo=Landkreis+…` is broken** (every variant returns the same 7 Rosenheim postings — a fuzzy-match miss) and compound `-Kreis` names are unreliable (`Rhein-Sieg-Kreis` → Rüdesheim), so the level-2 backbone uses **municipality/PLZ segments** (10,761 from the crosswalk: 10,085 unique-name municipalities + PLZ for the 397 ambiguous names, each PLZ a single NUTS 3); `umkreis=0` confirmed tight ⇒ **Tier 3 = `mapped`**; no server-rendered total ⇒ page-400 oracle; `veroeffentlichtseit` filter works (level-4 axis); Berlin/München/Hamburg truncate at 400 pages. **Built:** `scrapers/ba_segments.py` (Segment/SegmentFrontier, `build_initial_frontier`, Bundesländer with city-state pre-subdivision), `normalize_location()` in `scrapers/ba_jobsuche.py` (Tier-1 qualifier strip + NUTS-1 alias map, Tier-2 segment-context disambiguation, Tier-3 single-NUTS-3 provenance gated on `umkreis=0`, non-geographic markers → `ambiguous`), segmented `BAJobsucheCollector` mode (completeness oracle, breadth-first region ordering, atomic segments, resumable frontier saved after every segment), scope `de-stock-segmented`, `main.py` `--segmented/--max-segments/--min-level/--umkreis`, per-chunk timestamped partitions, `make scrape-ba-segmented` + `make check-ba-segmented` (push-readiness gate: ≥85% mapped, ≥390/400 NUTS 3, ≤5% unmapped). 21 new respx tests (410 total). **Live census progress (63 chunks, ~6 h of paced collection):** 65 reconciled partitions, **203,674 rows**, **mapped 203,215 (99.77%), ambiguous 459 (all non-geographic markers), unmapped 0, low_confidence 0**; Tier breakdown 186,761 / 2,284 / 14,170 (Tier 1/2/3); **PII scan clean** (0 e-mails/URLs/native refs/PLZ/city strings); **zero 4xx**, throttles absorbed as `throttle_events`; München subdivided at the 400-page cap (PLZ children enqueued), **zero truncated segments left unsubdivided**; every partition `status=complete` and reconciled. **Remaining:** ~8,171 frontier segments (~20 h at the current pace) until `make check-ba-segmented` passes (124/400 NUTS 3 at session end). | `make check` passed (410 tests); census resumable at `data/state/ba_segment_frontier.json` |
+| P4 | 2026-08-31 | **Complete** | **Descoping decision — German census cancelled; BA Jobsuche re-planned as a frozen NUTS-3 panel** (planning, no code): census completion (~8,171 pending frontier segments, ~20+ h) cancelled **not paused** — a long gap followed by resumption of the same scope would record a mass fake `inferred_absence` closure spike downstream (closures are inferred from any later sweep of the same scope). New plan (roadmap step 2b): envelope probe FIRST (does the BA response envelope carry a total-hits field? if yes, one request per region = exact regional counts, whole map = 400 requests; outcome to be recorded in `SCRAPER_FEASIBILITY.md`), 400-unit NUTS-3 frame replacing the ~10.8k municipality/PLZ frame (destatis Kreise = authoritative AGS→NUTS 2024 key, all 400 GISCO codes; VZ250 names-only), frozen panel (byte-identical query set, seed recorded), cap-as-scope honesty (page cap in `scope_json` + `coverage_limitations`), burst = 400-query region probe + ~5 daily sweeps (~30 min each, ~3 h over a week). Cuts recorded in roadmap + landscape: StepStone + Kimeta (non-additive second DE source — cross-source counts never summed downstream), Indeed (stays charter never-build), other-country re-sweeps (conditional on the observatory's live-service budget only). Acceptance criteria + weekly-cadence design recorded in charter/roadmap/feasibility. | docs only; `make check` re-run and green (410 tests) |
 ## Session Notes
 
 ### 2026-08-20 - Increment L0 (context cleanup)
@@ -1197,3 +1198,85 @@ reap loses at most one segment. Once `make check-ba-segmented` passes, the
 `de-stock-segmented` scope is push-ready for the main app (the only main-side
 blocker is `_verify_single_scope` — a multi-scope orchestration constraint,
 not a data-quality issue).
+
+**SUPERSEDED 2026-08-31 — do not follow the paragraph above.** The census was
+cancelled by the descoping decision (see P4 below): do not run
+`make scrape-ba-segmented`, do not pass `--fresh`, and never resume the
+`de-stock-segmented` scope — a long gap followed by resumption would record a
+mass fake `inferred_absence` closure spike downstream. The 8,171 pending
+frontier segments will never run; the stored partitions stand untouched.
+
+### 2026-08-31 — P4 (descoping decision: census cancelled, frozen NUTS-3 panel) — no code
+
+**Decision (user, 2026-08-31):** the German census is cancelled. The
+observatory's published views need breadth and repeat observations, not
+exhaustive counts — a top-25 region table, a per-sweep denominator, and
+flow/survival series keyed by scope. A one-shot census cannot populate the
+survival views at any size; only repeat sweeps of a frozen panel can.
+
+**Cancelled, not paused:** the ~8,171 pending municipality/PLZ frontier
+queries (~20+ h) will never run. A long gap followed by resumption of the same
+scope would record a mass fake `inferred_absence` closure spike downstream,
+because closures are inferred from any later sweep of the same scope. The 65
+stored `de-stock-segmented` partitions (203,674 rows, 99.77% mapped) stand
+untouched and that scope is never re-swept.
+
+**New plan for BA Jobsuche (replaces census completion; full detail in
+`SCRAPER_ROADMAP.md` Germany step 2b and `SCRAPER_FEASIBILITY.md`):**
+
+1. **Envelope probe FIRST, before building anything:** does the BA response
+   envelope carry a total-hits field? If yes, one request per region yields
+   exact regional counts and the whole map costs 400 requests. The outcome is
+   to be recorded in `SCRAPER_FEASIBILITY.md` (the 2026-08-24 probe found no
+   server-rendered `Treffer`/`Ergebnisse` node in the HTML; the envelope /
+   embedded SSR state is the open question).
+2. **Replace the municipality/PLZ frame with a 400-unit NUTS-3 frame.** The
+   destatis Kreise table in the reference crosswalk is the authoritative
+   AGS→NUTS 2024 key and covers all 400 GISCO NUTS-3 codes; VZ250 is for
+   municipality names only (it carries 7 stale Thuringian codes). Frame sizes
+   recorded for traceability: decision text 10,778 units; the lab frontier
+   held 10,761 level-2 segments.
+3. **Cap-as-scope honesty rule:** the within-stratum page cap must be encoded
+   in `scope_json` and stated in `coverage_limitations` ("stratified
+   region-bounded sample, not a census"), so `expected_pages ==
+   completed_pages` is true of the declared capped scope. A collector that
+   caps at k pages and writes k=k without declaring the cap passes every
+   downstream test while silently truncating — forbidden (now also in the
+   charter's manifest contract).
+4. **Frozen panel:** the query set must be byte-identical across sweeps, seed
+   recorded. Membership drift between sweeps fabricates closures and corrupts
+   survival durations.
+5. **Burst:** 400-query region probe, then ~5 daily sweeps of the frozen panel
+   (~30 min each, ~3 h total over a week), 1 s pacing per host, zero 4xx.
+
+**Acceptance criteria recorded:** sweep 1 covers ≥390 of 400 NUTS-3 regions;
+every sweep `status=complete` with `expected_pages == completed_pages` and
+`expected_rows == row_count`; panel membership hash identical across sweeps;
+zero failed requests.
+
+**Cuts recorded (roadmap + landscape):** StepStone (~1.5M postings, days of
+crawling; cross-source counts are never summed downstream, so a second DE
+source adds a non-additive column); Kimeta (grey-ToS HTML, same non-additive
+problem); Indeed (stays a charter never-build); other-country re-sweeps
+(conditional on the observatory's live-service budget only). BA census
+completion: cancelled, not deferred.
+
+**Constraints that still bind (restated, not weakened):** `make check` before
+`make sweep`; exactly one source per increment with a Definition-of-Done;
+Windows-safe sweep directory names (`YYYYMMDDTHHMMSSZ`); the PII ban (no
+names/emails/URLs/postcodes stored); HMAC pseudonymization; robots/ToS
+recorded as evidence in feasibility rows (gate relaxed for this private
+research project — evidence still mandatory); canary discipline for grey
+sources.
+
+**Cadence context:** the observatory may later run as a live service at
+weekly cadence (monthly only as a demand snapshot — survival resolution can
+never be finer than the sweep interval, and postings live ~30 days). The
+panel is designed for weekly re-sweep.
+
+Docs updated: `SCRAPERS.md` (scope decision + cap-as-scope contract rule),
+`SCRAPER_ROADMAP.md` (constraints block, census cancelled, step 2b panel plan
+with DoD, cuts, risk matrix, parallelization), `SCRAPER_SOURCE_LANDSCAPE.md`
+(cut annotations + BA status update), `SCRAPER_FEASIBILITY.md` (Germany
+programme table + segmented-stock descope and replacement plan), this log. No
+collector code, no sweeps, no stored partitions touched.

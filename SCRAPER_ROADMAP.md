@@ -22,6 +22,17 @@ fetches a small sample (≤100 records) with 1s+ pacing and randomized
 user-agents, verifies robots.txt, confirms zero 4xx/block, and records the
 result in `SCRAPER_FEASIBILITY.md` before the full sweep is enabled.
 
+**Constraints that still bind (restated 2026-08-31, not weakened):** `make
+check` before `make sweep` — a sweep collected with a broken mapping bakes the
+error into a permanent partition, and new collector keys do not exist in any
+stored partition until a sweep runs after the collector change; exactly one
+source per increment with a Definition-of-Done; Windows-safe sweep directory
+names (`YYYYMMDDTHHMMSSZ`, no colons); the PII ban (no names, emails, URLs,
+postcodes or free text stored); HMAC pseudonymization with the shared
+`OBSERVATORY_HMAC_KEY`; robots/ToS recorded as evidence in feasibility rows
+(gate relaxed for this private research project — evidence still mandatory);
+canary discipline for grey sources.
+
 ---
 
 ## Increment 1: Centralna Baza Ofert Pracy — ePraca (Poland)
@@ -312,14 +323,26 @@ systems, WAFs) and **litigation risk** (Indeed). The serial rule for grey-HTML
 sources is dropped — the German sources are built in technical-feasibility order,
 not serially. Increment 7 (Finland) stays parked-BLOCKED.
 
+**Descoping decision 2026-08-31 — the German census is cancelled.** The
+observatory's published views need breadth and repeat observations, not
+exhaustive counts: a top-25 region table, a per-sweep denominator, and
+flow/survival series keyed by scope. A one-shot census cannot populate the
+survival views at any size; only repeat sweeps of a frozen panel can. The
+segmented census (step 2a below) is **cancelled, not deferred**, and BA
+Jobsuche is re-planned as a frozen 400-region NUTS-3 panel (step 2b).
+StepStone and Kimeta are cut (a second DE source adds a non-additive column —
+cross-source counts are never summed downstream), Indeed stays a charter
+never-build, and other-country re-sweeps are conditional on the observatory's
+live-service budget only. BA census completion: cancelled, not deferred.
+
 **German coverage stack — every surface assessed technically live 2026-08-23:**
 
 | # | Source | Volume | Technical access (verified) | Role |
 | --- | --- | --- | --- | --- |
-| 1 | **BA Jobsuche** (public website) | ~1.9M | **SSR, plain HTTP, no anti-bot.** `www.arbeitsagentur.de/jobsuche/suche?was=...&wo=...` → 200, 370 KB, server-rendered HTML with job titles, employer, publish date, location+distance, salary, employment type, homeoffice, native ref IDs (`Stellenangebot 10000-1202838080-S`). robots.txt absent (404) on the search host. | **BUILT 2026-08-24** — 10,000 rows/sweep, `make scrape-ba-jobsuche` |
-| 2 | **StepStone.de** | ~1.5M+ | **SSR, plain HTTP, JSON-LD on detail pages.** `www.stepstone.de/jobs/...` → 200, 1.1 MB, `application/ld+json` present. Akamai Bot Manager not visible on search pages. | **SECONDARY BUILD** |
-| 3 | **Indeed.de** | ~1.5M+ | **SSR, plain HTTP, data-jk ids.** `de.indeed.com/Jobs?q=...` → 200, 1.3 MB, `data-jk="..."` for HMAC. **Litigation risk** — Indeed has sued scrapers. | **TERTIARY — gate evaluates risk** |
-| 4 | **Kimeta.de** | ~1.5–1.8M | **No anti-bot technical barrier.** robots.txt `*`→`Disallow:/` is the only barrier (relaxed). Homepage 200, 214 KB; search API at `/api/mutation/create-jobalert-and-search`; content pages at `/stellenangebote`, `/stellenmarkt`. | **FOURTH BUILD** |
+| 1 | **BA Jobsuche** (public website) | ~1.9M | **SSR, plain HTTP, no anti-bot.** `www.arbeitsagentur.de/jobsuche/suche?was=...&wo=...` → 200, 370 KB, server-rendered HTML with job titles, employer, publish date, location+distance, salary, employment type, homeoffice, native ref IDs (`Stellenangebot 10000-1202838080-S`). robots.txt absent (404) on the search host. | **BUILT 2026-08-24** — 10,000 rows/sweep, `make scrape-ba-jobsuche`; segmented census **CANCELLED 2026-08-31** — superseded by the frozen NUTS-3 panel (step 2b) |
+| 2 | **StepStone.de** | ~1.5M+ | **SSR, plain HTTP, JSON-LD on detail pages.** `www.stepstone.de/jobs/...` → 200, 1.1 MB, `application/ld+json` present. Akamai Bot Manager not visible on search pages. | **CUT 2026-08-31** — non-additive second DE source (days of crawling; cross-source counts never summed downstream) |
+| 3 | **Indeed.de** | ~1.5M+ | **SSR, plain HTTP, data-jk ids.** `de.indeed.com/Jobs?q=...` → 200, 1.3 MB, `data-jk="..."` for HMAC. **Litigation risk** — Indeed has sued scrapers. | **CUT 2026-08-31 — stays a charter never-build** (litigation risk) |
+| 4 | **Kimeta.de** | ~1.5–1.8M | **No anti-bot technical barrier.** robots.txt `*`→`Disallow:/` is the only barrier (relaxed). Homepage 200, 214 KB; search API at `/api/mutation/create-jobalert-and-search`; content pages at `/stellenangebote`, `/stellenmarkt`. | **CUT 2026-08-31** — non-additive second DE source (grey-ToS HTML) |
 | 5 | **Stellenanzeigen.de** | ~10k+ | **robots-permitted, JSON-LD, Cloudflare passive.** `/job/*` and `/suche/*` ALLOW, three sitemaps. | **FIFTH BUILD** (smaller volume) |
 | 6 | **Joblift.de** | L (per-city 20-27k) | **CloudFront 403 at the edge** — robots.txt AND `/business-developer` (partner API) both 403'd. May be UA-blockable. | **SIXTH — needs real-browser test** |
 | 7 | **Monster.de** | L | **DataDome challenge** — robots.txt 403 with JS challenge (`geo.captcha-delivery.com`). Requires browser automation + proxy. | **SEVENTH — requires tooling decision** |
@@ -361,6 +384,10 @@ routes; the HTML surface is the main path regardless.
 **not possible at collection** — SAFE_FIELDS carries no join key. Overlap is
 accepted and stated per source in `coverage_limitations`.
 
+**2026-08-31 consequence:** because cross-source counts are never summed
+downstream, a second DE source adds a non-additive column — the decisive
+rationale for cutting StepStone and Kimeta.
+
 **Germany execution order (next sessions):**
 1. `reference_germany.py` (BKG × GISCO, 400 codes, 0 unmatched) — needed by every
    German collector. **DONE 2026-08-24** — `data/reference/germany_plz_nuts_2024.csv`
@@ -372,9 +399,11 @@ accepted and stated per source in `coverage_limitations`.
    Honest bound: the unscoped query window is 400 pages × 25 = **10,000 listings
    max** (page 401+ empty), and BA rate-limits with 403 after ~50 requests
    (Apache edge token bucket; 45 s idle cooldown absorbs it — 7 events in the
-   live sweep). Next: StepStone.
+   live sweep). Next: step 2b — the frozen NUTS-3 panel (the census, step 2a,
+   was cancelled 2026-08-31; StepStone is cut).
 2a. **BA Jobsuche segmented regional census** (`de-stock-segmented`).
-   **BUILT 2026-08-24 — census in progress (resumable).** Plan
+   **BUILT 2026-08-24 — census CANCELLED 2026-08-31 (cancelled, not
+   deferred).** Plan
    `.kilo/plans/1787577245495-ba-segment-provenance-de-coverage.md`.
    Gate probes decided the segment axes (Bundesland ✓, municipality ✓, PLZ ✓,
    **`wo=Landkreis+…` broken** — all return the same 7 Rosenheim postings — so
@@ -396,8 +425,61 @@ accepted and stated per source in `coverage_limitations`.
    the breadth. Honest bound: a segment ends complete when its pagination
    closes before the 400-page cap; truncated metros (Berlin/Hamburg/München)
    subdivide into PLZ/recency children.
+   **CANCELLED 2026-08-31, not deferred.** The observatory's published views
+   need breadth and repeat observations, not exhaustive counts; a one-shot
+   census cannot populate the survival views at any size — only repeat sweeps
+   of a frozen panel can. The ~8,171 pending frontier segments (~20+ h) will
+   never run, deliberately cancelled rather than paused: a long gap followed
+   by resumption of the same scope would record a mass fake `inferred_absence`
+   closure spike downstream (closures are inferred from any later sweep of the
+   same scope). The 65 stored partitions (203,674 rows, 99.77% mapped) stand
+   untouched and the `de-stock-segmented` scope is never re-swept;
+   `make check-ba-segmented`'s ≥390/400 breadth bar is superseded by the
+   panel's sweep-1 acceptance criterion (step 2b).
+2b. **BA Jobsuche frozen NUTS-3 panel** (replaces census completion; decided
+   2026-08-31). Runs under a new scope — the cancelled `de-stock-segmented`
+   scope is never re-swept.
+   1. **Envelope probe FIRST, before building anything:** does the BA
+      response envelope carry a total-hits field? (The 2026-08-24 probe
+      found no server-rendered `Treffer`/`Ergebnisse` node in the HTML; the
+      envelope / embedded SSR state is the open question.) If yes, one
+      request per region yields exact regional counts and the whole map
+      costs 400 requests. The outcome MUST be recorded in
+      `SCRAPER_FEASIBILITY.md` before the panel is built.
+   2. **Frame:** replace the ~10.8k-unit municipality/PLZ frame (10,761
+      level-2 segments in the frontier; the decision text's 10,778) with a
+      **400-unit NUTS-3 frame**. The destatis Kreise table in the reference
+      crosswalk (`scrapers/reference_germany.py`) is the authoritative
+      AGS→NUTS 2024 key and covers all 400 GISCO NUTS-3 codes; VZ250 is for
+      municipality names only (it carries 7 stale Thuringian codes).
+   3. **Frozen panel:** the query set must be byte-identical across sweeps,
+      seed recorded. Membership drift between sweeps fabricates closures and
+      corrupts survival durations.
+   4. **Cap-as-scope honesty:** the within-stratum page cap must be encoded
+      in `scope_json` and stated in `coverage_limitations` ("stratified
+      region-bounded sample, not a census"), so `expected_pages ==
+      completed_pages` is true of the declared capped scope. A collector
+      that caps at k pages and writes k=k without declaring the cap passes
+      every downstream test while silently truncating — that pattern is
+      forbidden (charter, scope decision 2026-08-31).
+   5. **Burst:** 400-query region probe, then ~5 daily sweeps of the frozen
+      panel (~30 min each, ~3 h total over a week), 1 s pacing per host,
+      zero 4xx.
+   - **Definition of Done (acceptance criteria):** sweep 1 covers **≥390 of
+      400 NUTS-3 regions**; every sweep `status=complete` with
+      `expected_pages == completed_pages` and `expected_rows == row_count`;
+      **panel membership hash identical across sweeps**; **zero failed
+      requests**.
+   - **Cadence:** design the panel for weekly re-sweep — the observatory may
+      later run as a live service at weekly cadence (monthly only as a demand
+      snapshot: survival resolution can never be finer than the sweep
+      interval, and postings live ~30 days).
 3. **StepStone** feasibility gate → `StepStoneCollector` → canary → DoD sweep.
+   **CUT 2026-08-31** — ~1.5M postings is days of crawling, and cross-source
+   counts are never summed downstream, so a second DE source adds a
+   non-additive column. Cancelled, not deferred.
 4. **Indeed** gate evaluates litigation risk → build or flag.
+   **CUT 2026-08-31** — stays a charter never-build (litigation history).
 5. Subsequent sources in technical-feasibility order.
 6. Arbeitnow (keyless API, interleave).
 7. BA agreement + EURES arrangement status updates.
@@ -405,7 +487,10 @@ accepted and stated per source in `coverage_limitations`.
 **Foolproof mechanisms:** mandatory technical-feasibility gate before every build
 (probe the actual pages, not just robots; verify no anti-bot challenge; measure
 page size, speed, structure), canary (≤100 records, 1 s+ pacing), mini-canary
-before the full sweep, manifest reconciliation, PII scan, NAV-style incident
+before the full sweep, manifest reconciliation, **cap-as-scope honesty** (the
+within-stratum page cap encoded in `scope_json` and stated in
+`coverage_limitations`) plus **frozen-panel integrity** (byte-identical query
+set and recorded seed across sweeps of a panel), PII scan, NAV-style incident
 hardening, honest coverage bound in every manifest. The ToS/robots gate is
 explicitly **relaxed** for this project; it is still recorded as evidence in the
 feasibility row but does not block a build.
@@ -425,6 +510,11 @@ feasibility row but does not block a build.
   before the full sweep.
 - **Definition of Done:** Full sweep pulls **≥100,000 unique listings** in
   staging with zero 4xx and successful canary evidence.
+- **Status:** **CANCELLED 2026-08-31** — grey-ToS HTML for a second German
+  source whose counts are never summed downstream: the column it would add is
+  non-additive, and ~1.5–1.8M listings carry the same exhaustive-count cost the
+  census was cancelled for. Cancelled, not deferred (descoping decision — see
+  Germany steps 2a/2b and SESSIONS.md P4).
 
 ## Increment 9: Joblift (Germany + FR/UK/NL/BE)
 
@@ -503,8 +593,8 @@ feasibility row but does not block a build.
 | --- | --- |
 | BA Jobsuche REST API | The **public website** is BUILT (Increment 8, 10,000 rows/sweep). Its internal REST API (`rest.arbeitsagentur.de`) remains **WAF-403 even from a browser** and is not used. |
 | Meinestadt.de | ToS-prohibited + Akamai Bot Manager |
-| StepStone | Legacy row — **now SECONDARY BUILD** under the relaxed gate (see Germany — ACTIVE LANE). |
-| Indeed | Litigation history — tertiary, risk-gated (see Germany — ACTIVE LANE). |
+| StepStone | Legacy row — was re-opened as SECONDARY BUILD under the relaxed gate, then **CUT 2026-08-31**: ~1.5M postings means days of crawling for a non-additive second DE column (cross-source counts are never summed downstream). Cancelled, not deferred. |
+| Indeed | Litigation history — was tertiary/risk-gated under the relaxed gate, then **CUT 2026-08-31**: stays a charter never-build. |
 | Jobnet (DK) | Restricted B2B agreement only |
 | VDAB Vacature API v4 | Requires a VDAB-approved partnership + signed *samenwerkingsovereenkomst* (verified 2026-08-22). Only implementable as an access-request task, not a scraper. **The public vdab.be job-search site remains in scope as Increment 5** (robots-permitted, disclaimer allows informational re-use). |
 
@@ -521,7 +611,7 @@ feasibility row but does not block a build.
 | 5 | VDAB BE (public site) | Low-Med (robots-permitted HTML; API surface blocked and dropped) | Med (no in-page pagination, breadth-based coverage) | Med (Flanders only, no occupation code) | **Low-Med** |
 | 6 | NAV NO | Low (agreement) | Med (feed reconciliation) | Low-Med (Finn.no excluded) | **Med** |
 | 7 | Finland TMT | Low-Med (activation bound to a Finnish Y-tunnus; KEHA suitability check) | Med (NDJSON stream, credentials **+ IP allowlist**) | Low (ESCO-native) | **Med (parked-BLOCKED)** |
-| 8 | Kimeta DE | **Low** (relaxed: no ToS/robots barrier for this project; no anti-bot) | **Med** (JS-driven HTML, pagination across 75+ feeds) | Med (aggregator) | **Low-Med** |
+| 8 | Kimeta DE | **Low** (relaxed: no ToS/robots barrier for this project; no anti-bot) | **Med** (JS-driven HTML, pagination across 75+ feeds) | Med (aggregator) | **Cancelled 2026-08-31** (non-additive second DE source) |
 | 9 | Joblift | **Med** (relaxed: no ToS/robots barrier; CloudFront 403 is a technical anti-bot question) | **High** (CloudFront edge block — needs browser test) | Med | **High (gate pending)** |
 | 10 | Stellenanzeigen DE | **Low** (relaxed: no ToS/robots barrier; robots already permitted) | **Med** (JSON-LD HTML, passive Cloudflare) | Low-Med (JSON-LD) | **Low-Med** |
 | 11 | Arbeitnow | Low (public API) | Low | **High** (tech-only niche) | **Low-Med** |
@@ -557,6 +647,10 @@ feasibility gate.
   codes) is a **new prerequisite** built before the first HTML collector. The BA
   HR-BA-XML agreement and the EURES arrangement run in parallel as structured-
   data access tracks.
+  **2026-08-31 descoping update:** the German active lane is now the **BA
+  Jobsuche frozen NUTS-3 panel** (step 2b) plus the Adzuna DE sanctioned base —
+  the segmented census is cancelled, StepStone/Kimeta/Indeed are cut, and no
+  further German source build is scheduled behind the panel.
 - **The German HTML chain is ordered by technical feasibility, not serial-only:**
   each source gets its own technical-feasibility gate and canary (≤100 records,
   1 s+ pacing, anti-bot probe), and canaries for independent hosts **may run
@@ -565,9 +659,13 @@ feasibility gate.
   HTML-canary class; its canary already passed (2026-08-22).
 - **Increments 11 (Arbeitnow) and 13 (Latvia NVA) are fillers** — slot into any
   idle cycle; they share no moving parts with the critical path.
-- **Recommended team shape:** one lane on the German active lane (region
-  crosswalk → BA Jobsuche → StepStone → Indeed-gate → Kimeta), one lane on
-  access tracks (BA HR-BA-XML agreement, EURES), one lane on the interleave
-  fillers (Arbeitnow, Adzuna country expansion). Data writes are the only shared
-  resource and are per-source-partition isolated on disk, so lanes do not
-  contend.
+- **Other-country re-sweeps are conditional on the observatory's live-service
+  budget only** (2026-08-31): no re-sweep of CZ/FR/BE/NL/NO/PL or Adzuna
+  country expansion is scheduled while the observatory is not running as a
+  live service.
+- **Recommended team shape:** one lane on the German active lane (BA Jobsuche
+  frozen NUTS-3 panel — census cancelled, StepStone/Kimeta/Indeed cut
+  2026-08-31), one lane on access tracks (BA HR-BA-XML agreement, EURES), one
+  lane on the interleave fillers (Arbeitnow, budget-conditional country
+  re-sweeps). Data writes are the only shared resource and are
+  per-source-partition isolated on disk, so lanes do not contend.

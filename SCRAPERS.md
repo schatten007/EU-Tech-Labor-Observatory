@@ -21,6 +21,34 @@ worktree; decisions recorded there are history for the main project only.
 - The scraper code lives under `scrapers/` with its own `pyproject.toml` and
   `Makefile`.
 
+## Scope decision (2026-08-31): breadth and repeat observations, not census
+
+The observatory's published views need **breadth and repeat observations**,
+not exhaustive counts: a top-25 region table, a per-sweep denominator, and
+flow/survival series keyed by scope. A one-shot census cannot populate the
+survival views at any size; only repeat sweeps of a frozen panel can. The
+German census (`de-stock-segmented`) is therefore **cancelled, not deferred**
+(`SCRAPER_ROADMAP.md` — Germany step 2a), and the BA Jobsuche lane is
+re-planned as a frozen 400-region NUTS-3 panel (roadmap step 2b). Because
+cross-source counts are never summed downstream, a second German source adds
+a non-additive column: StepStone and Kimeta are cut on that basis, Indeed
+stays a charter never-build, and other-country re-sweeps are conditional on
+the observatory's live-service budget only.
+
+Rules that follow from this decision and bind every repeat-observation sweep:
+
+1. **Frozen panel.** The query set must be byte-identical across sweeps, with
+   the seed recorded. Membership drift between sweeps fabricates closures and
+   corrupts survival durations.
+2. **Cancel means cancel.** Never resume a cancelled scope: a long gap
+   followed by resumption records a mass fake `inferred_absence` closure spike
+   downstream, because closures are inferred from any later sweep of the same
+   scope.
+3. **Weekly cadence by design.** Survival resolution can never be finer than
+   the sweep interval and postings live ~30 days, so panels are designed for
+   weekly re-sweep; the observatory may later run as a live service at weekly
+   cadence, and monthly sweeps serve only as a demand snapshot.
+
 ## Golden rules (mandatory)
 
 1. **robots.txt first.** Before touching a site, fetch and read `robots.txt`.
@@ -139,6 +167,15 @@ One manifest per sweep. Mirrors the main project's `stg_collection_manifests.sql
 Reconciliation: `status == "complete"`, `expected_pages == completed_pages`,
 `expected_rows == row_count`, and `row_count` equals the number of lines in the
 co-located `observations.ndjson`.
+
+A within-stratum page cap is part of the declared scope, not an implementation
+secret: it must be encoded in `scope_json` and stated in
+`coverage_limitations` (e.g. "stratified region-bounded sample, not a
+census"), so the reconciliation identities above hold **for the declared
+capped scope**. A collector that caps at k pages and writes
+`expected_pages == completed_pages == k` without declaring the cap passes
+every downstream test while silently truncating — that pattern is forbidden
+(scope decision 2026-08-31).
 
 ## Feasibility gate
 

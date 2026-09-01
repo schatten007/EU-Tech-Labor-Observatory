@@ -51,12 +51,12 @@ anti-bot makes them a non-starter for this lab.
 | 18 | Úřad práce / MPSV | CZ | JSON/JSON-LD + SPARQL (open data) | none | Low | Low | M–L | allowed (open data) |
 | 19 | Baltic PES (LV/LT/EE) | LV/LT/EE | open-data datasets / HTML | mixed | Medium | Medium | S–M | mostly open data |
 | 20 | Adzuna | DE + 18 others | JSON REST (official public API) | API key (free signup) | Low | Medium | L (100k+/DE) | allowed (API ToS) |
-| 21 | Kimeta.de | DE | HTML search engine (no public API) | none | Medium | Medium | **XL (~1.5–1.8M)** | grey |
+| 21 | Kimeta.de — **CUT 2026-08-31** | DE | HTML search engine (no public API) | none | Medium | Medium | **XL (~1.5–1.8M)** | grey |
 | 22 | Joblift | DE + FR/UK/NL/BE | HTML aggregator (no public API) | none | Medium | Medium | L | grey |
 | 23 | Arbeitnow | DE/UK (tech, remote) | JSON REST (official, no key) | none | Low | Low | S–M (tech only) | allowed |
 | 24 | Stellenanzeigen.de | DE | HTML + JSON-LD JobPosting | none | Medium | Medium | M (~10k+ active) | grey |
-| 25 | StepStone | DE/AT/CH | HTML (Akamai Bot Manager) | none | High | High | L–XL | **Prohibited** |
-| 26 | Indeed | DE/EU | HTML (Cloudflare + JS) | none | High | High | XL | **Prohibited** |
+| 25 | StepStone — **CUT 2026-08-31** | DE/AT/CH | HTML (Akamai Bot Manager) | none | High | High | L–XL | **Prohibited** |
+| 26 | Indeed — **never-build (re-affirmed 2026-08-31)** | DE/EU | HTML (Cloudflare + JS) | none | High | High | XL | **Prohibited** |
 
 Details for each source below.
 
@@ -88,6 +88,19 @@ apprenticeships). This is the crown jewel for German coverage.
   rejected. **Blocked by the charter's feasibility gate** unless a data/API
   agreement is obtained — same conclusion as the main project's
   `SOURCE_FEASIBILITY.md`.
+- **Status update 2026-08-31 (descoping):** under the user's relaxed gate the
+  public website (not this API) became the built primary German source, and its
+  segmented regional census ran mid-flight to 203,674 rows / 124 of 400 NUTS 3.
+  The census is now **cancelled, not deferred**: the observatory's published
+  views need breadth and repeat observations (top-25 region table, per-sweep
+  denominator, flow/survival series keyed by scope), and only repeat sweeps of
+  a frozen panel can populate the survival views. BA Jobsuche is re-planned as
+  a **frozen 400-region NUTS-3 panel** — one query per NUTS-3 region, page-capped
+  with the cap declared as scope, byte-identical query set across sweeps. An
+  **envelope probe decides the cheap path first**: if the BA response envelope
+  carries a total-hits field, one request per region yields exact regional
+  counts and the whole map costs 400 requests (outcome to be recorded in
+  `SCRAPER_FEASIBILITY.md`). See `SCRAPER_ROADMAP.md` Germany step 2b.
 
 ### 2. Interamt (interamt.de)
 
@@ -163,6 +176,10 @@ career sites and 75+ regional portals. The best raw DE volume after the BA.
 - **ToS:** grey. kimeta's terms are business/consumer-oriented; no explicit
   scraping ban was found, but copyright on compiled listings is asserted.
   Needs a live robots.txt + ToS check before build.
+- **CUT 2026-08-31:** not built and not scheduled — grey-ToS HTML for a second
+  German source whose counts are never summed downstream (a non-additive
+  column). The volume fact above stands; the build is cancelled, not deferred
+  (descoping decision, `SCRAPER_ROADMAP.md` / SESSIONS.md P4).
 
 ### 3c. Joblift (joblift.de; also .fr / .co.uk / .nl / .be)
 
@@ -215,6 +232,10 @@ IP reputation — and ToS **prohibits** scraping.
 - **Volume:** **L–XL**. **ToS:** **Prohibited.** **Blocked by the feasibility
   gate** — requires residential proxies and anti-bot evasion, which the charter
   forbids.
+- **CUT 2026-08-31:** even under the relaxed gate (which had re-opened it as a
+  secondary build), ~1.5M postings means days of crawling for a second German
+  source — and cross-source counts are never summed downstream, so the column
+  it would add is non-additive. Cancelled, not deferred.
 
 ### 3g. Indeed (indeed.de)
 
@@ -224,6 +245,8 @@ it High/High complexity.
 
 - **Volume:** **XL**. **ToS:** **Prohibited.** **Blocked.** (Indeed's own
   Publisher API is paused since 2022 for new publishers.)
+- **CUT 2026-08-31 (verdict unchanged):** Indeed stays a charter never-build —
+  litigation history; the descoping decision re-affirms the exclusion.
 
 ---
 
@@ -570,6 +593,13 @@ priority ranking for choosing the lab's first scrapers.
 | 10 | **Netherlands** | Aggregates only without portal scraping | UWV Open Match Data |
 
 **Germany without BA Jobsuche** — ordered by feasibility:
+
+**2026-08-31 descoping update to the list below:** Kimeta (2) is **cut** and
+StepStone (6) is **cut** — a second German source adds a non-additive column
+because cross-source counts are never summed downstream; Indeed stays a
+charter never-build. The active German lane is BA Jobsuche's frozen NUTS-3
+panel plus the Adzuna DE sanctioned base, and other-country re-sweeps are
+conditional on the observatory's live-service budget only.
 
 1. **Adzuna DE** — official public API, free key, L volume, multi-country.
 2. **Kimeta** — largest aggregator volume (~1.5–1.8M), HTML; ToS grey.

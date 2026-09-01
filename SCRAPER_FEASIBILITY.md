@@ -217,12 +217,20 @@ the gate status, and each surface gets its own full feasibility row before its
 build. Full architecture and backup chain: `SCRAPER_ROADMAP.md` →
 "Germany — ACTIVE LANE".
 
+**2026-08-31 descoping update to the table below:** the segmented BA census is
+**cancelled, not deferred**, and BA Jobsuche is re-planned as a frozen
+400-region NUTS-3 panel — see the segmented-stock row at the end of this file.
+StepStone and Kimeta are **cut** (a second DE source adds a non-additive
+column: cross-source counts are never summed downstream), Indeed stays a
+charter never-build, and other-country re-sweeps are conditional on the
+observatory's live-service budget only.
+
 | Surface | Advertised | Technical access (verified live) | robots.txt / ToS (recorded) | Gate status | Role |
 | --- | --- | --- | --- | --- | --- |
-| **BA Jobsuche public website** | ~1.9M | **SSR, plain HTTP** — `www.arbeitsagentur.de/jobsuche/suche?was=…&wo=…` → 200, 370 KB, server-rendered, no anti-bot, native ref IDs (`Stellenangebot 10000-1202838080-S`), publish date, salary, location+distance, homeoffice. Internal REST API (`rest.arbeitsagentur.de/…/pc/v6/jobs`) is **WAF-403** — unusable. | search host robots **absent (404)**; portal robots allow-all | **#1 — BUILD (2026-08-24)** — see full row below | primary |
-| **StepStone.de** | ~1.5M+ | **SSR, plain HTTP** — `www.stepstone.de/jobs/…` → 200, 1.1 MB, `application/ld+json`, no Akamai challenge on search pages. | 3,250 B robots (legacy `/5/` paths; `/jobs/*?q=*` allowed) | **#2 — build next** | secondary |
-| **Indeed.de** | ~1.5M+ | **SSR, plain HTTP** — `de.indeed.com/Jobs?q=…` → 200, 1.3 MB, `data-jk` ids. **Litigation risk** (Indeed has sued scrapers) — flagged, decision required. | 13 KB robots (`*` blocks `/jobs`, `/viewjob`, `/*&start=`) | **#3 — risk-gated** | tertiary |
-| **Kimeta (Inc 8)** | ~1.5–1.8M | **No anti-bot** — homepage 200 (214 KB); JS app with `/api/mutation/…`; content pages at `/stellenangebote`. robots deny is the only barrier (relaxed). | 6,257 B robots (`*` → `Disallow: /`) | **#4 — build** | quaternary |
+| **BA Jobsuche public website** | ~1.9M | **SSR, plain HTTP** — `www.arbeitsagentur.de/jobsuche/suche?was=…&wo=…` → 200, 370 KB, server-rendered, no anti-bot, native ref IDs (`Stellenangebot 10000-1202838080-S`), publish date, salary, location+distance, homeoffice. Internal REST API (`rest.arbeitsagentur.de/…/pc/v6/jobs`) is **WAF-403** — unusable. | search host robots **absent (404)**; portal robots allow-all | **#1 — BUILD (2026-08-24)** — see full row below; segmented census CANCELLED 2026-08-31, superseded by the frozen NUTS-3 panel (segmented-stock row) | primary |
+| **StepStone.de** | ~1.5M+ | **SSR, plain HTTP** — `www.stepstone.de/jobs/…` → 200, 1.1 MB, `application/ld+json`, no Akamai challenge on search pages. | 3,250 B robots (legacy `/5/` paths; `/jobs/*?q=*` allowed) | **CUT 2026-08-31** — non-additive second DE source | secondary |
+| **Indeed.de** | ~1.5M+ | **SSR, plain HTTP** — `de.indeed.com/Jobs?q=…` → 200, 1.3 MB, `data-jk` ids. **Litigation risk** (Indeed has sued scrapers) — flagged, decision required. | 13 KB robots (`*` blocks `/jobs`, `/viewjob`, `/*&start=`) | **CUT 2026-08-31 — never-build** | tertiary |
+| **Kimeta (Inc 8)** | ~1.5–1.8M | **No anti-bot** — homepage 200 (214 KB); JS app with `/api/mutation/…`; content pages at `/stellenangebote`. robots deny is the only barrier (relaxed). | 6,257 B robots (`*` → `Disallow: /`) | **CUT 2026-08-31** — non-additive, grey-ToS HTML | quaternary |
 | **Stellenanzeigen.de (Inc 10)** | ~10k+ | **robots-permitted, JSON-LD, passive Cloudflare** (community-confirmed) | permitted (772 B; 3 sitemaps) | **#5 — build** | small-clean |
 | **Joblift (Inc 9)** | L (per-city 20–27k) | **CloudFront 403 at the edge** — robots.txt AND `/business-developer` both 403; needs a real-browser test. | CloudFront-403 (not a robots answer) | **#6 — probe in browser** | pending |
 | **Monster.de** | L | **DataDome challenge** on robots.txt ("Please enable JS", `geo.captcha-delivery.com`) — technical anti-bot. | DataDome-403 | **#7 — blocked** (tooling decision) | pending |
@@ -320,3 +328,52 @@ markers), unmapped 0, low_confidence 0**; per-tier 186,761 / 2,284 / 14,170
 400-page cap; zero truncated segments left unsubdivided. Readiness gate
 (`make check-ba-segmented`) reports **124/400 NUTS 3** — the remaining ~8,171
 frontier segments complete the ≥390/400 breadth target.
+
+**DESCOPED 2026-08-31 — census completion CANCELLED, not deferred.** The
+observatory's published views need breadth and repeat observations (a top-25
+region table, a per-sweep denominator, flow/survival series keyed by scope),
+not exhaustive counts; a one-shot census cannot populate the survival views at
+any size, and only repeat sweeps of a frozen panel can. The ~8,171 pending
+frontier segments (~20+ h) will never run — deliberately cancelled, not
+paused: a long gap followed by resumption of the same scope would record a
+mass fake `inferred_absence` closure spike downstream, because closures are
+inferred from any later sweep of the same scope. The 65 stored partitions
+(203,674 rows, 99.77% mapped) stand untouched, and the `de-stock-segmented`
+scope is never re-swept.
+
+**Replacement plan — frozen NUTS-3 panel (new scope; decided 2026-08-31):**
+
+1. **Envelope probe FIRST, before building anything:** does the BA response
+   envelope carry a total-hits field? Probe 6 above found no server-rendered
+   `Treffer`/`Ergebnisse` node in the HTML; the open question is the response
+   envelope / embedded SSR state. If yes, one request per region yields exact
+   regional counts and the whole map costs 400 requests. **The outcome MUST be
+   recorded in this document before the panel is built.**
+2. **Frame:** replace the ~10.8k-unit municipality/PLZ frame (10,761 level-2
+   segments in the frontier; the decision text's 10,778) with a **400-unit
+   NUTS-3 frame**. The destatis Kreise table in `scrapers/reference_germany.py`
+   is the authoritative AGS→NUTS 2024 key and covers all 400 GISCO NUTS-3
+   codes; VZ250 is for municipality names only (it carries 7 stale Thuringian
+   codes).
+3. **Frozen panel:** the query set must be byte-identical across sweeps, seed
+   recorded. Membership drift between sweeps fabricates closures and corrupts
+   survival durations.
+4. **Cap-as-scope honesty:** the within-stratum page cap must be encoded in
+   `scope_json` and stated in `coverage_limitations` ("stratified
+   region-bounded sample, not a census"), so `expected_pages ==
+   completed_pages` is true of the declared capped scope. Capping at k pages
+   and writing k=k without declaring the cap is forbidden — it passes every
+   downstream test while silently truncating (charter, scope decision
+   2026-08-31).
+5. **Burst:** 400-query region probe, then ~5 daily sweeps of the frozen panel
+   (~30 min each, ~3 h total over a week), 1 s pacing per host, zero 4xx.
+
+**Acceptance criteria (the panel's DoD):** sweep 1 covers **≥390 of 400
+NUTS-3 regions**; every sweep `status=complete` with `expected_pages ==
+completed_pages` and `expected_rows == row_count`; **panel membership hash
+identical across sweeps**; **zero failed requests**.
+
+**Cadence:** design the panel for weekly re-sweep — the observatory may later
+run as a live service at weekly cadence; survival resolution can never be
+finer than the sweep interval and postings live ~30 days, so monthly sweeps
+serve only as a demand snapshot.
