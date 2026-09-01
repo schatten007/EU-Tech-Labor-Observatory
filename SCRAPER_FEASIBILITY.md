@@ -377,3 +377,41 @@ identical across sweeps**; **zero failed requests**.
 run as a live service at weekly cadence; survival resolution can never be
 finer than the sweep interval and postings live ~30 days, so monthly sweeps
 serve only as a demand snapshot.
+
+### BA Jobsuche — frozen NUTS-3 panel (`de-nuts3-panel`, step 2b)
+
+New scope, live-probed 2026-09-01. The cancelled `de-stock-segmented` scope and
+its 65 stored partitions are never touched or re-swept.
+
+| Probe | Live result (2026-09-01) | Consequence for the panel |
+| --- | --- | --- |
+| **E1. Envelope total-hits** (`scripts/probe_ba_envelope.py`, 3 pages + 1 API probe, 1 s pacing) | **PRESENT.** Field `maxErgebnisse`, JSON path `suchergebnis.maxErgebnisse`, inside the SSR state `<script id="ng-state">` (~35 KB) of the plain search HTML. Examples: Berlin **30,334**, Hamburg **24,474**, Rosenheim **3,128**; 25 tiles rendered per page. The 2026-08-24 finding stands for *visible* HTML (no `Treffer`/`Ergebnisse` text node) — the count lives in the embedded state, not the rendered DOM. `\|/jobsuche/api/jobs` returns 200 but serves the SPA shell, not JSON. | **Exact regional denominators cost one request per region: the whole 400-unit map is 400 requests (~7 min at 1 s).** `expected_rows` per stratum is therefore the source-advertised total, and the page cap is a declared sample of a known denominator rather than an unknown truncation. |
+| **E1a. SSR state shape** (same probe, `--shape`) | `suchergebnis` = `{ergebnisliste, maxErgebnisse, page, size, woOutput}`. `woOutput` = `{bereinigterOrt, suchmodus, koordinaten}` — the source's own echo of the location it resolved. Each tile carries `referenznummer`, `stellenangebotsTitel`, `firma`, `aenderungsdatum`, `veroeffentlichungszeitraum.von`, `alleBerufe[]`, `arbeitszeit*` flags, `entfernung`, and `stellenlokationen[].adresse = {strasse, plz, ort, region, land}`. | Region resolution reads `plz`/`ort` only; `strasse` and `externeURL` are never read or stored (PII ban). `woOutput.bereinigterOrt` + `suchmodus` give a per-query locality assertion straight from the source. |
+| **E2. Kreis addressing — `wo=Landkreis <name>`** (`scripts/probe_ba_region.py --forms lk`, 6 Kreise) | **0/6, and now explained.** Every `wo=Landkreis X` — Calw, Hof, Berlin, Oberhavel, Bremerhaven, Hamburg — returns the *identical* payload: `total=7`, `bereinigterOrt="Rosenheim (Landkreis A…"`, `suchmodus=ORTSUCHE`. This reproduces the 2026-08-24 "same 7 Rosenheim postings" break exactly. `suchmodus` vocabulary observed: **`ORTSUCHE`, `UMKREISSUCHE`, `UNGUELTIG`** — there is no administrative-region search mode. | **BA has no Kreis-level addressing.** The panel cannot query a NUTS-3 region as such; it must anchor on a place (`ORTSUCHE`) and declare the result a region-bounded sample. |
+| **E3. Kreis name / NUTS label as place** (`--forms plain0` n=16, `--forms label` n=6) | plain Kreis name: **6/16**. Non-town Kreis names return `UNGUELTIG`/0 (Oberhavel, Wetteraukreis, Erzgebirgskreis, Burgenlandkreis, Ostholstein, Vorpommern-Rügen) and some fuzzy-miss to the wrong place (`Osterholz`→"Osterholz bei Bopfingen", `Weimarer Land`→"Boitzenburger Land", `Landau in der Pfalz` locality 1/10). Full GISCO label (`"Hof, Kreisfreie Stadt"`): **4/6** — the suffix itself derails the resolver ("Hof Selmsdorf", total=1). | Kreis names are unusable as a frame: 271 of 400 labels carry no suffix and 129 do, and neither form addresses a region. Rejected. |
+| **E4. Anchor postcode, `umkreis=0`** (`--forms anchor`, state-stratified n=20) | **18/20 HIT with perfect locality** (`loc=10/10` on every hit; `umkreis=0` confirmed tight, `suchmodus=ORTSUCHE`). Totals range 7–1,770 (Berlin 10178 = 1,770; Erzgebirgskreis 09439 = 7). Two misses, both diagnosed: (a) **DE244 Hof, anchor 95015 → total=0** — the lowest postcode in a city range is often a PO-box code with no stock; (b) **DEB33 Landau, anchor 76829 → total=502 but locality 0/10** — 76829 maps to **two** NUTS-3 (DEB33 + DEB3H), so it carries no single-region provenance. | Postcode anchoring works and is tight, but anchor *selection* must exclude the 11 multi-NUTS-3 postcodes (done) and cannot rely on `min(plz)`, which systematically prefers PO-box codes. |
+| **E5. Reference cardinality** (crosswalk audit, no requests) | `data/reference/germany_plz_nuts_2024.csv`: 22,140 rows = 400 `kreis` + 11,000 `municipality` + 10,740 `plz`; **all three slices cover 400/400 NUTS-3**. 4,862 distinct postcodes, of which **11 are ambiguous**; unambiguous postcodes still cover **396/400**. 10,482 distinct municipality names, **397 ambiguous**; unique-name municipalities cover **392/400**. Kreis names: 378 distinct for 400 codes (22 collisions). | Confirms the census's locked strategy at NUTS-3 granularity: unique municipality name where one exists (392), unambiguous postcode for the rest — jointly 400/400 addressable frame entries. |
+| **E6. Why E4's two misses are not addressing failures** (`scripts/probe_ba_resolve.py`, 2 requests, resolved with the collector's own `GermanCrosswalk`) | `wo=Hof` resolves correctly (`bereinigterOrt="Hof, Saale"`, 773 hits) but its tiles carry postcodes **95028/95030, which the crosswalk reports `unmapped`** — the `plz` slice is derived from the *Anschriften* administration register, i.e. roughly **one administration postcode per municipality** (10,740 rows / 4,862 distinct codes), not a full postcode directory. `wo=76829` (Landau) resolves `by_plz=ambiguous` but `by_city="Landau in der Pfalz" → DEB33/mapped`. | **Tile postcodes are not a sound region key for this panel.** Region attribution comes from the query context (each panel query addresses exactly one NUTS-3 by construction under `umkreis=0`, the census's Tier-3 `mapped` semantics), with `woOutput.bereinigterOrt` asserted against the queried place as the per-query locality check. Both E4 misses are probe-resolver artefacts, not addressing failures. |
+
+**Panel design (locked 2026-09-01 by E1–E6):**
+
+* **Scope** `de-nuts3-panel`, new; `de-stock-segmented` is never re-swept.
+* **Frame** the 400 `kreis` rows of the pinned crosswalk (authoritative destatis
+  AGS→NUTS 2024 key, 400/400 GISCO codes).
+* **One frozen query per region**, chosen deterministically from the reference
+  alone — no measurement, no randomization, so there is no seed to record and
+  no way for the set to drift: the region's largest-town municipality (most
+  distinct postcodes, ties by name) when that name is unique in the register,
+  otherwise the region's unambiguous anchor postcode. Always `&umkreis=0`
+  (`suchmodus=ORTSUCHE`, tight). The ordered list is hashed into
+  `scope_json.membership_hash` / `scope_hash`.
+* **Denominator** `suchergebnis.maxErgebnisse` per region (E1), recorded per
+  region so the published views have a real per-sweep regional denominator.
+* **Declared cap** 4 pages × 25 items = 100 rows per region, in `scope_json`
+  **and** in `coverage_limitations` as "stratified region-bounded sample, not a
+  census". ~1,600 requests ≈ 30 min at 1 s pacing.
+* **No frontier, no subdivision, no adaptive behaviour**: anything that changes
+  the query set between sweeps fabricates closures and corrupts survival.
+
+
+
