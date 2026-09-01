@@ -413,5 +413,26 @@ its 65 stored partitions are never touched or re-swept.
 * **No frontier, no subdivision, no adaptive behaviour**: anything that changes
   the query set between sweeps fabricates closures and corrupts survival.
 
+**Sweep-1 attempt 1 (2026-09-01, membership hash `2e240e78…`) — REJECTED on
+breadth, partition discarded.** Six of the seven DoD assertions passed:
+400 regions queried, **1,070/1,070 pages, `status=complete`,
+`expected_rows == row_count == NDJSON lines = 21,967`, zero failed requests**
+(21 absorbed 403 throttle events), PII scan clean, page cap declared in both
+`scope_json` and `coverage_limitations`, one membership hash. **Breadth failed:
+370 of 400 NUTS-3 regions carried a mapped posting, below the ≥390 bar.**
+Diagnosis from the sweep's own `panel_regions.json`: the reference-only
+"largest town = most distinct postcodes" rule is *degenerate in rural regions*,
+where every municipality has exactly one postcode, so the tie-break picked the
+alphabetically first village (`Au`, `Grafengehaig`, `Aura a.d. Saale`,
+`Altenbuch`, `Breddin`, `Aasbüttel`…) or a PO-box postcode (`95015`, `92211`).
+Consequences: **22 anchors advertised zero stock**, 25 regions yielded no rows,
+and 33 anchors fuzzy-resolved to a same-name village in another region
+(`Altenhausen` → "Altenhausen bei Haldensleben", `Aland` → "Oland, Hallig").
+Median advertised stock per anchor was only 70. The partition was **deleted, not
+kept**: it is the first sweep of a scope that had never been accepted, and
+keeping it would mix two membership hashes under one scope, which is exactly the
+membership drift that fabricates closures.
+
+
 
 
