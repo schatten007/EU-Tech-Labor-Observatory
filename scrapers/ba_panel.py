@@ -32,6 +32,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Literal
@@ -60,6 +61,10 @@ BA_PANEL_MIN_REGIONS = 390
 #: Side file written next to the observations, carrying the per-region
 #: denominators the published views need.
 BA_PANEL_REGIONS_FILE = "panel_regions.json"
+
+#: Pinned panel artifact: the committed, probe-verified query list. It lives
+#: beside the crosswalk because it is reference data, not sweep output.
+BA_PANEL_PINNED_FILE = "ba_panel_nuts3.json"
 
 _REFERENCE_FILE = "germany_plz_nuts_2024.csv"
 
@@ -102,14 +107,108 @@ def _reference_rows(reference_dir: Path) -> list[dict[str, str]]:
 
 
 def build_panel(reference_dir: Path = Path("data/reference")) -> list[PanelEntry]:
-    """Build the frozen panel: one query per NUTS-3, ordered by NUTS code.
+    """The frozen panel: one query per NUTS-3, ordered by NUTS code.
 
-    Selection is a pure function of the pinned reference file, so two builds
-    from the same reference are byte-identical. The reference itself is pinned
-    and its hash travels in the manifest's ``reference_hashes``.
+    Prefers the **pinned artifact** (``ba_panel_nuts3.json``) when it is present
+    and complete, because the reference-only selection rule is degenerate in
+    rural regions: where every municipality carries exactly one postcode the
+    tie-break falls back to the alphabetically first village, which cost the
+    rejected sweep-1 attempt 30 regions of breadth (2026-09-01). The artifact
+    records, per region, the query that a one-off probe proved both self-
+    resolving and non-empty; it is committed, hashed into ``scope_json`` and
+    never regenerated between sweeps.
+
+    Without the artifact the rule applies, so the builder still works for tests
+    and for a fresh reference: a pure function of the pinned reference file,
+    identical across builds.
+    """
+    pinned = load_pinned_panel(reference_dir)
+    if pinned is not None:
+        return pinned
+    return rule_panel(reference_dir)
+
+
+def rule_panel(reference_dir: Path = Path("data/reference")) -> list[PanelEntry]:
+    """Reference-only selection: the first candidate of every region."""
+    candidates = panel_candidates(reference_dir)
+    kreis = _kreis_rows(reference_dir)
+    panel: list[PanelEntry] = []
+    for nuts_code in sorted(candidates):
+        if not candidates[nuts_code]:
+            continue
+        form, value = candidates[nuts_code][0]
+        row = kreis[nuts_code]
+        panel.append(
+            PanelEntry(
+                nuts_code=nuts_code,
+                nuts_label=row["nuts_label"],
+                kreis_name=row["kreis_name"],
+                form=form,
+                value=value,
+            )
+        )
+    return panel
+
+
+def _kreis_rows(reference_dir: Path) -> dict[str, dict[str, str]]:
+    return {
+        row["nuts_code"]: row
+        for row in _reference_rows(reference_dir)
+        if row["source_type"] == "kreis"
+    }
+
+
+def _append_candidate(candidates: list[tuple[QueryForm, str]], form: QueryForm, value: str) -> None:
+    if value and (form, value) not in candidates:
+        candidates.append((form, value))
+
+
+def _seat_labels(kreis: dict[str, str]) -> set[str]:
+    """Names that plausibly denote the region's seat town.
+
+    A Kreisfreie Stadt is named after its town outright; a Landkreis is often
+    named after its seat ("Calw"), and a merged Kreis after two of its towns
+    ("Schleswig-Flensburg" -> Schleswig), so the compound components count too.
+    Every candidate is still required to be a municipality *of that region*, so
+    a component that names some other region's town is discarded.
+    """
+    raw = {
+        kreis["kreis_name"].strip(),
+        kreis["nuts_label"].split(",")[0].strip(),
+    }
+    labels: set[str] = set()
+    for value in raw:
+        if not value:
+            continue
+        labels.add(value.casefold())
+        for part in re.split(r"[-/ ]", value):
+            part = part.strip()
+            if len(part) > 3:
+                labels.add(part.casefold())
+    return labels
+
+
+def panel_candidates(
+    reference_dir: Path = Path("data/reference"),
+    *,
+    max_candidates: int = 5,
+) -> dict[str, list[tuple[QueryForm, str]]]:
+    """Deterministic, ordered place candidates per NUTS-3 region.
+
+    Ordering (all derived from the pinned reference, no measurement):
+
+    1. the **seat town** — the municipality in the region whose name matches the
+       Kreis name or the town part of the GISCO label (``"Rosenheim, Landkreis"``
+       -> ``Rosenheim``), which is a real town in every Kreisfreie Stadt and in
+       every Landkreis named after its seat;
+    2. the region's municipalities ranked by distinct postcode count, then name
+       (a town with several postcodes is bigger than a one-postcode village);
+    3. the unambiguous anchor postcode of the best-ranked municipality.
+
+    Only names unique in the whole register and postcodes mapping to a single
+    NUTS-3 are offered: anything else carries no single-region provenance.
     """
     rows = _reference_rows(reference_dir)
-
     kreis_rows = {row["nuts_code"]: row for row in rows if row["source_type"] == "kreis"}
 
     # Names that identify exactly one NUTS-3 across the whole register; the 397
@@ -141,43 +240,103 @@ def build_panel(reference_dir: Path = Path("data/reference")) -> list[PanelEntry
         if row["source_type"] == "municipality" and row["municipality_name"]:
             region_names[row["nuts_code"]].add(row["municipality_name"])
 
-    panel: list[PanelEntry] = []
+    out: dict[str, list[tuple[QueryForm, str]]] = {}
     for nuts_code in sorted(kreis_rows):
         kreis = kreis_rows[nuts_code]
         towns = region_towns.get(nuts_code, {})
-        # Largest-town proxy: most distinct postcodes, ties broken by name so
-        # the choice is stable. Cities carry many postcodes, villages one.
         ranked = sorted(towns, key=lambda name: (-len(towns[name]), name))
-        chosen_name = next((name for name in ranked if name.casefold() in unique_names), None)
-        form: QueryForm
-        if chosen_name is not None:
-            form = "name"
-            value = chosen_name
-        elif ranked:
-            # Fall back to the anchor postcode of the largest town, exactly as
-            # the census resolved its 397 ambiguous municipality names.
-            form = "plz"
-            value = min(towns[ranked[0]])
-        else:
-            # No unambiguous postcode in this region at all: take a unique-name
-            # municipality from the register instead.
-            fallback = sorted(
-                name for name in region_names.get(nuts_code, ()) if name.casefold() in unique_names
+        seat_labels = _seat_labels(kreis)
+        candidates: list[tuple[QueryForm, str]] = []
+        names_here = set(ranked) | region_names.get(nuts_code, set())
+
+        # 1. the seat town, if the register knows it as a unique name here.
+        for name in sorted(names_here):
+            if name.casefold() in seat_labels and name.casefold() in unique_names:
+                _append_candidate(candidates, "name", name)
+        # 2. the region's towns, biggest first.
+        for name in ranked:
+            if name.casefold() in unique_names:
+                _append_candidate(candidates, "name", name)
+        for name in sorted(region_names.get(nuts_code, set())):
+            if name.casefold() in unique_names:
+                _append_candidate(candidates, "name", name)
+        # 3. every unambiguous postcode of the region, biggest town first.
+        for name in ranked:
+            for code in sorted(towns[name]):
+                _append_candidate(candidates, "plz", code)
+        # 4. last resort: the seat name even though the register knows it in
+        #    several regions. Only the seat name qualifies (a strong prior that
+        #    BA's place search lands on this region's own town), and the pinning
+        #    probe still has to see the source resolve it to that exact name.
+        for name in sorted(names_here):
+            if name.casefold() in seat_labels:
+                _append_candidate(candidates, "name", name)
+        out[nuts_code] = candidates[:max_candidates]
+    return out
+
+
+def load_pinned_panel(reference_dir: Path = Path("data/reference")) -> list[PanelEntry] | None:
+    """Read the pinned panel artifact, or ``None`` when it is absent/incomplete.
+
+    The artifact is validated against the reference: every entry must name a
+    real NUTS-3 region of the frame, and every region of the frame must appear
+    exactly once. A partial artifact is rejected rather than silently mixed with
+    rule-derived entries, because a half-pinned panel is not a frozen panel.
+    """
+    path = reference_dir / BA_PANEL_PINNED_FILE
+    if not path.exists():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    kreis = _kreis_rows(reference_dir)
+    entries: list[PanelEntry] = []
+    seen: set[str] = set()
+    for item in payload.get("entries", []):
+        nuts_code = str(item["nuts_code"])
+        if nuts_code not in kreis or nuts_code in seen:
+            raise ValueError(
+                f"pinned panel {path} names {nuts_code}, which is not exactly one "
+                "region of the reference frame"
             )
-            if not fallback:
-                continue
-            form = "name"
-            value = fallback[0]
-        panel.append(
+        seen.add(nuts_code)
+        entries.append(
             PanelEntry(
                 nuts_code=nuts_code,
-                nuts_label=kreis["nuts_label"],
-                kreis_name=kreis["kreis_name"],
-                form=form,
-                value=value,
+                nuts_label=kreis[nuts_code]["nuts_label"],
+                kreis_name=kreis[nuts_code]["kreis_name"],
+                form=item["form"],
+                value=str(item["value"]),
             )
         )
-    return panel
+    if seen != set(kreis):
+        raise ValueError(
+            f"pinned panel {path} covers {len(seen)} of {len(kreis)} regions; "
+            "a partial pin is not a frozen panel"
+        )
+    return sorted(entries, key=lambda entry: entry.nuts_code)
+
+
+def write_pinned_panel(
+    reference_dir: Path,
+    entries: list[PanelEntry],
+    evidence: dict[str, Any],
+) -> Path:
+    """Write the pinned panel artifact. Called once, by ``scripts/pin_ba_panel.py``."""
+    path = reference_dir / BA_PANEL_PINNED_FILE
+    payload = {
+        "frame": "nuts3-kreise-destatis-2024",
+        "membership_hash": panel_membership_hash(entries),
+        "frame_size": len(entries),
+        "evidence": evidence,
+        "entries": [
+            {"nuts_code": e.nuts_code, "form": e.form, "value": e.value}
+            for e in sorted(entries, key=lambda entry: entry.nuts_code)
+        ],
+    }
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return path
 
 
 def panel_membership_hash(panel: list[PanelEntry]) -> str:

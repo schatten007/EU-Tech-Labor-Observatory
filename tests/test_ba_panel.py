@@ -41,8 +41,12 @@ from scrapers.ba_panel import (
     ba_panel_coverage_limitations,
     ba_panel_scope_params,
     build_panel,
+    load_pinned_panel,
+    panel_candidates,
     panel_membership_hash,
+    rule_panel,
     write_panel_regions,
+    write_pinned_panel,
 )
 from scrapers.base import NormalizedRecord
 from tests.test_ba_jobsuche import KEY, search_page, write_crosswalk
@@ -194,6 +198,104 @@ def test_real_reference_yields_the_full_frame() -> None:
     assert len(panel) == 400
     assert len({e.nuts_code for e in panel}) == 400
     assert len({e.query for e in panel}) == 400
+
+
+# ---------------------------------------------------------------------------
+# Candidate ordering and the pinned artifact
+# ---------------------------------------------------------------------------
+
+
+def test_candidates_are_ordered_and_region_local(tmp_path: Path) -> None:
+    ref_dir = write_panel_crosswalk(tmp_path)
+    candidates = panel_candidates(ref_dir)
+    assert set(candidates) == {"DE136", "DE300"}
+    # Berlin is its own seat town, so it leads its region's list.
+    assert candidates["DE300"][0] == ("name", "Berlin")
+    # Every candidate must be a place of that region: no cross-region leakage.
+    assert ("name", "Berlin") not in candidates["DE136"]
+    # Postcodes appear as later candidates, never ahead of a usable town.
+    assert ("plz", "10178") in candidates["DE300"]
+    assert candidates["DE300"].index(("name", "Berlin")) < candidates["DE300"].index(
+        ("plz", "10178")
+    )
+
+
+def test_candidates_include_compound_seat_component(tmp_path: Path) -> None:
+    """A merged Kreis ("Schleswig-Flensburg") is addressed by its seat town."""
+    text = (
+        "source_type,source_code,municipality_name,kreis_name,nuts_code,nuts_label,"
+        "source_url,source_version\n"
+        "kreis,01059,Schleswig-Flensburg,Schleswig-Flensburg,DEF0C,Schleswig-Flensburg,"
+        "https://example.invalid/k,2026-08-23\n"
+        "municipality,01059001,Ahneby,Schleswig-Flensburg,DEF0C,Schleswig-Flensburg,"
+        "https://example.invalid/m,2026-08-23\n"
+        "municipality,01059158,Schleswig,Schleswig-Flensburg,DEF0C,Schleswig-Flensburg,"
+        "https://example.invalid/m,2026-08-23\n"
+        "plz,24855,Ahneby,Schleswig-Flensburg,DEF0C,Schleswig-Flensburg,"
+        "https://example.invalid/p,2026-08-23\n"
+        "plz,24837,Schleswig,Schleswig-Flensburg,DEF0C,Schleswig-Flensburg,"
+        "https://example.invalid/p,2026-08-23\n"
+    )
+    candidates = panel_candidates(write_panel_crosswalk(tmp_path, text))
+    assert candidates["DEF0C"][0] == ("name", "Schleswig")
+
+
+def test_pinned_artifact_overrides_the_rule(tmp_path: Path) -> None:
+    ref_dir = write_panel_crosswalk(tmp_path)
+    ruled = rule_panel(ref_dir)
+    by_code = {e.nuts_code: e for e in ruled}
+    # The rule picks the name "Berlin" for DE300; pin a postcode instead.
+    pinned_entries = [
+        by_code["DE136"],
+        by_code["DE300"].model_copy(update={"form": "plz", "value": "10179"}),
+    ]
+    write_pinned_panel(ref_dir, pinned_entries, {"pinned_at": "test"})
+    loaded = build_panel(ref_dir)
+    assert [(e.nuts_code, e.form, e.value) for e in loaded] == [
+        (e.nuts_code, e.form, e.value) for e in pinned_entries
+    ]
+    assert panel_membership_hash(loaded) == panel_membership_hash(pinned_entries)
+    assert panel_membership_hash(loaded) != panel_membership_hash(ruled)
+
+
+def test_pinned_artifact_is_reloaded_identically(tmp_path: Path) -> None:
+    ref_dir = write_panel_crosswalk(tmp_path)
+    write_pinned_panel(ref_dir, rule_panel(ref_dir), {"pinned_at": "test"})
+    first = load_pinned_panel(ref_dir)
+    second = load_pinned_panel(ref_dir)
+    assert first is not None and second is not None
+    assert panel_membership_hash(first) == panel_membership_hash(second)
+
+
+def test_partial_pin_is_rejected(tmp_path: Path) -> None:
+    """A half-pinned panel is not a frozen panel: it must fail, not fall back."""
+    ref_dir = write_panel_crosswalk(tmp_path)
+    write_pinned_panel(ref_dir, rule_panel(ref_dir)[:1], {"pinned_at": "test"})
+    with pytest.raises(ValueError, match="not a frozen panel"):
+        build_panel(ref_dir)
+
+
+def test_pin_naming_an_unknown_region_is_rejected(tmp_path: Path) -> None:
+    ref_dir = write_panel_crosswalk(tmp_path)
+    path = ref_dir / "ba_panel_nuts3.json"
+    path.write_text(
+        json.dumps({"entries": [{"nuts_code": "DE999", "form": "name", "value": "X"}]}),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="not exactly one region"):
+        build_panel(ref_dir)
+
+
+def test_real_pinned_panel_matches_the_reference_frame() -> None:
+    ref_dir = Path("data/reference")
+    if not (ref_dir / "ba_panel_nuts3.json").exists():
+        pytest.skip("panel not pinned in this checkout")
+    pinned = load_pinned_panel(ref_dir)
+    assert pinned is not None
+    assert len(pinned) == 400
+    payload = json.loads((ref_dir / "ba_panel_nuts3.json").read_text(encoding="utf-8"))
+    # The artifact carries the hash it was written with, and it must still hold.
+    assert payload["membership_hash"] == panel_membership_hash(pinned)
 
 
 # ---------------------------------------------------------------------------
