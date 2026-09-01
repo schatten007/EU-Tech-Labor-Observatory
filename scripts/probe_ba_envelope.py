@@ -71,8 +71,10 @@ def _scan_scripts(html: str) -> tuple[list[str], list[tuple[str, str, Any]]]:
     for attrs, body in _SCRIPT_TAG.findall(html):
         script_id = _ID_ATTR.search(attrs)
         script_type = _TYPE_ATTR.search(attrs)
-        name = script_id.group(1) if script_id else (
-            script_type.group(1) if script_type else "<anonymous>"
+        name = (
+            script_id.group(1)
+            if script_id
+            else (script_type.group(1) if script_type else "<anonymous>")
         )
         stripped = body.strip()
         if not stripped:
@@ -99,9 +101,7 @@ def _scan_scripts(html: str) -> tuple[list[str], list[tuple[str, str, Any]]]:
 def _scan_raw(html: str) -> list[tuple[str, str]]:
     """Fallback: count-shaped `"key": <int>` pairs anywhere in the response."""
     found: list[tuple[str, str]] = []
-    for match in re.finditer(
-        r'"([A-Za-z_][A-Za-z0-9_]*)"\s*:\s*(\d{1,9})', html
-    ):
+    for match in re.finditer(r'"([A-Za-z_][A-Za-z0-9_]*)"\s*:\s*(\d{1,9})', html):
         key, value = match.group(1), match.group(2)
         if _COUNT_KEY.search(key):
             found.append((key, value))
@@ -122,9 +122,7 @@ async def main() -> int:
     per_city: dict[str, Any] = {}
     per_city_tiles: dict[str, int] = {}
 
-    async with httpx.AsyncClient(
-        timeout=30.0, follow_redirects=True, headers=headers
-    ) as client:
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, headers=headers) as client:
         for city in _PROBE_CITIES:
             url = f"{BA_BASE}/jobsuche/suche?wo={city}&page=1"
             try:
@@ -133,9 +131,7 @@ async def main() -> int:
                 statuses.append(f"{city}=ERR({type(exc).__name__})")
                 await asyncio.sleep(BA_PACING_SECONDS)
                 continue
-            statuses.append(
-                f"{city}={response.status_code}/{len(response.text)}B"
-            )
+            statuses.append(f"{city}={response.status_code}/{len(response.text)}B")
             if response.status_code == 200:
                 descriptors, hits = _scan_scripts(response.text)
                 all_script_names.update(descriptors)
@@ -150,17 +146,13 @@ async def main() -> int:
             await asyncio.sleep(BA_PACING_SECONDS)
 
         # JSON envelope check: the SSR page may be backed by a REST endpoint.
-        api_url = (
-            f"{BA_BASE}/jobsuche/api/jobs?wo=Berlin&page=1&size=25"
-        )
+        api_url = f"{BA_BASE}/jobsuche/api/jobs?wo=Berlin&page=1&size=25"
         try:
             api_response = await client.get(
                 api_url, headers={**headers, "Accept": "application/json"}
             )
             api_note = f"{api_response.status_code}/{len(api_response.text)}B"
-            if api_response.status_code == 200 and api_response.text.startswith(
-                ("{", "[")
-            ):
+            if api_response.status_code == 200 and api_response.text.startswith(("{", "[")):
                 try:
                     parsed = json.loads(api_response.text)
                 except (json.JSONDecodeError, ValueError):
@@ -195,7 +187,7 @@ async def main() -> int:
         for key, value in list(raw_hits.items())[:6]:
             lines.append(f"RAW key={key} example={value}")
     else:
-        lines.append("RAW regex: absent (no count-shaped \"key\": int in response)")
+        lines.append('RAW regex: absent (no count-shaped "key": int in response)')
     verdict = "PRESENT" if (all_hits or raw_hits) else "ABSENT"
     lines.append(f"VERDICT total-hits field: {verdict}")
     print("\n".join(lines[:20]))

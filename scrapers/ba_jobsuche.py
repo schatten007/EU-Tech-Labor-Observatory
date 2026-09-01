@@ -63,6 +63,7 @@ from __future__ import annotations
 import asyncio
 import csv
 import hashlib
+import json
 import re
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
@@ -73,6 +74,11 @@ import httpx
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, ConfigDict, Field
 
+from scrapers.ba_panel import (
+    BA_PANEL_PAGE_CAP,
+    BA_PANEL_UMKREIS,
+    PanelEntry,
+)
 from scrapers.ba_segments import BA_BUNDESLAENDER, BA_LEVEL4_RECENCY_DAYS, Segment, SegmentFrontier
 from scrapers.base import (
     REQUEST_TIMEOUT_SECONDS,
@@ -166,6 +172,47 @@ _GERMAN_DATE = re.compile(r"(\d{2})\.(\d{2})\.(\d{4})")
 _REF_ID = re.compile(r"/jobsuche/jobdetail/([^/\s\"']+)")
 # Location: "Arbeitsort: Berlin (11 km)" -> "Berlin"
 _LOCATION_CITY = re.compile(r"Arbeitsort:\s*([^(]+)")
+# SSR state blob carrying the search envelope (probe E1, 2026-09-01).
+_NG_STATE = re.compile(
+    r"<script[^>]*id=[\"']ng-state[\"'][^>]*>(.*?)</script>",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def parse_search_envelope(html: str) -> tuple[int | None, str | None, str | None]:
+    """Read ``(total_hits, resolved_place, search_mode)`` from the SSR state.
+
+    The visible HTML carries no ``Treffer``/``Ergebnisse`` node, but the
+    ``<script id="ng-state">`` blob does: ``suchergebnis.maxErgebnisse`` is the
+    exact number of hits the source advertises for the query, and
+    ``suchergebnis.woOutput`` echoes the location it actually resolved
+    (``bereinigterOrt``) and the mode it used (``suchmodus`` is one of
+    ``ORTSUCHE``, ``UMKREISSUCHE``, ``UNGUELTIG``). Allowlist-only: nothing else
+    is read out of the state, and none of it is a personal datum.
+    """
+    match = _NG_STATE.search(html)
+    if match is None:
+        return (None, None, None)
+    try:
+        state = json.loads(match.group(1))
+    except (json.JSONDecodeError, ValueError):
+        return (None, None, None)
+    if not isinstance(state, dict):
+        return (None, None, None)
+    for value in state.values():
+        if not isinstance(value, dict) or "maxErgebnisse" not in value:
+            continue
+        total = value.get("maxErgebnisse")
+        wo_output = value.get("woOutput")
+        place: str | None = None
+        mode: str | None = None
+        if isinstance(wo_output, dict):
+            raw_place = wo_output.get("bereinigterOrt")
+            raw_mode = wo_output.get("suchmodus")
+            place = str(raw_place) if raw_place else None
+            mode = str(raw_mode) if raw_mode else None
+        return (int(total) if isinstance(total, (int, float)) else None, place, mode)
+    return (None, None, None)
 
 
 # ---------------------------------------------------------------------------
@@ -554,6 +601,12 @@ class BAJobsucheCollector(BaseCollector):
         max_segments: int | None = None,
         min_level: int = 0,
         umkreis: int = 0,
+        # Frozen NUTS-3 panel mode (Increment 9, step 2b). When ``panel`` is
+        # given, the sweep walks exactly that pinned query list, page-capped;
+        # ``frontier`` and ``max_pages`` are then irrelevant. No subdivision, no
+        # adaptivity: the query set must stay byte-identical across sweeps.
+        panel: list[PanelEntry] | None = None,
+        panel_page_cap: int = BA_PANEL_PAGE_CAP,
     ) -> None:
         super().__init__(
             scope_id=scope_id, sweep_id=sweep_id, observed_at=observed_at, timeout=timeout
@@ -588,6 +641,18 @@ class BAJobsucheCollector(BaseCollector):
         self.segments_subdivided = 0
         self.segments_failed = 0
         self.active_segment: Segment | None = None
+        # Panel-mode state (populated only when a panel is given).
+        self._panel = panel
+        self._panel_page_cap = max(1, panel_page_cap)
+        self.panel_regions_queried = 0
+        self.panel_regions_with_rows = 0
+        self.panel_regions_empty = 0
+        self.panel_regions_capped = 0
+        self.panel_regions_short = 0
+        self.panel_locality_mismatches = 0
+        self.panel_missing_envelope = 0
+        #: nuts_code -> {advertised, rows, pages, form, query, place, mode}
+        self.panel_regions: dict[str, dict[str, Any]] = {}
 
     @property
     def frontier(self) -> SegmentFrontier | None:
@@ -662,6 +727,8 @@ class BAJobsucheCollector(BaseCollector):
     # -- fetch -------------------------------------------------------------
 
     def fetch(self) -> AsyncIterator[RawRecord]:
+        if self._panel is not None:
+            return self._fetch_panel()
         if self._frontier is not None:
             return self._fetch_segmented()
         return self._fetch()
@@ -671,6 +738,158 @@ class BAJobsucheCollector(BaseCollector):
         if key:
             return f"{BA_SEARCH_URL}&{key}&page={page_num}"
         return f"{BA_SEARCH_URL}&page={page_num}"
+
+    @staticmethod
+    def _panel_locality_ok(entry: PanelEntry, place: str | None, mode: str | None) -> bool:
+        """Assert the source resolved the queried place, using its own echo.
+
+        ``woOutput.bereinigterOrt`` is BA's cleaned rendering of the location it
+        searched ("Hof" -> "Hof, Saale"; "72213" -> "72213"), and ``suchmodus``
+        is ``UNGUELTIG`` when the string did not resolve at all. Comparing the
+        first comma component catches the fuzzy misses seen in probe E3
+        ("Osterholz" -> "Osterholz bei Bopfingen").
+        """
+        if mode == "UNGUELTIG" or not place:
+            return False
+        resolved = place.split(",")[0].strip().casefold()
+        return resolved == entry.value.strip().casefold()
+
+    async def _fetch_panel(self) -> AsyncIterator[RawRecord]:
+        """Walk the frozen NUTS-3 panel: one pinned query per region, page-capped.
+
+        No frontier, no subdivision, no adaptivity — the query list is the pinned
+        panel and nothing observed during the sweep may change it, because a
+        query set that drifts between sweeps fabricates closures and corrupts
+        survival durations. The per-region page plan comes from the source's own
+        advertised total (``maxErgebnisse``) clamped by the declared cap, so
+        ``expected_pages`` describes the declared capped scope.
+        """
+        assert self._panel is not None
+        await self._load_robots()
+        seen: set[str] = set()
+        self.total_pages = 0
+        self.completed_pages = 0
+
+        for entry in self._panel:
+            self.panel_regions_queried += 1
+            advertised: int | None = None
+            place: str | None = None
+            mode: str | None = None
+            region_rows = 0
+            pages_done = 0
+            planned = 1
+            # Page 1 is always planned: it is what reveals the region's total.
+            self.total_pages += 1
+            page_num = 1
+            while page_num <= planned:
+                url = self._segment_url(entry.query, page_num)
+                response = await self._get(url)
+                if response.status_code != 200:
+                    self.failed_pages += 1
+                    self._log.warning(
+                        "ba_panel_page_failed",
+                        nuts_code=entry.nuts_code,
+                        page=page_num,
+                        status=response.status_code,
+                    )
+                    break
+                self.completed_pages += 1
+                pages_done += 1
+
+                if page_num == 1:
+                    advertised, place, mode = parse_search_envelope(response.text)
+                    if advertised is None:
+                        # The envelope is the panel's denominator; losing it is
+                        # schema drift, so it is counted, not silently ignored.
+                        self.panel_missing_envelope += 1
+                    else:
+                        pages_available = (advertised + BA_ITEMS_PER_PAGE - 1) // BA_ITEMS_PER_PAGE
+                        planned = max(1, min(self._panel_page_cap, pages_available))
+                        if pages_available > self._panel_page_cap:
+                            self.panel_regions_capped += 1
+                        # Pages 2..planned join the declared plan.
+                        self.total_pages += planned - 1
+                    if not self._panel_locality_ok(entry, place, mode):
+                        self.panel_locality_mismatches += 1
+                        self._log.warning(
+                            "ba_panel_locality_mismatch",
+                            nuts_code=entry.nuts_code,
+                            queried=entry.value,
+                            resolved=place,
+                            mode=mode,
+                        )
+
+                items = parse_page(response.text)
+                if not items:
+                    self.empty_pages += 1
+                    break
+
+                self.items_seen += len(items)
+                for item in items:
+                    source_id = pseudonymize(item.native_id, self._hmac_key)
+                    if source_id in seen:
+                        self.duplicates_dropped += 1
+                        continue
+                    seen.add(source_id)
+                    region_rows += 1
+                    yield RawRecord(
+                        native_id=item.native_id,
+                        payload={
+                            "native_id": item.native_id,
+                            "first_published": item.first_published,
+                            "location_city": item.location_city,
+                            "segment_key": entry.query,
+                            "segment_nuts3": entry.nuts_code,
+                            "segment_nuts1": entry.nuts1,
+                            "segment_level": 2,
+                            "umkreis": BA_PANEL_UMKREIS,
+                        },
+                    )
+
+                if len(items) < BA_ITEMS_PER_PAGE:
+                    # Pagination closed before the plan: the advertised total was
+                    # stale. Drop the un-walked remainder from the plan (so the
+                    # manifest identity describes what the declared rule actually
+                    # required) and record the discrepancy.
+                    break
+                page_num += 1
+
+            if pages_done and pages_done < planned:
+                self.panel_regions_short += 1
+                self.total_pages -= planned - pages_done
+
+            if region_rows:
+                self.panel_regions_with_rows += 1
+            else:
+                self.panel_regions_empty += 1
+
+            self.panel_regions[entry.nuts_code] = {
+                "form": entry.form,
+                "query": entry.query,
+                "advertised": advertised,
+                "rows": region_rows,
+                "pages": pages_done,
+                "planned_pages": planned,
+                "resolved_place": place,
+                "search_mode": mode,
+            }
+
+        self.total_elements = len(seen)
+        self._log.info(
+            "ba_panel_sweep_summary",
+            regions=self.panel_regions_queried,
+            regions_with_rows=self.panel_regions_with_rows,
+            regions_empty=self.panel_regions_empty,
+            regions_capped=self.panel_regions_capped,
+            regions_short=self.panel_regions_short,
+            locality_mismatches=self.panel_locality_mismatches,
+            missing_envelope=self.panel_missing_envelope,
+            planned_pages=self.total_pages,
+            completed_pages=self.completed_pages,
+            failed_pages=self.failed_pages,
+            unique_rows=self.total_elements,
+            duplicates=self.duplicates_dropped,
+        )
 
     async def _fetch_segmented(self) -> AsyncIterator[RawRecord]:
         assert self._frontier is not None

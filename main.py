@@ -55,6 +55,15 @@ from scrapers.ba_jobsuche import (
 from scrapers.ba_jobsuche import (
     crosswalk_reference_hashes as ba_crosswalk_reference_hashes,
 )
+from scrapers.ba_panel import (
+    BA_PANEL_MIN_REGIONS,
+    BA_PANEL_SCOPE_ID,
+    ba_panel_coverage_limitations,
+    ba_panel_scope_params,
+    build_panel,
+    panel_membership_hash,
+    write_panel_regions,
+)
 from scrapers.ba_segments import SegmentFrontier, build_initial_frontier
 from scrapers.base import BaseCollector, SweepWriter, utc_iso
 from scrapers.czech_mpsv import (
@@ -228,6 +237,24 @@ def _ba_jobsuche_segmented(
     )
 
 
+def _ba_jobsuche_panel(
+    scope_id: str,
+    sweep_id: str,
+    observed_at: _dt.datetime,
+    hmac_key: bytes,
+    **_: object,
+) -> BaseCollector:
+    """Frozen NUTS-3 panel (step 2b). The query list is pinned, never adaptive."""
+    return BAJobsucheCollector(
+        scope_id=scope_id,
+        sweep_id=sweep_id,
+        observed_at=observed_at,
+        hmac_key=hmac_key,
+        reference_dir=DEFAULT_REFERENCE,
+        panel=build_panel(DEFAULT_REFERENCE),
+    )
+
+
 def _czech(
     scope_id: str,
     sweep_id: str,
@@ -367,12 +394,16 @@ def _adzuna(adapter: CountryAdapter) -> Callable[..., BaseCollector]:
     return build
 
 
-def source_config(source: str, country: str = "de", *, segmented: bool = False) -> SourceConfig:
+def source_config(
+    source: str, country: str = "de", *, segmented: bool = False, panel: bool = False
+) -> SourceConfig:
     """Manifest constants and collector factory per source slug.
 
     ``country`` selects the Adzuna ``CountryAdapter`` (``de`` default,
     ``nl`` etc.); it is ignored for single-country sources. ``segmented``
-    switches BA to the Increment 9 ``de-stock-segmented`` scope and frontier.
+    switches BA to the Increment 9 ``de-stock-segmented`` scope and frontier
+    (**cancelled 2026-08-31, never re-swept**); ``panel`` switches BA to the
+    step-2b frozen NUTS-3 panel scope ``de-nuts3-panel``.
     """
     if source in ("cbop", "pl"):
         return SourceConfig(
@@ -389,6 +420,21 @@ def source_config(source: str, country: str = "de", *, segmented: bool = False) 
             build=_poland,
         )
     if source in ("ba", "ba_jobsuche", "de"):
+        if panel:
+            built = build_panel(DEFAULT_REFERENCE)
+            return SourceConfig(
+                slug="ba",
+                scope_id=BA_PANEL_SCOPE_ID,
+                scope_params=ba_panel_scope_params(built),
+                source_version=BA_SOURCE_VERSION,
+                licence_reference=BA_LICENCE_REFERENCE,
+                access_method=BA_ACCESS_METHOD,
+                expected_country="DE",
+                freshness_threshold_hours=BA_FRESHNESS_THRESHOLD_HOURS,
+                coverage_limitations=ba_panel_coverage_limitations(built),
+                reference_hashes=ba_crosswalk_reference_hashes(DEFAULT_REFERENCE),
+                build=_ba_jobsuche_panel,
+            )
         return SourceConfig(
             slug="ba",
             scope_id=BA_SEGMENTED_SCOPE_ID if segmented else BA_SCOPE_ID,
@@ -544,6 +590,14 @@ def build_parser() -> argparse.ArgumentParser:
         "instead of the single unscoped 10,000-listing window",
     )
     parser.add_argument(
+        "--panel",
+        action="store_true",
+        help="BA only: sweep the frozen NUTS-3 panel (scope de-nuts3-panel, step "
+        "2b) — one pinned place query per NUTS-3 region, page-capped, designed "
+        "for weekly re-sweep. The query set is a pure function of the pinned "
+        "crosswalk, so it is byte-identical across sweeps.",
+    )
+    parser.add_argument(
         "--max-segments",
         type=int,
         default=None,
@@ -675,10 +729,17 @@ async def run_sweep(args: argparse.Namespace) -> int:
         # the consumer's job (the main app reads all partitions under the
         # scope; the push-readiness test dedupes on source_id).
         sweep_id = _dt.datetime.now(_dt.UTC).strftime("%Y%m%dT%H%M%SZ")
+    if args.panel:
+        # One partition per panel sweep, stamped at run start so two sweeps on
+        # the same day (or a re-run) never overwrite each other: the survival
+        # series is built from the sequence of panel partitions.
+        sweep_id = _dt.datetime.now(_dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     run_id = utc_iso(_dt.datetime.now(_dt.UTC))
     started_at = _dt.datetime.now(_dt.UTC)
 
-    config = source_config(args.source, country=args.country, segmented=args.segmented)
+    config = source_config(
+        args.source, country=args.country, segmented=args.segmented, panel=args.panel
+    )
     collector = build_collector(
         config,
         scope_id=config.scope_id,
@@ -738,7 +799,39 @@ async def run_sweep(args: argparse.Namespace) -> int:
             )
 
     if isinstance(collector, BAJobsucheCollector):
-        if collector.frontier is not None:
+        if collector.panel_regions:
+            from collections import Counter
+
+            statuses = Counter(r.region_mapping_status for r in rows)
+            regions_with_rows = collector.panel_regions_with_rows
+            advertised_total = sum(
+                int(meta["advertised"] or 0) for meta in collector.panel_regions.values()
+            )
+            coverage += (
+                f" Panel sweep: {collector.panel_regions_queried} frozen region "
+                f"queries, {regions_with_rows} with >=1 row, "
+                f"{collector.panel_regions_empty} with none; "
+                f"{collector.panel_regions_capped} region(s) hit the declared page "
+                f"cap (their stock is sampled, not enumerated); "
+                f"{collector.panel_regions_short} region(s) paginated out before the "
+                f"plan (stale advertised total); "
+                f"{collector.panel_locality_mismatches} locality mismatch(es) against "
+                f"the source's own woOutput echo; "
+                f"{collector.panel_missing_envelope} page(s) without an ng-state "
+                f"envelope. {collector.completed_pages} of {collector.total_pages} "
+                f"planned pages fetched, {collector.failed_pages} non-200, "
+                f"{collector.throttle_events} absorbed 403 throttle event(s) "
+                f"(cooled down and retried, not failures). {collector.items_seen} items "
+                f"parsed, {collector.duplicates_dropped} duplicate(s) dropped on HMAC "
+                f"source_id; {len(rows)} rows written. Sum of the per-region advertised "
+                f"totals (maxErgebnisse): {advertised_total} postings — the panel's "
+                f"per-sweep regional denominator, recorded per region in "
+                f"panel_regions.json; the rows are the capped sample of it. Region "
+                f"mapping: mapped {statuses.get('mapped', 0)}, unmapped "
+                f"{statuses.get('unmapped', 0)}, ambiguous {statuses.get('ambiguous', 0)}, "
+                f"low_confidence {statuses.get('low_confidence', 0)}."
+            )
+        elif collector.frontier is not None:
             from collections import Counter
 
             methods = Counter(r.region_mapping_method for r in rows)
@@ -868,6 +961,31 @@ async def run_sweep(args: argparse.Namespace) -> int:
 
     if isinstance(collector, MPSVCollector):
         write_expirace_meta(partition, collector.expirace_by_source_id)
+
+    if isinstance(collector, BAJobsucheCollector) and collector.panel_regions:
+        panel = build_panel(DEFAULT_REFERENCE)
+        write_panel_regions(
+            partition,
+            {
+                "scope_id": BA_PANEL_SCOPE_ID,
+                "sweep_id": sweep_id,
+                "observed_at": utc_iso(observed_at),
+                "membership_hash": panel_membership_hash(panel),
+                "frame_size": len(panel),
+                "min_regions_required": BA_PANEL_MIN_REGIONS,
+                "regions_queried": collector.panel_regions_queried,
+                "regions_with_rows": collector.panel_regions_with_rows,
+                "regions_empty": collector.panel_regions_empty,
+                "regions_capped": collector.panel_regions_capped,
+                "regions_short": collector.panel_regions_short,
+                "locality_mismatches": collector.panel_locality_mismatches,
+                "missing_envelope": collector.panel_missing_envelope,
+                "failed_pages": collector.failed_pages,
+                "throttle_events": collector.throttle_events,
+                "duplicates_dropped": collector.duplicates_dropped,
+                "regions": collector.panel_regions,
+            },
+        )
 
     if args.parquet:
         validator.write_parquet(rows, partition / "observations.parquet")

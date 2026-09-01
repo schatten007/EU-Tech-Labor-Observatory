@@ -27,13 +27,9 @@ from scripts.probe_ba_region import (  # noqa: E402
 async def main() -> int:
     crosswalk = GermanCrosswalk(Path("data/reference"))
     lines: list[str] = []
-    async with httpx.AsyncClient(
-        timeout=30.0, follow_redirects=True, headers=_HEADERS
-    ) as client:
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, headers=_HEADERS) as client:
         for label, query in (("DE244-Hof", "Hof"), ("DEB33-Landau", "76829")):
-            response = await client.get(
-                f"{BA_BASE}/jobsuche/suche?wo={query}&umkreis=0&page=1"
-            )
+            response = await client.get(f"{BA_BASE}/jobsuche/suche?wo={query}&umkreis=0&page=1")
             state = extract_state(response.text)
             block = find_result_block(state) if state else None
             if block is None:

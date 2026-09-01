@@ -63,17 +63,13 @@ def load_frame() -> tuple[
     """Return (kreis rows, plz->nuts, municipality->nuts if unique, nuts->plz list)."""
     rows = list(csv.DictReader(REFERENCE_CSV.open(encoding="utf-8")))
     kreis_rows = [r for r in rows if r["source_type"] == "kreis"]
-    plz_to_nuts = {
-        r["source_code"]: r["nuts_code"] for r in rows if r["source_type"] == "plz"
-    }
+    plz_to_nuts = {r["source_code"]: r["nuts_code"] for r in rows if r["source_type"] == "plz"}
     muni_counts: dict[str, set[str]] = defaultdict(set)
     for row in rows:
         if row["source_type"] == "municipality":
             muni_counts[row["municipality_name"].casefold()].add(row["nuts_code"])
     muni_to_nuts = {
-        name: next(iter(codes))
-        for name, codes in muni_counts.items()
-        if len(codes) == 1
+        name: next(iter(codes)) for name, codes in muni_counts.items() if len(codes) == 1
     }
     nuts_to_plz: dict[str, list[str]] = defaultdict(list)
     for row in rows:
@@ -94,27 +90,19 @@ def anchor_plz_by_nuts() -> dict[str, str]:
     single-region provenance (11 such codes, e.g. 76829 -> DEB33/DEB3H).
     """
     rows = [
-        r
-        for r in csv.DictReader(REFERENCE_CSV.open(encoding="utf-8"))
-        if r["source_type"] == "plz"
+        r for r in csv.DictReader(REFERENCE_CSV.open(encoding="utf-8")) if r["source_type"] == "plz"
     ]
     codes_to_nuts: dict[str, set[str]] = defaultdict(set)
     for row in rows:
         codes_to_nuts[row["source_code"]].add(row["nuts_code"])
     unambiguous = {code for code, nuts in codes_to_nuts.items() if len(nuts) == 1}
-    by_region: dict[str, dict[str, list[str]]] = defaultdict(
-        lambda: defaultdict(list)
-    )
+    by_region: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
     for row in rows:
         if row["source_code"] in unambiguous:
-            by_region[row["nuts_code"]][row["municipality_name"]].append(
-                row["source_code"]
-            )
+            by_region[row["nuts_code"]][row["municipality_name"]].append(row["source_code"])
     anchors: dict[str, str] = {}
     for nuts_code, municipalities in by_region.items():
-        best_name = max(
-            sorted(municipalities), key=lambda name: len(municipalities[name])
-        )
+        best_name = max(sorted(municipalities), key=lambda name: len(municipalities[name]))
         anchors[nuts_code] = min(municipalities[best_name])
     return anchors
 
@@ -136,17 +124,11 @@ def anchor_town_by_nuts() -> dict[str, tuple[str, str]]:
     for row in rows:
         if row["source_type"] == "municipality":
             name_to_nuts[row["municipality_name"].casefold()].add(row["nuts_code"])
-    unique_names = {
-        name for name, codes in name_to_nuts.items() if len(codes) == 1
-    }
+    unique_names = {name for name, codes in name_to_nuts.items() if len(codes) == 1}
     plz_rows = [r for r in rows if r["source_type"] == "plz"]
-    by_region: dict[str, dict[str, set[str]]] = defaultdict(
-        lambda: defaultdict(set)
-    )
+    by_region: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
     for row in plz_rows:
-        by_region[row["nuts_code"]][row["municipality_name"]].add(
-            row["source_code"]
-        )
+        by_region[row["nuts_code"]][row["municipality_name"]].add(row["source_code"])
     anchors = anchor_plz_by_nuts()
     result: dict[str, tuple[str, str]] = {}
     for nuts_code, municipalities in by_region.items():
@@ -154,9 +136,7 @@ def anchor_town_by_nuts() -> dict[str, tuple[str, str]]:
             municipalities,
             key=lambda name: (-len(municipalities[name]), name),
         )
-        chosen = next(
-            (name for name in ranked if name.casefold() in unique_names), None
-        )
+        chosen = next((name for name in ranked if name.casefold() in unique_names), None)
         if chosen is not None:
             result[nuts_code] = ("name", chosen)
         elif nuts_code in anchors:
@@ -164,9 +144,7 @@ def anchor_town_by_nuts() -> dict[str, tuple[str, str]]:
     return result
 
 
-def stratified_sample(
-    kreis_rows: list[dict[str, str]], size: int = 20
-) -> list[dict[str, str]]:
+def stratified_sample(kreis_rows: list[dict[str, str]], size: int = 20) -> list[dict[str, str]]:
     """State-stratified deterministic sample: one Kreis per NUTS-1, then extras
     from the largest states until ``size`` is reached."""
     by_state: dict[str, list[dict[str, str]]] = defaultdict(list)
@@ -256,23 +234,14 @@ async def probe_shape(client: httpx.AsyncClient) -> int:
     lines.append("result keys: " + ", ".join(sorted(block)[:12]))
     tiles = tiles_of(block)
     lines.append(f"tiles: {len(tiles)}")
-    lines.append(
-        "woOutput: "
-        + json.dumps(block.get("woOutput"), ensure_ascii=False)[:200]
-    )
+    lines.append("woOutput: " + json.dumps(block.get("woOutput"), ensure_ascii=False)[:200])
     if tiles:
         lines.append("tile keys: " + ",".join(sorted(tiles[0])))
         for key, value in sorted(tiles[0].items()):
             if isinstance(value, dict):
-                lines.append(
-                    f"tile.{key}: "
-                    + json.dumps(value, ensure_ascii=False)[:180]
-                )
+                lines.append(f"tile.{key}: " + json.dumps(value, ensure_ascii=False)[:180])
             elif isinstance(value, list) and value:
-                lines.append(
-                    f"tile.{key}[0]: "
-                    + json.dumps(value[0], ensure_ascii=False)[:200]
-                )
+                lines.append(f"tile.{key}[0]: " + json.dumps(value[0], ensure_ascii=False)[:200])
     print("\n".join(lines[:20]))
     return 0
 
@@ -309,9 +278,7 @@ def candidate_queries(
     raise ValueError(form)
 
 
-async def _get_state(
-    client: httpx.AsyncClient, url: str
-) -> dict[str, Any] | None:
+async def _get_state(client: httpx.AsyncClient, url: str) -> dict[str, Any] | None:
     """Fetch with one throttle cooldown, mirroring the collector's 403 policy."""
     for attempt in (0, 1):
         try:
@@ -335,7 +302,7 @@ async def probe_forms(client: httpx.AsyncClient, forms: list[str]) -> int:
     _TOWNS.update(anchor_town_by_nuts())
     sample = stratified_sample(kreis_rows, size=20)
     if _LIMIT:
-        sample = sample[: _LIMIT]
+        sample = sample[:_LIMIT]
     lines = [f"PROBE ba-region addressing (forms={','.join(forms)}, n={len(sample)})"]
     totals: dict[str, list[int]] = {form: [0, 0, 0] for form in forms}
     for form in forms:
@@ -383,10 +350,7 @@ async def probe_forms(client: httpx.AsyncClient, forms: list[str]) -> int:
             await asyncio.sleep(BA_PACING_SECONDS)
     print("\n".join(lines))
     print(
-        "TOTALS "
-        + " | ".join(
-            f"{form}: {vals[0]}/{vals[2]} hit" for form, vals in totals.items()
-        )
+        "TOTALS " + " | ".join(f"{form}: {vals[0]}/{vals[2]} hit" for form, vals in totals.items())
     )
     return 0
 
@@ -399,9 +363,7 @@ async def main() -> int:
     parser.add_argument("--limit", type=int, default=0)
     args = parser.parse_args()
     _LIMIT = args.limit
-    async with httpx.AsyncClient(
-        timeout=30.0, follow_redirects=True, headers=_HEADERS
-    ) as client:
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, headers=_HEADERS) as client:
         if args.shape:
             return await probe_shape(client)
         return await probe_forms(client, args.forms.split(","))

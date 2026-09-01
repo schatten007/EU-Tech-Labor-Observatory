@@ -1,4 +1,4 @@
-.PHONY: check lint types test scrape scrape-cz scrape-adzuna scrape-adzuna-nl scrape-ft scrape-vdab scrape-nav scrape-finland scrape-ba-jobsuche reconcile reference-mpsv reference-ft reference-vdab reference-nav reference-finland reference-germany clean
+.PHONY: check lint types test scrape scrape-cz scrape-adzuna scrape-adzuna-nl scrape-ft scrape-vdab scrape-nav scrape-finland scrape-ba-jobsuche scrape-ba-panel check-ba-panel reconcile reference-mpsv reference-ft reference-vdab reference-nav reference-finland reference-germany clean
 
 check: lint types test
 
@@ -108,6 +108,25 @@ reference-germany:
 # if the DE slice is not push-ready.
 check-ba-segmented:
 	uv run --offline python scripts/check_ba_segmented_readiness.py
+
+# Wired to Increment 9, Germany step 2b: the frozen NUTS-3 panel
+# (scope de-nuts3-panel). One pinned place query per NUTS-3 region, capped at 4
+# pages x 25 items, ~1,600 requests ~= 30 min at the 1 s pacing floor. The query
+# set is a pure function of the pinned crosswalk, so it is byte-identical across
+# sweeps: designed for WEEKLY re-sweep (survival resolution can never be finer
+# than the sweep interval, and postings live ~30 days). Redirect the output to a
+# log; never stream a 30-minute sweep into a session.
+#   make scrape-ba-panel *> logs/ba-panel-sweep1.log      (PowerShell)
+scrape-ba-panel:
+	uv run --offline python main.py --source ba --panel --date $(shell date -u +%Y-%m-%d)
+
+# NOT part of check. Asserts the step-2b Definition of Done across ALL panel
+# partitions and prints one line per assertion: manifest reconciliation,
+# >=390/400 NUTS-3 breadth per sweep, one membership hash across sweeps equal to
+# the pinned definition, zero failed requests, clean PII scan, and the page cap
+# declared in both scope_json and coverage_limitations.
+check-ba-panel:
+	uv run --offline python scripts/check_ba_panel_readiness.py
 
 # NOT part of check. Stamps removed_at on postings closed between the two most
 # recent MPSV sweeps (compares HMAC source_ids only; writes closures.ndjson).
