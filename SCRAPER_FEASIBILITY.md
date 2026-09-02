@@ -433,6 +433,50 @@ kept**: it is the first sweep of a scope that had never been accepted, and
 keeping it would mix two membership hashes under one scope, which is exactly the
 membership drift that fabricates closures.
 
+**Panel pinned 2026-09-01 (`data/reference/ba_panel_nuts3.json`, membership hash
+`545b162ec6e5fbdc…`).** The fix for the degenerate rule is a *pinned artifact*
+rather than a cleverer heuristic: `scripts/pin_ba_panel.py` walks each region's
+deterministic candidate list — seat town (including compound components, so
+`Schleswig-Flensburg` → Schleswig), then towns ranked by distinct postcode
+count, then unambiguous postcodes, then the seat name even when the register
+knows it in several regions — and keeps the **first candidate the source both
+resolves to itself (`woOutput.bereinigterOrt` echo) and reports non-empty**.
+It cost **175 live requests** because **268 candidate measurements were reused
+from the rejected sweep's `panel_regions.json`** instead of re-requested.
+Result: **399 of 400 regions carry ≥1 advertised posting**, 366 regions keep
+their first candidate, 27 take the second, 7 go deeper; only **DE231
+(Amberg-Sulzbach, anchor `92211`) has no candidate with stock**. `build_panel`
+loads the artifact and rejects a partial pin outright, because a half-pinned
+panel is not a frozen panel.
+
+**Sweep 1 (2026-09-02, `de-nuts3-panel/20260902T080422Z`) — ACCEPTED, all six
+DoD assertions pass** (`make check-ba-panel`, one line per assertion):
+
+| DoD criterion | Evidence |
+| --- | --- |
+| manifest reconciliation | `status=complete`, **`expected_pages == completed_pages == 1,315`**, **`expected_rows == row_count == NDJSON lines = 28,900`**, `scope_hash 1b7d2b67…`, `nuts_version=NUTS-2024`, `approval_status=approved` |
+| NUTS-3 breadth ≥ 390/400 | **393 regions** carry ≥1 mapped posting (399 of 400 queries returned rows; 1 empty region = DE231) |
+| frozen-panel integrity | one membership hash `545b162ec6e5fbdc…` across all sweeps, identical to the pinned artifact; `randomization=none`, `seed=null` |
+| zero failed requests | **0 non-200 pages**; 25 absorbed 403 throttle events (cooled down 45 s and retried — throttle events, not failures) |
+| PII scan | clean across **28,900 rows** — no email, URL, postcode or phone pattern in any written field |
+| cap-as-scope honesty | page cap 4 in `scope_json` (`page_cap_per_region`, `rows_cap_per_region=100`) **and** stated in `coverage_limitations` as "stratified region-bounded sample, not a census" |
+
+Sweep-1 measurements worth keeping: **270 of 400 regions hit the declared cap**
+(their stock is sampled, not enumerated), **0 regions paginated out early**, only
+**2 locality mismatches** (down from 33), **0 pages without an envelope**, 2,122
+cross-region duplicates dropped on HMAC `source_id`, and the per-region
+advertised totals sum to **372,413 postings** — the panel's per-sweep regional
+denominator, recorded region by region in `panel_regions.json`. Runtime ~40 min
+(1,315 pages at 1 s pacing plus 25 × 45 s cooldowns).
+
+**Cadence and next sweeps:** sweeps 2–5 run on subsequent days, same command and
+same log discipline (`make scrape-ba-panel *> logs/ba-panel-sweepN.log`, then
+read only the log tail). After sweep 5, `make check-ba-panel` must still report a
+single membership hash across every partition. The panel is designed for **weekly**
+re-sweep: survival resolution can never be finer than the sweep interval and
+postings live ~30 days, so monthly sweeps would only be a demand snapshot.
+
+
 
 
 

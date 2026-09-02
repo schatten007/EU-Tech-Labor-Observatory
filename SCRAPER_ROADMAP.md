@@ -437,8 +437,20 @@ rationale for cutting StepStone and Kimeta.
    `make check-ba-segmented`'s ≥390/400 breadth bar is superseded by the
    panel's sweep-1 acceptance criterion (step 2b).
 2b. **BA Jobsuche frozen NUTS-3 panel** (replaces census completion; decided
-   2026-08-31). Runs under a new scope — the cancelled `de-stock-segmented`
-   scope is never re-swept.
+   2026-08-31). **DONE 2026-09-02 — sweep 1 accepted, all DoD criteria met.**
+   Scope `de-nuts3-panel`; the cancelled `de-stock-segmented` scope is never
+   re-swept. Built as `scrapers/ba_panel.py` + `BAJobsucheCollector(panel=…)`,
+   `main.py --panel`, `make scrape-ba-panel`, `make check-ba-panel`
+   (`scripts/check_ba_panel_readiness.py`, one line per assertion).
+   **Sweep 1 (`de-nuts3-panel/20260902T080422Z`): 400 regions queried,
+   1,315/1,315 pages, `status=complete`, `expected_rows == row_count == NDJSON
+   lines = 28,900`, 393/400 NUTS-3 regions with a mapped posting, one membership
+   hash `545b162ec6e5fbdc…` identical to the pinned artifact, zero failed
+   requests (25 absorbed 403 throttles), PII scan clean, cap declared in
+   `scope_json` and `coverage_limitations`.** Per-region advertised totals sum to
+   372,413 postings (the per-sweep regional denominator, stored per region in
+   `panel_regions.json`); 270 regions hit the declared 4-page cap. Runtime
+   ~40 min.
    1. **Envelope probe FIRST, before building anything:** does the BA
       response envelope carry a total-hits field? (The 2026-08-24 probe
       found no server-rendered `Treffer`/`Ergebnisse` node in the HTML; the
@@ -446,15 +458,27 @@ rationale for cutting StepStone and Kimeta.
       request per region yields exact regional counts and the whole map
       costs 400 requests. The outcome MUST be recorded in
       `SCRAPER_FEASIBILITY.md` before the panel is built.
+      **ANSWERED 2026-09-01: PRESENT** — `suchergebnis.maxErgebnisse` inside the
+      SSR state `<script id="ng-state">` (probe E1). `woOutput.bereinigterOrt`
+      additionally echoes the resolved place and `suchmodus` the search mode, so
+      every query carries its own locality assertion.
    2. **Frame:** replace the ~10.8k-unit municipality/PLZ frame (10,761
       level-2 segments in the frontier; the decision text's 10,778) with a
       **400-unit NUTS-3 frame**. The destatis Kreise table in the reference
       crosswalk (`scrapers/reference_germany.py`) is the authoritative
       AGS→NUTS 2024 key and covers all 400 GISCO NUTS-3 codes; VZ250 is for
       municipality names only (it carries 7 stale Thuringian codes).
+      **DONE: 400/400.** BA has no Kreis-level location filter at all
+      (`wo=Landkreis X` collapses to the same 7 Rosenheim postings;
+      `suchmodus` only ever returns `ORTSUCHE`/`UMKREISSUCHE`/`UNGUELTIG`), so
+      each region is addressed by a place with `umkreis=0`.
    3. **Frozen panel:** the query set must be byte-identical across sweeps,
       seed recorded. Membership drift between sweeps fabricates closures and
       corrupts survival durations.
+      **DONE:** the query list is pinned in `data/reference/ba_panel_nuts3.json`
+      (committed, hashed into `scope_json.membership_hash`/`scope_hash`);
+      `randomization=none`, `seed=null`, so there is no seed to record, and a
+      partial pin is rejected instead of silently completed by the rule.
    4. **Cap-as-scope honesty:** the within-stratum page cap must be encoded
       in `scope_json` and stated in `coverage_limitations` ("stratified
       region-bounded sample, not a census"), so `expected_pages ==
@@ -462,14 +486,26 @@ rationale for cutting StepStone and Kimeta.
       that caps at k pages and writes k=k without declaring the cap passes
       every downstream test while silently truncating — that pattern is
       forbidden (charter, scope decision 2026-08-31).
+      **DONE:** cap 4 pages × 25 = 100 rows per region, in both places, and
+      asserted by `make check-ba-panel`.
    5. **Burst:** 400-query region probe, then ~5 daily sweeps of the frozen
       panel (~30 min each, ~3 h total over a week), 1 s pacing per host,
       zero 4xx.
+      **Probe done** (`scripts/pin_ba_panel.py`: 175 live requests, 268
+      measurements reused from the rejected attempt, 399/400 regions non-empty).
+      **Sweep 1 done. Sweeps 2–5 remain**, one per day, same log-redirect
+      discipline (`make scrape-ba-panel *> logs/ba-panel-sweepN.log`, read only
+      the tail); after sweep 5 `make check-ba-panel` must still report the
+      identical membership hash across every partition.
    - **Definition of Done (acceptance criteria):** sweep 1 covers **≥390 of
       400 NUTS-3 regions**; every sweep `status=complete` with
       `expected_pages == completed_pages` and `expected_rows == row_count`;
       **panel membership hash identical across sweeps**; **zero failed
-      requests**.
+      requests**. **MET by sweep 1 (2026-09-02): 393/400, 1,315/1,315,
+      28,900 == 28,900, one hash, zero failures.** A first attempt that same
+      night was **rejected on breadth (370/400) and its partition deleted** —
+      the reference-only anchor rule picked alphabetically first villages in
+      rural regions; that is what the pinned artifact replaced.
    - **Cadence:** design the panel for weekly re-sweep — the observatory may
       later run as a live service at weekly cadence (monthly only as a demand
       snapshot: survival resolution can never be finer than the sweep
