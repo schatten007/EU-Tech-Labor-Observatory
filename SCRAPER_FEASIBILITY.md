@@ -469,12 +469,57 @@ advertised totals sum to **372,413 postings** — the panel's per-sweep regional
 denominator, recorded region by region in `panel_regions.json`. Runtime ~40 min
 (1,315 pages at 1 s pacing plus 25 × 45 s cooldowns).
 
-**Cadence and next sweeps:** sweeps 2–5 run on subsequent days, same command and
-same log discipline (`make scrape-ba-panel *> logs/ba-panel-sweepN.log`, then
-read only the log tail). After sweep 5, `make check-ba-panel` must still report a
-single membership hash across every partition. The panel is designed for **weekly**
-re-sweep: survival resolution can never be finer than the sweep interval and
-postings live ~30 days, so monthly sweeps would only be a demand snapshot.
+**Cadence and next sweeps:** sweeps 2–5 and the ongoing weekly cadence are
+**delegated to the main project after the merge** (2026-09-02 decision) — they are
+not run in this lab. The runbook, the acceptance criteria, the never-do list and
+the failure playbook are in `PANEL_HANDOVER.md`. The panel is designed for
+**weekly** re-sweep: survival resolution can never be finer than the sweep
+interval and postings live ~30 days, so monthly sweeps would only be a demand
+snapshot.
+
+**Publish decision (2026-09-02): `de-nuts3-panel` is the published German BA
+scope; `de-stock-segmented` and `de-all-window` stay archived lab evidence.**
+The main app accepts one scope per push (`scripts/publish.py:756`
+`_verify_single_scope`), so the three stored BA scopes were compared on their own
+partitions (aggregation command in `PANEL_HANDOVER.md` §7):
+
+| Scope | Partitions | Rows (distinct) | Mapped | NUTS-3 ≥1 mapped row | Top-25 share of mapped rows | Re-sweepable |
+| --- | --- | --- | --- | --- | --- | --- |
+| `de-all-window` | 1 | 10,000 (10,000) | **64.48%** | 358/400 | 40.2% | membership drifts between sweeps |
+| `de-stock-segmented` | 65 | 203,674 (183,028) | 99.77% | **124/400** | 48.1% | **never** (cancelled) |
+| `de-nuts3-panel` | 1 | 28,900 (28,900) | 98.97% | **393/400** | 9.5% | **yes, frozen, weekly** |
+
+The panel is the only scope that serves all three published surfaces: breadth for
+the regional table (393/400), an authoritative per-region denominator
+(`maxErgebnisse`, 372,413 in sweep 1 — neither other scope has one), and repeat
+observations of a stable query set for the flow/survival series (the census can
+never be re-swept; the unscoped window's membership changes between sweeps, so
+closures inferred from it would be fabrications). Its mapping quality (98.97%)
+effectively matches the census and far exceeds the window's 64.48%, and
+publishing a single scope satisfies `_verify_single_scope` with no main-side
+change. `de-stock-segmented` remains the best static measurement of German active
+stock (183,028 distinct postings) and `de-all-window` the record of the
+10,000-listing query-window bound; neither is published, re-swept or deleted.
+
+**Caveat that binds the regional surface:** panel row counts per region are capped
+at 100 (270 of 400 regions hit the cap in sweep 1), so a top-25 region table built
+from row counts measures *sampled presence*, not demand — that is why the panel's
+top-25 share is 9.5% against the census's 48.1%. The demand signal is
+`panel_regions.json → regions[<nuts_code>].advertised`.
+
+**Known issues accepted 2026-09-02 (branch review, not fixed):** envelope drift is
+counted (`panel_missing_envelope`) but not asserted by `make check-ba-panel`, so a
+schema change could silently cut each region's page plan to 1 page while the
+manifest still reconciles — until that is fixed, reject any sweep whose
+`panel_regions.json` reports `missing_envelope > 0`; breadth is measured from row
+NUTS-3 codes rather than queried regions, so cross-region attribution can flatter
+it (399 queried regions produced rows in sweep 1 but only 393 distinct codes
+appeared); the locality rule exists in two copies (`scripts/pin_ba_panel.py` and
+the collector, the collector's being authoritative); `build_panel()` runs three
+times per sweep from independent reads; a missing `panel_regions.json` is
+misreported as a cap-declaration failure and would make the zero-failed-requests
+assertion vacuous. Full detail and mitigations in `PANEL_HANDOVER.md` §6.
+
 
 
 

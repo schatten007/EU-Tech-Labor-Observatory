@@ -493,10 +493,11 @@ rationale for cutting StepStone and Kimeta.
       zero 4xx.
       **Probe done** (`scripts/pin_ba_panel.py`: 175 live requests, 268
       measurements reused from the rejected attempt, 399/400 regions non-empty).
-      **Sweep 1 done. Sweeps 2–5 remain**, one per day, same log-redirect
-      discipline (`make scrape-ba-panel *> logs/ba-panel-sweepN.log`, read only
-      the tail); after sweep 5 `make check-ba-panel` must still report the
-      identical membership hash across every partition.
+      **Sweep 1 done. Sweeps 2–5 are DELEGATED to the main project after the
+      merge** (2026-09-02) — they are not run in this lab. Runbook, acceptance
+      criteria, never-do list and failure playbook: `PANEL_HANDOVER.md`. After
+      sweep 5 `make check-ba-panel` must still report the identical membership
+      hash across every partition.
    - **Definition of Done (acceptance criteria):** sweep 1 covers **≥390 of
       400 NUTS-3 regions**; every sweep `status=complete` with
       `expected_pages == completed_pages` and `expected_rows == row_count`;
@@ -687,6 +688,15 @@ feasibility gate.
   Jobsuche frozen NUTS-3 panel** (step 2b) plus the Adzuna DE sanctioned base —
   the segmented census is cancelled, StepStone/Kimeta/Indeed are cut, and no
   further German source build is scheduled behind the panel.
+  **2026-09-02 close-out:** step 2b is **done and accepted**, and the lane is
+  closed on the lab side. `de-nuts3-panel` is the **published** German BA scope
+  (publish decision and evidence in `SCRAPER_FEASIBILITY.md`;
+  `de-stock-segmented` and `de-all-window` stay archived, unpublished and never
+  re-swept). Ongoing sweeps and the weekly cadence move to the main project —
+  see `PANEL_HANDOVER.md`. **Increments 9 (Joblift) and 10 (Stellenanzeigen) are
+  therefore not scheduled**; they remain unbuilt behind the same non-additive
+  argument that cut StepStone and Kimeta, and are not blocked on anything in
+  this lab. Increment 11 (Arbeitnow) stays an optional filler.
 - **The German HTML chain is ordered by technical feasibility, not serial-only:**
   each source gets its own technical-feasibility gate and canary (≤100 records,
   1 s+ pacing, anti-bot probe), and canaries for independent hosts **may run
