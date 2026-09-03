@@ -53,7 +53,7 @@ canary discipline for grey sources.
   ≥10,000 observations in `data/raw/collections/cbop/` with `status=complete`,
   zero 4xx, and matching manifest `row_count`.
 - **Status:** **DONE 2026-08-21** — see `SCRAPER_FEASIBILITY.md` and
-  `SESSIONS.md`. Full sweep: **22,068 observations, 221/221 pages,
+  `SCRAPER_BRANCH_SESSIONS.md`. Full sweep: **22,068 observations, 221/221 pages,
   `status=complete`, `expected_rows == row_count == 22,068`, zero 4xx**;
   JobTech output-contract tests pass unchanged (`make check`: 69 tests, mypy
   strict clean).
@@ -72,7 +72,7 @@ canary discipline for grey sources.
   `region_mapping_status` populated; two consecutive daily runs show only new
   postings added and closed postings `removed_at`-stamped.
 - **Status:** **DONE 2026-08-22** — see `SCRAPER_FEASIBILITY.md` and
-  `SESSIONS.md`. Two consecutive daily sweeps (2026-08-22, 2026-08-23): each
+  `SCRAPER_BRANCH_SESSIONS.md`. Two consecutive daily sweeps (2026-08-22, 2026-08-23): each
   wrote **38,903 observations, 1/1 pages, `status=complete`,
   `expected_rows == row_count == 38,903`**, zero 4xx; region mapped on
   **98.8%** of records via the MPSV codelist chain (kraj/okres/obec -> NUTS
@@ -97,7 +97,7 @@ canary discipline for grey sources.
   staging without 4xx; a second country (e.g. NL) runs through the same class
   with only config changes and produces a valid manifest.
 - **Status:** **DONE 2026-08-22** — see `SCRAPER_FEASIBILITY.md` and
-  `SESSIONS.md`. Live probe pinned the contract: `count` advertises DE
+  `SCRAPER_BRANCH_SESSIONS.md`. Live probe pinned the contract: `count` advertises DE
   1,155,948 / NL 190,606 active listings; pages 1..N at 50/page, zero 4xx/429;
   `id` is string on DE / integer on NL; **per-query result window ~100 pages
   (~5,000 unique rows) before the API recycles earlier pages** (probed live).
@@ -126,7 +126,7 @@ canary discipline for grey sources.
   4xx/401 after credentials land; contract + auth state recorded in
   `SCRAPER_FEASIBILITY.md`.
 - **Status:** **DONE 2026-08-22** — see `SCRAPER_FEASIBILITY.md` and
-  `SESSIONS.md`. Live probe pinned the contract: OAuth2 client-credentials
+  `SCRAPER_BRANCH_SESSIONS.md`. Live probe pinned the contract: OAuth2 client-credentials
   (`expires_in` 1499 s, opaque bearer, 401 + empty body when stale), `range`
   windows answered `206` + `Content-Range: offres a-b/503356`, **hard caps of
   150 items per window and start position ≤ 3000 ⇒ 3,150 offers per query**
@@ -189,7 +189,7 @@ separate surfaces in `SCRAPER_FEASIBILITY.md`.
   mapped to NUTS 2024 on the bulk of rows, and the gap between rows collected
   and the advertised 232,944 stated plainly in `coverage_limitations`.
 - **Status:** **DONE 2026-08-22** — see `SCRAPER_FEASIBILITY.md` and
-  `SESSIONS.md`. Contract re-verified live before the build (robots.txt
+  `SCRAPER_BRANCH_SESSIONS.md`. Contract re-verified live before the build (robots.txt
   unchanged at 3,564 bytes with `/api/vindeenjob/` still disallowed; the
   no-pagination contract re-probed: `?limit`/`?page`/`?start` returned the
   identical 28 ids and `/2` answered 404). Region is **fully mapped, not
@@ -224,7 +224,7 @@ separate surfaces in `SCRAPER_FEASIBILITY.md`.
   records with `removed_at` correctly stamped on INACTIVE ads; token rotation
   handled without downtime.
 - **Status:** **DONE 2026-08-23** — see `SCRAPER_FEASIBILITY.md` and
-  `SESSIONS.md`. Contract re-verified live before the build and it **corrected
+  `SCRAPER_BRANCH_SESSIONS.md`. Contract re-verified live before the build and it **corrected
   NAV's own documentation twice**: revalidation needs `If-None-Match` **alone**
   (adding `If-Modified-Since` re-seeks and answers 200; `If-None-Match` alone
   answers **304 with a 0-byte body**), and the migration pseudocode's
@@ -276,7 +276,7 @@ separate surfaces in `SCRAPER_FEASIBILITY.md`.
 - **Definition of Done:** Streamed pull of active postings ≥5,000 records with
   ESCO occupation/skill URIs populated; no 4xx/401 after credentials issued.
 - **Status:** **BLOCKED 2026-08-23 — collector built, DoD pending KEHA
-  activation.** See `SCRAPER_FEASIBILITY.md` and `SESSIONS.md`. The contract was
+  activation.** See `SCRAPER_FEASIBILITY.md` and `SCRAPER_BRANCH_SESSIONS.md`. The contract was
   pinned live from the **published OpenAPI description**
   (`P67-tmt-provider-haku-V2`, 19,115 bytes) plus the technical documentation,
   and it corrected two roadmap assumptions. First, the interface is **not merely
@@ -551,7 +551,7 @@ feasibility row but does not block a build.
   source whose counts are never summed downstream: the column it would add is
   non-additive, and ~1.5–1.8M listings carry the same exhaustive-count cost the
   census was cancelled for. Cancelled, not deferred (descoping decision — see
-  Germany steps 2a/2b and SESSIONS.md P4).
+  Germany steps 2a/2b and SCRAPER_BRANCH_SESSIONS.md P4).
 
 ## Increment 9: Joblift (Germany + FR/UK/NL/BE)
 

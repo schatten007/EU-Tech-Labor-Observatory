@@ -179,7 +179,7 @@ career sites and 75+ regional portals. The best raw DE volume after the BA.
 - **CUT 2026-08-31:** not built and not scheduled — grey-ToS HTML for a second
   German source whose counts are never summed downstream (a non-additive
   column). The volume fact above stands; the build is cancelled, not deferred
-  (descoping decision, `SCRAPER_ROADMAP.md` / SESSIONS.md P4).
+  (descoping decision, `SCRAPER_ROADMAP.md` / SCRAPER_BRANCH_SESSIONS.md P4).
 
 ### 3c. Joblift (joblift.de; also .fr / .co.uk / .nl / .be)
 
@@ -522,7 +522,7 @@ and no geo-lock**.
   `{"kodJezyka":"PL"}` — no auth, Spring Data pagination, **22,068 active
   proposals** at 100/page at sweep time. The SOAP integrator service requires a
   ministry-registered Partner id, so it is not used. See `SCRAPER_FEASIBILITY.md`
-  and `SESSIONS.md`.
+  and `SCRAPER_BRANCH_SESSIONS.md`.
 
 ### 16. IEFP iefponline (PT)
 

@@ -7,7 +7,7 @@ this worktree on 2026-09-02. Sweeps 2–5 and the ongoing weekly cadence run in 
 
 Authority: this file is operational guidance only. `SCRAPERS.md` (charter) wins on
 every rule, then `SCRAPER_ROADMAP.md`, `SCRAPER_SOURCE_LANDSCAPE.md`,
-`SCRAPER_FEASIBILITY.md`, `SESSIONS.md`. Nothing here relaxes the charter.
+`SCRAPER_FEASIBILITY.md`, `SCRAPER_BRANCH_SESSIONS.md`. Nothing here relaxes the charter.
 
 ---
 
@@ -316,30 +316,35 @@ it is on both branches, and do not keep adding archives to git.
 
 ## 9. Merge readiness (assessed 2026-09-03)
 
-The `scrapers` branch is 26 commits ahead of `main`, which is itself 7 commits
+The `scrapers` branch is 28 commits ahead of `main`, which is itself 7 commits
 ahead of the merge base `c9ade31`. Both sides moved, so this is a real merge, not a
 fast-forward.
 
-**Overlap is tiny.** Of the files each side changed since the merge base, exactly
-**one** is touched by both: `SESSIONS.md`. Main's 7 commits touch its own pipeline
+**The merge is conflict-free.** Verified with
+`git merge-tree --write-tree main <lab-head>`, which exits 0 and reports no
+conflicted paths. Main's 7 commits touch only its own pipeline
 (`scripts/publish.py`, `scripts/insights.py`, `transform/models/**`,
-`tests/fixtures/**`, `README.md`, `data/sample/**`, two `data/reference` files) and
-none of the lab's files. The lab touches `scrapers/**`, `main.py`, `Makefile`,
-`pyproject.toml`, `uv.lock`, its five planning docs, `tests/test_*` for the
-collectors, and `data/reference/**` for the crosswalks.
+`tests/fixtures/**`, `README.md`, `data/sample/**`, two `data/reference` files).
+The lab touches `scrapers/**`, `main.py`, `Makefile`, `pyproject.toml`, `uv.lock`,
+its planning docs, `tests/test_*` for the collectors, and `data/reference/**` for
+the crosswalks. No file is modified by both sides.
 
-**One expected conflict: `SESSIONS.md`.** Both branches appended to their own
-session tables from a shared 304-line ancestor (main → 863 lines, lab → 1,221),
-which git cannot auto-merge. It is content-only and additive on both sides:
-resolve by keeping **both** sets of rows.
+**How the one collision was removed.** Until 2026-09-03 both branches appended to
+their own `SESSIONS.md` from a shared 304-line ancestor (main → 912 lines, lab →
+1,221), which git could not auto-merge. The lab log was therefore renamed to
+`SCRAPER_BRANCH_SESSIONS.md`, and main's `SESSIONS.md` was restored byte-identical
+onto the lab branch, so after the merge the main project keeps its own pipeline
+session log untouched and gains the lab history as a separate file. Do not
+re-merge the two logs.
 
-**Three files the lab replaces wholesale, unchanged on main since the base** — so
-they merge cleanly but change behaviour in the main checkout:
+**Three files the lab replaces wholesale, unchanged on main since the base** — git
+merges them without complaint, but they change behaviour in the main checkout, so
+they need manual attention:
 
 * `Makefile` — the lab version drops main's targets (`check` loses `evaluate` and
   `dbt`; `sample`, `site`, `release-check`, `probe`, `sweep*`, `live-site` are
-  gone) and adds the `scrape-*` / `reference-*` / `check-ba-*` targets. **Merging
-  the lab Makefile as-is would break `make check`, `make sample`, and
+  gone) and adds the `scrape-*` / `reference-*` / `check-ba-*` targets. **Taking
+  the lab Makefile as-is breaks `make check`, `make sample`, and
   `make release-check` in the main project.** The two files must be *combined*, not
   taken from one side.
 * `pyproject.toml` and `uv.lock` — lab dependencies (`httpx`, `respx`,
@@ -349,7 +354,7 @@ they merge cleanly but change behaviour in the main checkout:
   deletes it from main. Decide explicitly; the safe default is to keep main's copy.
 
 `README.md` does not exist on the lab side at all, so main's version survives
-untouched. `.gitignore` was identical on both sides until this handover commit, so
+untouched. `.gitignore` was identical on both sides until the handover commit, so
 the exception added in §8 applies cleanly.
 
 ### Guided merge
@@ -362,16 +367,16 @@ straight onto `main`.
 git switch main
 git switch -c merge/scrapers-lab
 
-# 2. Merge without committing, so nothing lands before you have inspected it.
+# 2. Confirm the merge is still clean before starting (exit 0 = no conflicts).
+git merge-tree --write-tree --name-only main scrapers
+echo "exit=$LASTEXITCODE"
+
+# 3. Merge without committing, so nothing lands before you have inspected it.
 git merge --no-commit --no-ff scrapers
 
-# 3. Expect exactly one conflict: SESSIONS.md. Confirm:
-git status --short
+# 4. Expect NO conflicts. Confirm the unmerged list is empty:
 git diff --name-only --diff-filter=U
-
-# 4. Resolve SESSIONS.md by keeping BOTH tables' rows (main's pipeline sessions
-#    and the lab's L0/1-9/P1-P5/2b rows). Then:
-git add SESSIONS.md
+git status --short
 
 # 5. Fix the three wholesale replacements BEFORE committing.
 #    Makefile: combine, do not take one side.

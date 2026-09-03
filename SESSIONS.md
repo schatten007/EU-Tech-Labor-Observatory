@@ -1,1284 +1,912 @@
-# Scrapers Lab Sessions
+# Implementation Sessions
 
-Lab session log. The main project's session history was removed on purpose:
-it recorded feasibility decisions (single Sweden source, no German collection)
-that this lab does not inherit. From this point the log covers only scraper lab
-work.
-
-Keep each increment in one session. Unfinished work moves to the next row rather
+Each increment is completed in one session. Keep unfinished work in the next row rather
 than expanding the active increment.
 
 | Increment | Session | Status | Scope | Check |
 | --- | --- | --- | --- | --- |
-| L0 | 2026-08-20 | Complete | Sterilize the worktree context: remove SOURCE_FEASIBILITY.md and main-project session history; add SCRAPERS.md charter, SCRAPER_FEASIBILITY.md checklist, lab Makefile, and scraper deps. | `make check` passed |
-| 1 | 2026-08-21 | Complete | CBOP/ePraca (PL): Collector Interface + writers, robots/pacing, retry/backoff, HMAC sanitize, PolandCollector, SchemaValidator, CLI + `make scrape`; feasibility gate; live canary and full DoD sweep. | `make check` passed (69 tests); full sweep complete |
-| 2 | 2026-08-22 | Complete | Úřad práce / MPSV (CZ): planning (feasibility gate green, live probe, written plan) **and** implementation — MPSVCollector, codelist->NUTS 2024 crosswalk reference, HMAC-only delta reconciliation, CLI + Makefile wiring, tests. | `make check` passed (113 tests); two consecutive daily sweeps complete |
-| 3 | 2026-08-22 | Complete | Adzuna (DE + NL, multi-country adapter): feasibility gate (robots + ToS + live contract probe), `AdzunaCollector` + `CountryAdapter` in `scrapers/adzuna.py`, dedupe on HMAC(source_id), PII isolation, CLI `--source adzuna --country` + `make scrape-adzuna[-nl]`, respx tests. | `make check` passed (127 tests); DE + NL live sweeps complete |
-| 4 | 2026-08-22 | Complete | France Travail (FR, Offres d'emploi v2): feasibility gate (robots on 3 hosts + full Licence Offres d'emploi review + live OAuth2/pagination probe), `FranceTravailCollector` with client-credentials auth, TTL reuse and 401 refresh, département-segmented `range` windows, pinned département->NUTS 2024 crosswalk (`scrapers/reference_francetravail.py`), PII isolation, CLI `--source ft` + `make scrape-ft` / `make reference-ft`, respx tests. | `make check` passed (170 tests); DoD sweep complete (17,406 rows) |
-| 5 | 2026-08-22 | Gate only | VDAB (BE-Flanders) **feasibility gate + re-scope, no code**: Vacature API v4 found to require an approved partnership + signed samenwerkingsovereenkomst -> recorded **blocked**, not routed around; public vdab.be job-search HTML assessed instead (robots-permitted, disclaimer allows informational re-use) and its **canary passed** (12 pages, 1.2 s, 12/12 HTTP 200, 189 unique ids); roadmap/landscape/feasibility corrected and the Increment 5 kickoff prompt rewritten. | docs only; `make check` unchanged (170 tests) |
-| 5 | 2026-08-22 | Complete | VDAB (BE-Flanders) **implementation** on the re-scoped public HTML surface: `VDABCollector` with a per-URL `robots.txt` gate (hard failure, `/api/vindeenjob/` never requested), keyword-sitemap discovery + breadth ordering by postcode, allowlist-only BeautifulSoup/lxml tile parsing, Dutch date parser, HMAC dedupe, pinned postcode->NUTS 2024 crosswalk (`scrapers/reference_vdab.py`, 528 rows), CLI `--source be` + `make scrape-vdab` / `make reference-vdab`, 45 new respx tests. | `make check` passed (215 tests); DoD sweep complete (12,282 rows, 500/500 pages, zero 4xx) |
-| 6 | 2026-08-23 | Complete | NAV stillings-feed (NO): feasibility gate (robots absent + full Nynorsk ToS review + live contract re-verification), `NAVFeedCollector` — the lab's first **event-log** source (fold per ad uuid on HMAC source_id), first **source-reported `removed_at`**, and first **native ESCO occupation URI**; token handling with disk cache + 401 rotate-and-replay, `If-Modified-Since` seek / `If-None-Match` revalidation, budgeted ad details, poll cursor, pinned SSB Klass x GISCO fylke/kommune -> NUTS 2024 crosswalk (`scrapers/reference_nav.py`, 370 rows), CLI `--source no` + `make scrape-nav` / `make reference-nav`, 93 new respx tests. | `make check` passed (313 tests); backfill 10,342 rows (20/20 pages) + poll cycle 2,239 rows (6/6, cursor-resumed), zero 4xx, token rotation handled live |
-| 7 | 2026-08-23 | **Blocked** (build complete, DoD pending activation) | Työmarkkinatori / Job Market Finland (FI, P67 search API via Kipa): feasibility gate first — **`tyomarkkinatori.fi/robots.txt` disallows `/api/`**, so the source's own KUNTA/MAAKUNTA/ESCO codesets were left untouched and the crosswalk was built from Statistics Finland instead; both Kipa hosts **drop TCP 443 from a non-allowlisted IP** (21 s) so there is **no sandbox** and the contract was pinned from the published OpenAPI. `FinlandTMTCollector` — key auth + optional bearer with 401 refresh-and-replay, streaming NDJSON with drained-then-retried 429/5xx, **client-side watermark** (the API has no cursor and no sentinel), loud schema-drift guard, the lab's **first `skill_mappings`** and second **source-reported `removed_at`**, five-way FINESCO classification (ESCO / ISCO group / national extension / unrecognised / absent); pinned kunta+maakunta -> NUTS 2024 crosswalk (`scrapers/reference_finland.py`, **327 rows, 19/19 NUTS 3, 0 unmatched, 0 ambiguous**); CLI `--source fi` + `--max-rows`/`--status`, `make scrape-finland` / `make reference-finland`, 54 new tests. **KEHA activation notification deliberately NOT submitted** (bound to a Finnish Y-tunnus). | `make check` passed (367 tests); **DoD not met — 0 records**: no key and no IP opening, sweep stops at the robots gate after 94.3 s, no partition written |
-| P1 | 2026-08-23 | Complete | **Germany — active lane architecture** (planning, no code): user re-ordered the roadmap to make Germany the active build target; every German surface probed live and the grey-HTML chain **re-ordered by evidence to 10 → 9 → 8** (Stellenanzeigen → Joblift → Kimeta). Key findings: **Kimeta is robots-blocked for this lab** (`*` → `Disallow: /`, verified with `RobotsRule` — DENY on `/jobs/berlin`, `/search`, `/api/job-pdf`); **Joblift is CloudFront-403 at the edge** (robots.txt and its partner-API page both blocked from this egress); **Stellenanzeigen.de is robots-permitted with three advertised sitemaps and `JobPosting` JSON-LD on detail pages** (community scrapers confirm "passive Cloudflare, no active challenge") — it becomes the primary German build; BA portal is robots-allow-all but the Jobsuche data stays agreement-only (access track); BKG Geodatenzentrum robots permits (only GPTBot blocked) and destatis allows with `Crawl-delay: 30`, confirming the German region-crosswalk authority. Germany has **400 NUTS 3 codes** (GISCO 2024, verified). Plan recorded: coverage stack, lanes, mandatory foolproof mechanisms, predetermined backup chain, cross-source overlap stance, and the new `reference_germany.py` prerequisite. | docs only; `make check` unchanged (367 tests) |
-| P2 | 2026-08-23 | Complete | **Germany re-assessment under the relaxed constraint** (planning, no code): user **relaxed the ToS/robots gate** for this private educational project. Live probes found the plan's #1 source is now the **BA Jobsuche public website** (~1.9M, SSR plain HTTP, no anti-bot, native ref IDs; its internal REST API is WAF-403 even from a browser); **StepStone** (~1.5M+, SSR, JSON-LD, no Akamai challenge on search) and **Indeed** (~1.5M+, SSR, `data-jk` ids, **litigation history flagged**) are also plain-HTTP accessible; **Kimeta** has no technical anti-bot. **Monster** (DataDome) and **Joblift** (CloudFront 403) and **Interamt** (JS redirect loop) are technically blocked — probe rows. Roadmap tiered German stack rewritten (BA Jobsuche → StepStone → Indeed → Kimeta → Stellenanzeigen → probes → Arbeitnow), feasibility table rewritten from legal to technical verdicts, landscape + risk matrix updated. `reference_germany.py` remains the build prerequisite. | docs only; `make check` unchanged (367 tests) |
-| 8 | 2026-08-24 | **Complete** | **BA Jobsuche — Germany #1** (primary build, Germany active lane). Deliverable 1: `scrapers/reference_germany.py` + `data/reference/germany_plz_nuts_2024.csv` (22,140 rows = 4,862 PLZ + 11,000 municipality + 400 Kreis; 400/400 NUTS 3 codes, 0 unmatched; destatis Kreise official AGS→NUTS 2024 key × BKG VZ250_GEM × destatis Anschriftenverzeichnis Zustell-PLZ, validated against Eurostat GISCO; 11 ambiguous PLZ × 397 ambiguous city names; 121 Thuringian stale-VZ250 deviations recorded). Deliverable 2: `scrapers/ba_jobsuche.py` (BAJobsucheCollector — SSR HTML parser, allowlist-only, robots-as-evidence, city→NUTS via crosswalk, 403-rate-limit with 45s cooldown+retry, HMAC dedupe, 25 items/page, 400-page window). `main.py` SourceConfig slug `ba`, `make scrape-ba-jobsuche` / `make reference-germany`. 22 new respx tests (389 total). **DoD verified live:** 400/400 pages, 10,000 rows, `status=complete`, `expected_pages == completed_pages`, `expected_rows == row_count`, zero 4xx, 10,000 unique 64-hex HMAC source_ids, 100% first_published coverage, 358/400 distinct NUTS 3 codes mapped (6,448 mapped, 3,497 unmapped, 55 ambiguous), zero PII. **Honest bound:** 10,000-listing per-query window (400 pages × 25), plus BA rate-limits with 403 after ~50 requests (Apache edge token bucket, ~45s idle recovers); 7 throttle events absorbed in the live sweep. | `make check` passed (389 tests); DoD sweep complete (10,000 rows) |
-| P3 | 2026-08-24 | **Complete** | **EU coverage + main-app push-readiness assessment** (planning, no code) — the prep step before the Increment 9 segmented-DE build. Counted rows per EU country across all 11 collection partitions (**379,395 rows, ~322.8k distinct postings** in 7 countries); computed advertised-vs-collected coverage per source (CZ 100% / PL 100% by construction, FR 43.2%, BE 5.3%, NL 2.6%, DE 0.4–0.5% of the ~1.9M stock, NO n/a — event log); verified lab output is byte-compatible with the main app's `stg_postings.sql`/`stg_collection_manifests.sql`; identified `accepted_values: [DE, SE]` (`schema.yml:66`) as the **only** gate blocker — DE is already eligible, the other 6 countries are a main-checkout decision (out of the lab's remit); concluded DE is **pipeline-ready but not coverage-sufficient** (14,841 rows ≈ 0.5% of stock; BA region mapping 64.5%, below the 80% bar) — the Increment 9 plan is the correct readiness step. | docs only; `make check` unchanged (389 tests) |
-| 9 | 2026-08-24 | **Cancelled 2026-08-31** — census completion cut (see P4); 203,674 rows / 65 partitions stand untouched | **BA Jobsuche — segment-provenance German regional coverage** (Increment 9, Germany step 2; plan `.kilo/plans/1787577245495-ba-segment-provenance-de-coverage.md`). **Gate probes (live, ~40 paced requests, zero 4xx):** Bundesland/city/PLZ all resolve as `wo=`; **`wo=Landkreis+…` is broken** (every variant returns the same 7 Rosenheim postings — a fuzzy-match miss) and compound `-Kreis` names are unreliable (`Rhein-Sieg-Kreis` → Rüdesheim), so the level-2 backbone uses **municipality/PLZ segments** (10,761 from the crosswalk: 10,085 unique-name municipalities + PLZ for the 397 ambiguous names, each PLZ a single NUTS 3); `umkreis=0` confirmed tight ⇒ **Tier 3 = `mapped`**; no server-rendered total ⇒ page-400 oracle; `veroeffentlichtseit` filter works (level-4 axis); Berlin/München/Hamburg truncate at 400 pages. **Built:** `scrapers/ba_segments.py` (Segment/SegmentFrontier, `build_initial_frontier`, Bundesländer with city-state pre-subdivision), `normalize_location()` in `scrapers/ba_jobsuche.py` (Tier-1 qualifier strip + NUTS-1 alias map, Tier-2 segment-context disambiguation, Tier-3 single-NUTS-3 provenance gated on `umkreis=0`, non-geographic markers → `ambiguous`), segmented `BAJobsucheCollector` mode (completeness oracle, breadth-first region ordering, atomic segments, resumable frontier saved after every segment), scope `de-stock-segmented`, `main.py` `--segmented/--max-segments/--min-level/--umkreis`, per-chunk timestamped partitions, `make scrape-ba-segmented` + `make check-ba-segmented` (push-readiness gate: ≥85% mapped, ≥390/400 NUTS 3, ≤5% unmapped). 21 new respx tests (410 total). **Live census progress (63 chunks, ~6 h of paced collection):** 65 reconciled partitions, **203,674 rows**, **mapped 203,215 (99.77%), ambiguous 459 (all non-geographic markers), unmapped 0, low_confidence 0**; Tier breakdown 186,761 / 2,284 / 14,170 (Tier 1/2/3); **PII scan clean** (0 e-mails/URLs/native refs/PLZ/city strings); **zero 4xx**, throttles absorbed as `throttle_events`; München subdivided at the 400-page cap (PLZ children enqueued), **zero truncated segments left unsubdivided**; every partition `status=complete` and reconciled. **Remaining:** ~8,171 frontier segments (~20 h at the current pace) until `make check-ba-segmented` passes (124/400 NUTS 3 at session end). | `make check` passed (410 tests); census resumable at `data/state/ba_segment_frontier.json` |
-| P4 | 2026-08-31 | **Complete** | **Descoping decision — German census cancelled; BA Jobsuche re-planned as a frozen NUTS-3 panel** (planning, no code): census completion (~8,171 pending frontier segments, ~20+ h) cancelled **not paused** — a long gap followed by resumption of the same scope would record a mass fake `inferred_absence` closure spike downstream (closures are inferred from any later sweep of the same scope). New plan (roadmap step 2b): envelope probe FIRST (does the BA response envelope carry a total-hits field? if yes, one request per region = exact regional counts, whole map = 400 requests; outcome to be recorded in `SCRAPER_FEASIBILITY.md`), 400-unit NUTS-3 frame replacing the ~10.8k municipality/PLZ frame (destatis Kreise = authoritative AGS→NUTS 2024 key, all 400 GISCO codes; VZ250 names-only), frozen panel (byte-identical query set, seed recorded), cap-as-scope honesty (page cap in `scope_json` + `coverage_limitations`), burst = 400-query region probe + ~5 daily sweeps (~30 min each, ~3 h over a week). Cuts recorded in roadmap + landscape: StepStone + Kimeta (non-additive second DE source — cross-source counts never summed downstream), Indeed (stays charter never-build), other-country re-sweeps (conditional on the observatory's live-service budget only). Acceptance criteria + weekly-cadence design recorded in charter/roadmap/feasibility. | docs only; `make check` re-run and green (410 tests) |
-| 2b | 2026-09-02 | **Complete** | **BA Jobsuche frozen NUTS-3 panel** (Germany step 2b; scope `de-nuts3-panel`, replaces the cancelled census). **Probes (live, 1 s pacing):** the response envelope **does** carry a total-hits field — `suchergebnis.maxErgebnisse` inside the SSR state `<script id="ng-state">` (Berlin 30,334 / Hamburg 24,474 / Rosenheim 3,128), plus `woOutput.bereinigterOrt` + `suchmodus` as a per-query locality echo; **BA has no Kreis-level addressing** (`wo=Landkreis X` returns the identical 7 Rosenheim postings for every Kreis, `suchmodus` ∈ {`ORTSUCHE`, `UMKREISSUCHE`, `UNGUELTIG`}), Kreis names as places fail 10/16, anchor postcodes with `umkreis=0` hit 18/20 with perfect locality, and the crosswalk's `plz` slice turns out to be **administration postcodes only** (Hof's 95028/95030 are `unmapped`), so region attribution must come from the query context, not tile postcodes. **Built:** `scrapers/ba_panel.py` (pinned panel, candidate generation, membership hash, scope params, per-region side file), `parse_search_envelope()` + `_fetch_panel()` in `scrapers/ba_jobsuche.py` (declared page cap, plan from the advertised total, locality assertion, HMAC dedupe, 403 cooldown absorbed as throttle events), `main.py --panel`, `make scrape-ba-panel`, `make check-ba-panel` (`scripts/check_ba_panel_readiness.py`, one line per assertion), probe scripts `probe_ba_envelope.py` / `probe_ba_region.py` / `probe_ba_resolve.py` / `pin_ba_panel.py`, 29 new tests (439 total). **First sweep attempt REJECTED on breadth (370/400) and its partition deleted** — the reference-only anchor rule is degenerate in rural regions (every municipality has one postcode ⇒ alphabetically first village, 22 zero-stock anchors, 33 fuzzy misses); replaced by a **pinned artifact** `data/reference/ba_panel_nuts3.json` (175 live requests + 268 measurements reused; 399/400 regions non-empty). **Sweep 1 accepted (`20260902T080422Z`): 400 regions, 1,315/1,315 pages, `status=complete`, `expected_rows == row_count == NDJSON lines = 28,900`, 393/400 NUTS-3 regions mapped, one membership hash `545b162ec6e5fbdc…`, zero failed requests (25 absorbed throttles), PII clean, 270 regions at the declared cap, advertised totals summing to 372,413.** Next: sweeps 2–5 on subsequent days (~40 min each, `make scrape-ba-panel *> logs/ba-panel-sweepN.log`, read only the tail); after sweep 5 `make check-ba-panel` must still show one membership hash. Weekly cadence by design. | `make check` green (439 tests); `make check-ba-panel` 6/6 assertions pass |
-| P5 | 2026-09-02 | **Complete** | **Panel handover + publish decision** (docs only, no code). Sweeps 2–5 and the weekly cadence **delegated to the main project after the merge** instead of being run here; `PANEL_HANDOVER.md` added as the operations reference (what exists, runbook with the `make check` → sweep-to-log → `make check-ba-panel` sequence, six acceptance assertions, never-do list — never re-sweep/mutate `de-stock-segmented`, never `--fresh`, never edit `ba_panel_nuts3.json` between sweeps, never rebuild the crosswalk mid-series, never drop the declared cap, never sum across sources — failure playbook, re-pinning procedure, reproduction command). **Publish decision, data-driven from the stored partitions:** `de-nuts3-panel` becomes the published German BA scope; `de-all-window` (10,000 rows, **64.48% mapped**, 358/400) and `de-stock-segmented` (203,674 rows / 183,028 distinct, 99.77% mapped, **124/400**, cancelled ⇒ never re-swept) stay archived, unpublished evidence. The panel wins on all three published surfaces: breadth **393/400**, the only authoritative per-region denominator (`maxErgebnisse`, 372,413), and the only stable query set for flow/survival — plus 98.97% mapped and a single scope satisfies `scripts/publish.py:756` `_verify_single_scope` with no main-side change. **Caveat recorded:** panel row counts per region are cap-bounded (270/400 regions at the cap), so the top-25 regional table must be fed from the advertised totals, not row counts (panel top-25 share 9.5% vs census 48.1%). **Branch-review findings documented, not fixed** (envelope drift counted but unasserted ⇒ reject sweeps with `missing_envelope > 0`; breadth measured from row codes rather than queried regions; locality rule duplicated in `pin_ba_panel.py`; `build_panel()` called three times per sweep; missing side file misreported as a cap failure; DE231 permanently empty; `data/*` gitignored so partitions exist only on this machine). Roadmap closed out: Increments 9 (Joblift) and 10 (Stellenanzeigen) explicitly not scheduled. | docs only; `make check` unchanged and green (439 tests) |
+| 1 | 2026-08-13 | Complete | Review the Phase 0 scaffold and establish a passing offline baseline. | `make check` passed |
+| P1 | 2026-08-13 | Complete | Isolate raw responses and add the minimum PII sanitization boundary. | `make sample && make check` passed |
+| 2 | 2026-08-13 | Complete | Add the smallest raw observation collector against ignored private responses. | Offline collector check passed |
+| 3 | 2026-08-13 | Complete | Point staging at collected observations while preserving its contract. | `make sample && make check` passed |
+| 4 | 2026-08-13 | Complete | Derive posting presence and closure events. | `make sample && make check` passed |
+| 5 | 2026-08-13 | Complete | Publish one minimal labour-demand view. | `make site` passed |
+| 6 | 2026-08-15 | Complete | Add reliable, resumable, immutable JobTech query sweeps. | `make sample && make check && make site` passed |
+| 7 | 2026-08-15 | Complete at feasibility boundary | Review DE/SE sources; add approved-source metadata, coverage, and freshness without unsupported German collection. | `make sample && make check && make site` passed |
+| 8 | 2026-08-16 | Complete | Add region, occupation, and skill mappings from real pinned crosswalks with quality reporting. | `make reference && make sample && make check && make site` passed |
+| 9 | 2026-08-17 | Complete | Add historical analytics: openings, active stock, and closures over time (day/week/month); posting survival and closure basis; postings vs advertised vacancies; small-count suppression; coverage and collection frequency. | `make sample && make check && make site` passed |
+| 10 | 2026-08-17 | Complete | Publish an accessible six-section dashboard: persistent filters with shareable hash URLs, server-rendered SVG trend charts, metric definitions, explicit empty/stale/partial-coverage/error states, and per-table CSV export. | `make check && make site` passed |
+| 11 | 2026-08-17 | Dashboard scope complete; user validation pending | Add the operations-facing dashboard scope of Iteration 11: Status run summary, Governance (licences, retention, privacy assessment, disclosure control, architecture, snapshot), a versioned methodology stamp, and an offline release-check gate over the built page. | `make check && make release-check` passed |
+| 11a | 2026-08-19 | Complete | First real collection: fix the collector's country assumption against the live JobTech payload, filter the sweep to Sweden at the source, and scope sample-only dbt tests out of `live-site`. | `make check && make sweep && make live-site` passed |
+| 12 | 2026-08-20 | Collector complete; second scope blocked by the source | Add occupation-field scopes beside the keyword scope, verify on the wire that the source actually applied the requested filter, and refuse a scope whose rows cannot all be reached. The Data/IT scope is refused: 2589 records against a 2100-record traversal window. | `make check && make sweep && make live-site && make release-check` passed |
+| 13 | 2026-08-21 | Complete; live effect measured but not yet published | Accept a sole `exact-match` when the crosswalk offers several candidates, and publish the posting denominator beside every ranking. Measured on the latest sweep's retained raw pages: occupation `mapped` 65 to 510 of 615. The stored partitions are immutable, so the page shows it only after the next sweep. | `make check && make live-site && make release-check` passed |
+| 13a | 2026-08-22 | Complete; rule audited, one concept vetoed, figures published | Audit the exact-match tiebreak over 100% of its live population (29 concepts): 24 `same`, 4 `narrower-or-broader`, 1 `wrong`. The `wrong` concept had no correct ESCO URI to redirect to, so a reviewed refusal was added to `manual_reviews.csv` and `load_references` was taught to honour one. Published from a fresh 627-row sweep: occupation `mapped` 65 of 615 to 519 of 627. | `make check && make sweep && make live-site && make release-check && make sample` passed |
+| 14 | 2026-08-22 | Complete; three dimensions published, one taxonomy code still unobserved | Publish employment type, working-hours type, and contract duration from three structured fields that are 100% present, mapped through a new hand-written reference to English labels. Every posting lands in exactly one row per dimension, so each published column sums to the sweep's 628 postings and `Not stated` is a visible row rather than a caveat; a new untagged assertion pins that on live partitions. Methodology version bumped to 1.2. | `make check && make sweep && make live-site && make release-check && make sample` passed |
+| 13b | 2026-08-23 | Complete; the tiebreak is scored, refusals counted, both readings published | Extend the review sample from 3 rows to 32 so it covers every concept the exact-match tiebreak decides in the published sweep - 13 occupation and 16 skill - each row recording whether its verdict was transcribed from 13a or re-judged here. `scripts/evaluate.py` scores a correct refusal as a true negative, keeps `precision`/`recall` textbook, and publishes strict and lenient figures for the five `narrower-or-broader` concepts side by side under a rule written down before the numbers. The collision census is reported and enforced nowhere. No sweep, no network, and no published figure moved. | `make check && make live-site && make release-check` passed |
+| 16 | 2026-08-24 | Complete; findings published, trend gate silent | State the findings instead of making the reader derive them: a pure stdlib inference layer (`scripts/insights.py`) renders a digest on Overview and one line at the top of the Occupations, Requirements, Survival, and Status sections, every sentence built from the tables beneath it with its denominator stated and every numeric token proven - by test - to appear in the source rows. Methodology bumped to 1.3 before the first insight rendered. The trend gate was pre-registered at N=14 sweeps / M=7 days and stays silent on 8 sweeps and 3 daily buckets with a gap at 08-21, exactly as pre-registered. Three 13b review carry-overs closed. | `make check && make live-site && make release-check` passed |
+
+
 ## Session Notes
 
-### 2026-08-20 - Increment L0 (context cleanup)
+### 2026-08-13 - Increment 1
 
-- Removed `SOURCE_FEASIBILITY.md` (main project's anti-German-collection
-  decision record) and replaced it with `SCRAPER_FEASIBILITY.md`, a per-target
-  checklist with no inherited rejections.
-- Added `SCRAPERS.md`, the governing charter: network allowed by design,
-  robots.txt + Crawl-Delay + ToS review before building, 1s+ pacing, PII-free
-  extraction, HMAC pseudonymization, and the SAFE_FIELDS + manifest output
-  contract.
-- Rewrote the worktree-local `AGENTS.md` so it points at `SCRAPERS.md` and
-  `SCRAPER_FEASIBILITY.md`.
-- Replaced the main-project `SESSIONS.md` history with this lab log.
-- Replaced the main `Makefile` (offline gate) and `pyproject.toml` (dlt/dbt)
-  with lab-owned versions; scraper deps added (httpx, beautifulsoup4, lxml).
-  `uv sync` regenerated the lockfile.
+- Reviewed all source, configuration, schema, and SQL files without opening datasets or
+  fixtures.
+- Kept this increment to baseline correctness; no collector or dashboard scaffolding.
+- Fixed formatting, test collection, dbt CLI argument order, repository-relative DuckDB
+  paths, staging timestamp type, and enforceable key null checks.
+- Added one small check proving the default probe command does not access the network.
+- Enforced offline dependency resolution for every command in `make check`.
+- Rebuilt the committed sample offline because its existing schema predated the sample
+  builder's explicit projection.
+- Final result: `make check` passed with one Python test and six dbt resources passing.
 
-### 2026-08-21 - Increment 1 (CBOP / ePraca Poland)
+### 2026-08-13 - Privacy Increment P1
 
-- **Feasibility gate** recorded in `SCRAPER_FEASIBILITY.md`: robots.txt absent
-  (404, nothing disallowed), ToS allowed (CC BY 3.0 PL + official "Dla
-  integratorów" section), public search JSON API at
-  `POST /portal-api/v3/oferta/wyszukiwanie` with body `{"kodJezyka":"PL"}`
-  (no auth, Spring Data pagination). The SOAP integrator service was verified
-  live to require a ministry-registered Partner ("Niepoprawna autoryzacja") and
-  is therefore not used.
-- **Collector Interface** built: `scrapers/base.py` (`BaseCollector` ABC,
-  `RawRecord`/`NormalizedRecord` on the SAFE_FIELDS allowlist, `SweepWriter`
-  with manifest reconciliation), `scrapers/robots.py` (`RobotsRule` +
-  `PacingGate` 1s floor), `scrapers/retry.py` (`with_backoff` honoring
-  Retry-After), `scrapers/sanitize.py` (HMAC-SHA256 pseudonymization + `.env`
-  fallback), `scrapers/validate.py` (SAFE_FIELDS enforcement, Arrow schema,
-  optional Parquet export).
-- **PolandCollector** (`scrapers/poland_cbop.py`, alias `CBOPCollector`) walks
-  the portal-api v3 search pages; PII fields (email, phone, contact person,
-  employer, addresses) excluded by `NormalizedRecord(extra="forbid")`.
-- **CLI** `main.py --source pl --date YYYY-MM-DD [--max-pages N] [--parquet]`
-  and the `make scrape` target.
-- **Tests:** 69 passing (retry, robots, sanitize, validate, respx-mocked
-  collector, sweep writer; the existing JobTech output-contract tests in
-  `tests/test_probe.py` pass unchanged). `make check` green.
-- **Live canary:** 1 page, 100 rows, zero 4xx; recorded in the feasibility doc.
-- **Full DoD sweep:** 22,068 observations, 221/221 pages, `status=complete`,
-  `expected_rows == row_count == 22,068`, zero 4xx, all source_ids unique
-  64-hex HMAC digests, no PII present in output. Partition at
-  `data/raw/collections/cbop/pl-all-active/20260821T000000Z/`.
-- **Notes for later increments:** CBOP exposes no per-offer total vacancy count
-  in the list payload (`number_of_vacancies` defaults to 1); NUTS and ESCO
-  mapping are deferred (a TERYT `miejscowoscId` -> NUTS crosswalk would fit
-  Increment 2's Czech region-mapping work).
+- Added `scripts/sanitize.py` as the only privacy boundary: normalized NDJSON enters,
+  allowlisted analytical NDJSON leaves.
+- Pseudonymized source IDs with HMAC-SHA256 and a required 32-character
+  `OBSERVATORY_HMAC_KEY`; stable IDs preserve longitudinal joins without publishing
+  native identifiers.
+- Kept dates, coarse geography, occupation, language, skill URIs, and vacancy counts.
+  Dropped all unspecified fields, including title, description, employer, contacts,
+  organization number, URL, city, and postcode.
+- Moved future live probe responses from tracked fixtures to ignored `data/raw/probe/`
+  and removed the four committed live-response fixtures.
+- Replaced the sample builder's fixture dependency with two synthetic rows and removed
+  title, employer, and text from the staging contract.
+- Deliberate boundary: skill extraction from private text must happen before sanitizing;
+  only normalized skill URIs cross into analytical data.
+- Final result: `make sample && make check` passed with two Python tests and six dbt
+  resources passing.
 
-### 2026-08-22 - Increment 2 (Úřad práce / MPSV Czechia) — PLANNING
+### 2026-08-13 - Increment 2
 
-- **Housekeeping:** resolved a pre-existing in-progress merge of
-  `EU-Tech-Labor-Observatory/main` into `scrapers` that had left conflict
-  markers in the lab `Makefile` and `SESSIONS.md` (both blocked `make check`).
-  Both files were resolved to the lab/HEAD versions (lab gate
-  `check: lint types test`, lab session log); main's cleanly-merged files
-  (`.gitignore`, `scripts/collect.py`, `tests/test_probe.py`) were kept. Merged
-  as one `chore(dev)` commit `eb9cbc5`. `make check` now green at **83 tests**
-  (main's merged `test_probe.py` adds 14 JobTech output-contract tests).
-- **Feasibility gate recorded in `SCRAPER_FEASIBILITY.md` (live, network
-  allowed):** `data.mpsv.cz/robots.txt` allow-all (no Crawl-Delay);
-  `data.gov.cz/robots.txt` disallows `/sparql*`/`/fct/`/`/describe/`/`/zdroj/`
-  (rules out the NKOD SPARQL path, irrelevant to the dump host). ToS allowed:
-  MPSV "Podmínky užití" uses the standard NKOD open-data declarations (no
-  copyrighted works, no database right, no personal data) + CC BY 4.0 on
-  data.gov.cz; legal basis zákon č. 435/2004 Sb. No documented rate limits.
-  **Decision: implement.**
-- **Live probe of "Volná místa za celou ČR":** full active-set dump
-  `GET https://data.mpsv.cz/od/soubory/volna-mista/volna-mista.json` — single
-  JSON object `{"polozky": [...]}`, **no pagination**, ~186 MB, **38,903
-  records** at 2026-08-21 (DoD floor ≥5,000 exceeded ~7.8×). HTTP 200 with
-  `ETag`/`Last-Modified`/`Accept-Ranges` (conditional GET possible), zero 4xx,
-  no auth/anti-bot. Daily refresh (source "1x denně"; probe `Last-Modified`
-  2026-08-20 20:06 UTC).
-- **Field mapping candidates (100% present):** `portalId` (native id → HMAC),
-  `datumVlozeni` (first_published), `datumZmeny` (last_modified), `pocetMist`
-  (number_of_vacancies), `mistoVykonuPrace.pracoviste[].adresa.kraj.id`
-  (region, **90.7% coverage**). `expirace` only 7.4% (publication expiry).
-- **NUTS crosswalk is trivial:** the published `kraje` codelist carries
-  `kodNuts3` (CZ010–CZ080, unchanged in NUTS 2024) plus fallback codelists
-  `okresy` (78, has `kraj`) and `obce` (6,258, has `okres`). Pin them as
-  `data/reference/mpsv_*.csv` following `geography_nuts_2024.csv`; collector
-  never calls live codelists.
-- **PII confirmed present** (contact names, emails, telephones, street
-  addresses/PSC in `prvniKontaktSeZamestnavatelem`, `pracoviste[]`,
-  `zamestnavatel`): allowlist-only parse + `extra="forbid"` backstop, plus a
-  PII-isolation test in the plan.
-- **Delta design for the DoD:** the dump is the active set; closures are derived
-  by a reconciliation step that compares **HMAC source_ids only** across
-  consecutive partitions and writes `closures.ndjson` with `removed_at`
-  (`expirace` when source-reported, else next-sweep `observed_at`). No native
-  ids or PII in the comparison or output.
-- **Plan written to `.kilo/plans/1787351616165-mpsv-cz-plan.md`** (endpoint +
-  request contract, crosswalk strategy with mapped/ambiguous/low_confidence/
-  unmapped statuses, SAFE_FIELDS mapping table, delta semantics, respx test
-  plan, risks + go/no-go). Go/no-go: **GO** — no blockers.
+- Added the offline JobTech collector for recorded raw responses.
+- Normalized source dates, country, language, vacancy count, and observation time.
+- Applied the existing sanitizer before writing NDJSON, so native IDs and private fields
+  never leave the collector boundary.
+- Final result: `make check` passed with three Python tests and six dbt resources
+  passing.
 
-### 2026-08-22 - Increment 2 (Úřad práce / MPSV Czechia) — IMPLEMENTATION
+### 2026-08-13 - Increment 3
 
-- **Crosswalk reference built and committed** (`make reference-mpsv` via
-  `scrapers/reference_mpsv.py`, opt-in network): `mpsv_kraje_nuts_2024.csv`
-  (14 rows, `kodNuts3` CZ010–CZ080), `mpsv_okresy_kraj_2024.csv` (78),
-  `mpsv_obce_kraj_2024.csv` (6,258), plus `reference_manifest_mpsv.json`
-  provenance. Follows the `geography_nuts_2024.csv` column pattern; the
-  collector reads only the pinned CSVs, never live codelists.
-- **`MPSVCollector`** (`scrapers/czech_mpsv.py`): single streamed GET of the
-  full dump to a temp file (`MPSV_DUMP_URL`), no pagination
-  (`total_pages == completed_pages == 1`); pydantic `extra="ignore"` models
-  with required `portalId`/`datumVlozeni`/`datumZmeny`/`pocetMist` (schema
-  drift fails loudly); region chain workplace kraj (mapped) → contact address
-  (low_confidence) → okres (mapped/ambiguous) → obec (mapped) → unmapped;
-  `occupation_mapping_status=not_present` (deferred); accumulates
-  `expirace_by_source_id` for the delta step.
-- **Delta reconciliation** (`scrapers/reconcile_mpsv.py`, `make reconcile`):
-  compares **HMAC source_ids only** across the two most recent partitions;
-  writes `closures.ndjson` (source_id, removed_at, source, scope_id, sweep_id
-  — strict SAFE_FIELDS subset) with `removed_at` = source-reported `expirace`
-  when the older partition carried one inside the window, else the newer
-  sweep's `observed_at`; `integrity_ok` asserts newer == unchanged+added and
-  older == unchanged+closed.
-- **CLI + Makefile:** `main.py --source cz|mpsv` (source registry + typed
-  `SourceConfig`; `--max-pages > 1` rejected for the single-dump source) and
-  `make scrape-cz`; `BaseCollector` gained `total_elements`/`total_pages`/
-  `completed_pages` counters (additive, JobTech output-contract tests
-  unchanged).
-- **Tests:** 30 new (collector/respx, crosswalk statuses, reconciliation
-  delta/expirace/integrity, PII isolation). `make check` green at **113 tests**
-  (ruff + mypy strict clean).
-- **Full DoD sweep (live):** two consecutive daily sweeps (2026-08-22 and
-  2026-08-23) each wrote **38,903 observations, 1/1 pages, `status=complete`,
-  `expected_rows == row_count == 38,903`**, zero 4xx; `region_mapping_status`
-  populated on 100% of rows with **98.8% region-mapped** (mapped 35,975 /
-  low_confidence 2,152 / ambiguous 292 / unmapped 484); all source_ids unique
-  64-hex HMAC digests; zero PII tokens in the raw NDJSON blob; `meta.ndjson`
-  carries 2,864 expirace records. Reconciliation between the two runs:
-  `added 0, closed 0, unchanged 38,903, integrity OK` (the dump was unchanged
-  between runs minutes apart; the added/closed/removed_at logic is pinned by
-  the fixture tests). Partitions at
-  `data/raw/collections/mpsv/cz-all-active/2026082{2,3}T000000Z/`.
-- **Roadmap/feasibility updated:** Increment 2 marked **DONE 2026-08-22**;
-  feasibility row records the live sweep evidence.
+- Replaced the source-native Parquet sample with sanitized observation NDJSON generated
+  through the same normalization and privacy boundary as collected responses.
+- Pointed staging at `OBSERVATIONS_PATH`, with the committed synthetic sample as its
+  offline default.
+- Preserved the ten-column staging contract and observation grain; staging now only
+  selects and casts collector fields.
+- Standardized script commands on `python -m scripts...` so package imports work without
+  path manipulation.
+- Final result: `make sample && make check` passed with three Python tests and six dbt
+  resources passing.
 
-### 2026-08-22 - Increment 3 (Adzuna — multi-country adapter) — IMPLEMENTATION
+### 2026-08-13 - Increment 4
 
-- **Feasibility gate recorded in `SCRAPER_FEASIBILITY.md` (live):** `api.adzuna.com/robots.txt`
-  → `User-agent: * / Disallow: /` (blanket disallow on the API host, standard
-  keyed-API pattern; unauthenticated requests fail nginx 400); `adzuna.com` /
-  `www.adzuna.com` robots.txt → 405 (no robots handler on consumer hosts, never
-  touched). ToS (developer.adzuna.com/docs/terms_of_service): **allowed with
-  conditions** — "Permissible Use: 1. Publishing ad listings, 2. Jobsworth
-  salary estimates, 3. **Personal research**"; academic/org use permitted for a
-  14-day validation period, ongoing research needs written consent/licence;
-  mandatory attribution ("The Adzuna API" + link) wherever data is published.
-  Documented free-tier limits: **25 hits/min, 250 hits/day, 1000/week,
-  2500/month**; 429 + Retry-After honored. **Decision: implement.**
-- **Credentials:** `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` were absent from `.env`;
-  per the charter/task they were requested from the user (never hardcoded or
-  invented) before any live call. User added them to `.env`; verified present
-  (no values printed/logged).
-- **Live contract probe (STEP 4), DE + NL, 2.5 s pacing, ~30 hits:** envelope
-  `{__CLASS__, count, mean, results}`; `count` = DE 1,155,948 / NL 190,606
-  active listings; 50 results/page, pages 1..24 all 200, zero 4xx, zero 429.
-  Result fields: `id`, `adref` (JWT-style token embedding the same `id` —
-  verified base64 `"i":"NTgz..."`), `created` (ISO 8601 UTC), `category
-  {label,tag}`, `company {display_name}`, `location {area[], display_name}`,
-  `title`, `description`, `redirect_url`, `salary_*`, `latitude/longitude`.
-  **`id` type differs by country: string on DE, integer on NL** (model coerces
-  via field validator). **Per-query result window discovered live:** pages
-  beyond ~100 return listings already seen on earlier pages (`fresh_ids=0` at
-  pages 120–200) — one all-active query yields at most ~5,000 unique rows; the
-  `count` field advertises the total stock, not the query window.
-- **Honest cap finding (recorded plainly, no padding):** the free tier's
-  250 hits/day plus Adzuna's ~100-page per-query window make the roadmap's
-  "≥100,000 rows in one DE sweep" physically impossible (~23k segmented hits
-  for the 1.16M DE stock). Stated in the feasibility row and each manifest's
-  `coverage_limitations`; the collector pages correctly to any budget
-  (validated in mocked tests incl. >100k rows).
-- **`AdzunaCollector` + `CountryAdapter` (`scrapers/adzuna.py`):** one class,
-  all 18 country domains; `CountryAdapter` (country_code, expected_country,
-  locale, language, source_version, scope_id, scope_params, licence_reference,
-  access_method, freshness, coverage_limitations) shipped for DE + NL in an
-  `ADZUNA_ADAPTERS` registry. Pagination `.../search/{page}` with
-  `results_per_page=50`; pacing ≥2.5 s honoring the documented 25/min; retries
-  via `scrapers/retry.py` (429 + Retry-After); dedupe on HMAC source_id across
-  pages and optional segments/categories; `region_mapping_status=not_present`
-  (location free text only, NUTS crosswalk deferred); `occupation_mapping_status=
-  not_present` (category→ESCO deferred); `number_of_vacancies=1`;
-  `first_published` from `created`; `last_modified`/`removed_at` absent
-  (absence-based closure stamping deferred, MPSV reconcile stays MPSV-specific).
-  Source_id policy: HMAC of native `id` (stable ad ref; `adref` embeds the same
-  id — cross-board merge impossible from the search payload, recorded as a
-  coverage limitation).
-- **PII:** `title`, `description`, `company`, `redirect_url`, contacts and all
-  free text excluded by the allowlist-only parse + `NormalizedRecord(extra=
-  "forbid")`; PII-isolation test asserts none of the raw payload's private
-  tokens appear in output.
-- **CLI + Makefile:** `main.py --source adzuna --country de|nl` (source
-  registry + typed SourceConfig extended; credentials loaded via
-  `adzuna_credentials()` which raises before any network call when absent);
-  `make scrape-adzuna` / `make scrape-adzuna-nl`.
-- **Tests:** 14 new (pagination + normalization, PII isolation, 429 retry with
-  Retry-After, NL config-only differences, segment dedupe, category segments,
-  page budget, empty-page stop, missing/integer id, datetime, credentials
-  loading + missing-guard, native-id never in output). JobTech output-contract
-  tests pass unchanged. `make check` green at **127 tests** (ruff + mypy strict
-  clean).
-- **Live DoD sweeps:** DE `de-all-active` 20260822T000000Z — **100/100 pages,
-  4,841 rows, `status=complete`, `expected_rows == row_count`, zero 4xx**;
-  NL `nl-all-active` 20260823T000000Z — **100/100 pages, 4,956 rows,
-  `status=complete`, `expected_rows == row_count`, zero 4xx** (same class,
-  config-only change; NL ran under the next-day daily quota). Advertised counts
-  (DE 1,155,948 / NL 190,606) recorded in the manifests' `coverage_limitations`;
-  all source_ids unique 64-hex HMAC digests; zero PII tokens in the raw NDJSON
-  blobs; native ids never present. Partitions at
-  `data/raw/collections/adzuna/{de-all-active,nl-all-active}/`.
-- **Roadmap/feasibility updated:** Increment 3 marked **DONE 2026-08-22**;
-  feasibility row records robots/ToS verdict, the true free-tier + per-query
-  caps, and the live sweep evidence. The written manifests carry the
-  pre-refinement coverage text (240-page constant); the adapter ships the
-  corrected text (100-page budget) for future sweeps.
+- Added one event view: each observation becomes a presence event and each posting may
+  produce one closure event.
+- Preferred source-reported `removed_at`; otherwise inferred closure at the first later
+  complete source sweep where the posting is absent.
+- Expanded the synthetic sample to cover persistence, reported closure, and inferred
+  closure, with one exact-set survival test.
+- Deliberate ceiling: each `(source, observed_at)` is a complete, consistently scoped
+  sweep. Partial or partitioned collection needs a scope key before feeding this model.
+- Final result: `make sample && make check` passed with three Python tests and eight dbt
+  resources passing.
 
-### 2026-08-22 - Increment 4 (France Travail FR: API Offres d'emploi v2)
+### 2026-08-13 - Increment 5
 
-- **Feasibility gate (STEP 3), all live.** robots.txt on every host the work
-  touches: `api.francetravail.io` → `User-Agent: * / Disallow: /` (blanket
-  disallow on the keyed API host, the same pattern as `api.adzuna.com` in
-  Increment 3 — it governs *unauthenticated* crawling, and every unauthenticated
-  request answers 401; OAuth2 access under the accepted licence is the API's only
-  and documented access mode); `francetravail.io` (portal) allows everything
-  except `*utm_campaign*`, `/api-peio/`, `*api-peio*`, `*oauth2*` (none were
-  requested); `entreprise.francetravail.fr` (token host) 308-redirects its robots
-  to `pro.francetravail.fr/robots.txt` → `Disallow:` (allow all). Legacy
-  `api.pole-emploi.io` refuses connections; legacy `entreprise.pole-emploi.fr`
-  token host still answers identically.
-- **Licence review (14 articles).** The **Licence de réutilisation de la base de
-  données des offres d'emploi de France Travail** cedes free, non-exclusive
-  extraction and reuse rights (Art. 1.1). Conditions recorded and satisfied:
-  Art. 4 attribution (source + last-update date + licence link → manifest
-  `licence_reference`), Art. 5.2 call the API ≥ once/24 h and preserve
-  publication/update dates, **Art. 7 anonymization of a derived database — drop
-  employer name/description/URL, contact name and coordinates, phone numbers,
-  offer URLs and the postcode, INSEE code and commune label of the workplace**
-  (exactly what SAFE_FIELDS already excludes; the location identifiers are used
-  transiently to derive NUTS 3 and never persisted), Art. 8 GDPR
-  purpose-compatibility + EU storage, Art. 3 no sub-licensing, Art. 10 licence
-  lapses after 12 months of inactivity, Art. 13 audit right. **Roadmap
-  correction:** the API is in the "API en accès libre" tier — a self-service
-  account plus click-through licence acceptance, not a counter-signed contract.
-- **Credentials / auth state.** `FRANCE_TRAVAIL_CLIENT_ID` /
-  `FRANCE_TRAVAIL_CLIENT_SECRET` were present in `.env` and correctly shaped
-  (`PAR_<21-char slug>_<64 hex>` / 64 hex) but the token endpoint answered
-  `400 {"error":"invalid_client"}` for **every** documented variant (body creds,
-  Basic auth, with/without scope, `application_<id>` scope prefix, legacy host,
-  swapped id/secret); `realm=/individu` answered `Invalid realm`, proving the
-  request parsed and the credential pair itself was rejected. Reported to the
-  user instead of guessing or inventing keys (charter Rule 5 / task STEP 3): the
-  account existed but **the Licence Offres d'emploi had not been accepted**.
-  After acceptance the identical request returned `200 {token_type: Bearer,
-  expires_in: 1499, scope: "api_offresdemploiv2 o2dsoffre"}`. No credential
-  value was printed or logged at any point.
-- **Live contract probe (STEP 4).** `GET /partenaire/offresdemploi/v2/offres/
-  search?range=a-b` answers **`206 Partial Content`** with
-  `Content-Range: offres a-b/503356` and `accept-range: 150`. Hard caps probed:
-  window > 150 items → `400 "La plage de résultats demandée est trop
-  importante."`; start > 3000 → `400 "La position de début doit être inférieure
-  ou égale à 3000."` ⇒ **3,150 offers per query** against a **~503–504k**
-  national active stock. Deep windows return fresh ids (no Adzuna-style
-  recycling: windows 0/150/1000/1150/2000/3000 each yielded `fresh=150`).
-  Rate limits: documented 10 appels/seconde, confirmed by
-  `x-ratelimit-replenish-rate-clientidlimiter: 10` headers. Invalid/expired
-  token → **401 with empty body** + `WWW-Authenticate: Bearer`. Field shapes
-  (300-offer sample): `id` (7 chars), `dateCreation` / `dateActualisation` /
-  `nombrePostes` / `romeCode` **100%**, `lieuTravail.commune` 95.0%,
-  `codePostal` 95.3%, `libelle` 100% (`"<dép> - <commune>"`). Référentiels:
-  `departements` 101, `metiers` 1,911, `regions` 18, `communes` 35,015.
-- **Region mapping decision (the increment's real hurdle).** France exposes no
-  NUTS codes, so `scrapers/reference_francetravail.py` builds a pinned crosswalk
-  from FT `referentiel/departements` × Eurostat GISCO **NUTS 2024**
-  (`NUTS_AT_2024.csv`, FR level 3 = 101 codes) joined on the département name
-  (accent/case/punctuation-insensitive): **101/101 matched, zero leftovers, zero
-  manual overrides** →
-  `data/reference/francetravail_departements_nuts_2024.csv` (+ hashed
-  reference manifest, `make reference-ft`). Resolution chain at normalize time:
-  `commune` INSEE → `mapped`, `codePostal` → `low_confidence` (Corsican `20xxx`
-  cannot separate 2A/2B → `ambiguous`), `libelle` prefix → `low_confidence`,
-  otherwise `unmapped`. **Occupation:** `romeCode` is present on every offer but
-  no pinned ROME → ESCO 1.2.1 crosswalk exists, so the status is `unmapped` with
-  method `deferred_rome_to_esco` — deliberately *not* `not_present` as in
-  Increments 1–3, where the source exposed no occupation code at all.
-- **`FranceTravailCollector` (`scrapers/france_travail.py`).** OAuth2
-  client-credentials with lazy minting, TTL reuse (`expires_in` minus a 60 s
-  skew) and a single refresh-and-replay on 401; `range`-window pagination inside
-  the 150-item / 3000-start caps; segmentation over the 101 départements plus one
-  unsegmented query that records the national advertised total; dedupe on HMAC
-  `source_id` across segments; pacing at the charter's 1 s floor (10× inside the
-  documented 10 req/s) with `Retry-After`/429 backoff from `scrapers/retry.py`;
-  `first_published`=`dateCreation`, `last_modified`=`dateActualisation`,
-  `number_of_vacancies`=`nombrePostes`, `removed_at` absent (absence-based
-  closures across sweeps). Reused `base.py`, `robots.py`, `retry.py`,
-  `sanitize.py`, `validate.py` unchanged.
-- **PII.** `description`, `intitule`, `entreprise`, `contact`, `origineOffre`,
-  `agence`, `salaire` and the `lieuTravail` identifiers are simply not declared
-  on the payload models (`extra="ignore"`), with `NormalizedRecord(extra=
-  "forbid")` as the backstop; the PII-isolation test asserts none of the raw
-  private tokens — including postcode and INSEE code, per licence Art. 7 —
-  appear in a dumped record.
-- **CLI + Makefile.** `main.py --source ft|fr|francetravail` (typed
-  `SourceConfig` entry, scope `fr-all-active`, credentials via
-  `france_travail_credentials()` which raises before any network call);
-  `make scrape-ft` and `make reference-ft`.
-- **Tests.** 43 new respx tests: documented token-request body, token minted once
-  and reused, TTL expiry re-mint (injected clock), 401 refresh-and-replay,
-  persistent 401, token without `access_token`, `range` window pagination, the
-  3000-start cap (21 windows = 3,150 offers), short/empty/204 windows, page
-  budget, segment dedupe, default segments covering every département, 429 with
-  `Retry-After`, 500 propagation, PII isolation, unique source_ids, missing id,
-  `nombrePostes` edge cases, ROME present/absent statuses, date and
-  `Content-Range` parsing, the full region-resolution chain (commune/postcode/
-  libellé/Corsica/foreign/region-only), crosswalk loader errors and hashes,
-  short HMAC key, missing credentials. JobTech output-contract tests pass
-  unchanged. `make check` green at **170 tests** (ruff + mypy strict clean).
-- **Live DoD sweeps.** `fr-all-active` **20260822T000000Z** — **120/120 windows,
-  17,406 rows** (594 cross-segment duplicates dropped), `status=complete`,
-  `expected_rows == row_count == NDJSON lines`, **zero 4xx/401**; region
-  **mapped 98.1%** (17,081), low_confidence 294, unmapped 31, **100 distinct
-  NUTS 3 codes**; dates on 100% of rows; unique 64-hex HMAC source_ids; PII scan
-  found 0 e-mails, 0 URLs, 0 postcodes, 0 INSEE codes, 0 native ids (the only
-  string fields are the allowlist's enums/timestamps/NUTS codes). Second
-  consecutive daily sweep **20260823T000000Z** — **1500/1500 windows, 217,455
-  rows**, `status=complete`, reconciled, zero 4xx/401, region mapped 98.1%,
-  177.8 MB; **token TTL honored live: 2 token requests for 1,500 API calls**,
-  the second minted 1,439 s after the first (TTL-driven, not 401-driven).
-  Cross-sweep continuity: 17,181/17,406 (98.7%) source_ids reappear, 225 absent
-  (closure candidates; budgets differed, so indicative only).
-- **Honest cap statement.** ≥10,000 offers per sweep is easy, but a *complete*
-  national snapshot is impossible in one pass: 3,150 offers/query × 101
-  départements ⇒ ≤ ~318k of the ~503k active stock, and offers whose
-  `lieuTravail` carries no département (region-only or foreign, ~2% of the
-  sample) are reachable only through the unsegmented query and stay
-  region-unmapped. Recorded in the feasibility row and in every manifest's
-  `coverage_limitations`.
-- **Roadmap/feasibility updated:** Increment 4 marked **DONE 2026-08-22**; the
-  feasibility row carries the robots reading, the full licence analysis, the
-  probed caps, the auth/licence timeline and the sweep evidence.
+- Added one aggregate model: active postings by source and country at each source's
+  latest complete sweep.
+- Added a self-contained static HTML publisher using Python, DuckDB, and the standard
+  library; no frontend framework, runtime JavaScript, external assets, or new dependency.
+- Published only counts, source, country, and observation time. Native IDs and private
+  posting text do not enter the aggregate or page.
+- Added one offline publisher test and checked the built page at desktop and mobile
+  widths with no page overflow, text overlap, or external requests.
+- Final result: `make check && make site` passed with four Python tests and nine dbt
+  resources passing.
 
-### 2026-08-22 - Increment 5 gate (VDAB BE-Flanders: API blocked, public site re-scoped)
+### 2026-08-15 - Iteration 6
 
-Gate-only session: no collector was written. The roadmap's premise for
-Increment 5 turned out to be wrong, so the increment was re-scoped before any
-code existed.
+- Added serial JobTech pagination with a canonical query scope, bounded transient retries,
+  `Retry-After` support, durable page checkpoints, and resumable collection state.
+- Added immutable timestamped partitions, atomic publication, content hashes, run locks,
+  exact-rerun idempotency, and explicit complete/failed sweep manifests.
+- Added source/scope/sweep provenance to privacy-safe observations and publishable demand
+  aggregates without allowing native identifiers or private source fields through.
+- Gated staging, latest demand, and inferred closures on complete same-scope manifests;
+  failed, partial, orphaned, and zero-row sweeps now have explicit tested behavior.
+- Kept live collection opt-in through `make sweep` and preserved the network-free sample,
+  quality gate, and static-site build.
 
-- **Surface A — Vacature API v4: BLOCKED.** The roadmap and landscape both
-  described "free API key via app registration (`X-IBM-Client-Id`)". VDAB's own
-  documentation says otherwise: *"Je mag de Vacature API gebruiken, **nadat VDAB
-  een partnership met jou heeft goedgekeurd en na het ondertekenen van een
-  samenwerkingsovereenkomst**. Je mag de Vacature API enkel voor professionele
-  doeleinden gebruiken. De data-uitwisseling via de API moet een toegevoegde
-  waarde hebben voor VDAB en voor je organisatie."*
-  (`extranet.vdab.be/api-center-excellence-coe/vacatures-ophalen-met-de-vacatures-api`),
-  and the access PDF confirms *"stelt VDAB, waar nodig, een contract op. Nadat je
-  dit contract hebt ondertekend, kan je het gewenste API-product aanvragen"*.
-  The portal's own `tsandcs` page is a stub. Recorded as **blocked** and **not
-  routed around** (charter feasibility gate); re-openable only as an
-  access-request task, like BA Jobsuche's HR-BA-XML route.
-- **Surface B — public job-search site: PERMITTED, and it is the new scope.**
-  `www.vdab.be/robots.txt` (3,564 bytes, no `Crawl-Delay` for `*`) **advertises
-  six sitemaps** and allows `/vindeenjob/jobs/<slug>`, `/vindeenjob/vacatures`
-  and `/vindeenjob/vacatures/<id>/<slug>`. The vdab.be disclaimer grants re-use
-  in as many words: *"Je mag informatie op onze website kopiëren, afdrukken en
-  gebruiken voor informatieve doeleinden"*, with the VDAB name/logo protected as
-  trademarks (never reproduced in output). Employer terms note that published
-  vacancies "can also get a place on other jobsites and in Google results", so
-  onward publication is contemplated.
-- **The important robots finding.** `/api/vindeenjob/` — the Angular app's own
-  JSON API — is **`Disallow`ed**, along with `/vacatures/`, `/include/vacature/`,
-  `/zoeken/` and `/vindeenjob/prive/`. That is precisely the path the public
-  third-party scrapers use ("intercepts VDAB's Angular API responses"), so the
-  easy route is **off-limits here** even though it works; an undocumented
-  `/rest/vindeenjob/v2/vacatures/zoek` also answered **403** live. The collector
-  will read only the server-rendered landing pages and the advertised sitemaps.
-- **Data surface probed.** `/vindeenjob/jobs/<postcode>-<gemeente>` renders **28
-  vacancy tiles** server-side (title, employer, contract type, `Online sinds`
-  date, `/vindeenjob/vacatures/<id>/<slug>` link) and advertises its own segment
-  total (`<strong>1627</strong><span>jobs gevonden`). **No in-page pagination
-  exists:** `?limit=100`, `?page=2` and `?start=15` all return the byte-identical
-  28-tile page and `/2` 404s. The SPA routes (`/vindeenjob/vacatures`, every
-  detail URL) return the same 46,339-byte Angular shell with **0** `ld+json`
-  blocks — there is no server-rendered detail page to parse. Sitemaps give the
-  second axis: `sitemap/vindeenjob/vacatures/index.xml` → 214 weekly child
-  sitemaps (295–1,898 vacancy URLs each, **with `<lastmod>`**),
-  `vindeenjob/jobs/nc/sitemap/*` → **34,903** landing pages, plus 513 gemeente
-  and 451 employer pages. Search page advertises **232,944** active jobs.
-- **Canary test PASSED** (mandatory for HTML sources): 12 postcode landing pages,
-  serial, **1.2 s pacing**, 189 records (≤100-record rule respected per page):
-  **12/12 HTTP 200, zero 4xx, zero blocks, no Cloudflare/Akamai headers** (server
-  is `envoy`); 189 unique ids from 255 tiles — overlap is real (`1000-brussel`,
-  `-stad`, `-gombe-kinshasa` share one result set), so HMAC dedupe is mandatory;
-  `Online sinds` date and contract label on **100%** of tiles. **Deliberate
-  deviation from the roadmap's canary recipe:** user-agents were **not**
-  randomized — obscuring identity contradicts the charter's ethical stance, and a
-  single honest contactable UA drew zero blocks.
-- **Region mapping decision (better than expected).** Basisregisters Vlaanderen —
-  the Flemish government's authoritative address register, open JSON-LD, no
-  robots file — returns NUTS 3 **directly**: `api.basisregisters.vlaanderen.be/v2/postinfo/9000`
-  → `{"gemeente": {...\"Gent\"}, "nuts3": "BE234"}`. `nuts3` is on the detail
-  payload only (not the 500-per-page list), so a pinned builder walks the Flemish
-  postcodes once (`make reference-vdab`, same shape as Increments 2 and 4).
-  Eurostat GISCO `NUTS_AT_2024.csv` supplies the validation set: Belgium has 44
-  NUTS 3 codes, **22 Flemish** (`BE21x`–`BE25x`). Occupation stays
-  `not_present`: the public tiles carry no ROME/C2/ISCO code.
-- **Honest coverage statement.** ≥5,000 rows is comfortable (28 tiles ×
-  ~180–400 landing pages at 1 s ≈ 3–7 min), but the full 232,944-vacancy stock is
-  **not** reachable this way without walking a large share of the 34,903 landing
-  pages; that gap must be stated in `coverage_limitations` on every manifest.
-- **Docs updated:** `SCRAPER_FEASIBILITY.md` gains an Increment 5 entry with
-  **both surfaces** recorded (A blocked, B implement); `SCRAPER_ROADMAP.md`
-  Increment 5 re-scoped to HTML with the canary result, VDAB's API added to
-  "Not planned", the risk-matrix row and the canary-serialization note adjusted;
-  `SCRAPER_SOURCE_LANDSCAPE.md` VDAB entry split into the two surfaces and its
-  volume tier corrected M → L (~233k); `.kilo/plans/increment-5-vdab-prompt.md`
-  rewritten for the public-site scope.
+### 2026-08-15 - Iteration 7
 
-### 2026-08-22 - Increment 5 build (VDAB BE-Flanders public site)
+- Approved JobTech JobSearch for the fixed Swedish keyword scope based on its official API
+  and CC0 publication; recorded source version, licence, access method, expected country,
+  freshness threshold, and limitations in every new manifest.
+- Rejected BA Jobsuche because BA terms prohibit automated collection, kept HR-BA-XML
+  exploratory because it requires an agreement and does not document a national read feed,
+  rejected EURES without formal partner access, and classified the official BA statistics
+  API as aggregate-only.
+- Did not implement or simulate German posting collection and did not label the product as
+  Germany-Sweden complete.
+- Added deterministic source coverage/freshness models, strict Swedish country validation,
+  zero-row country coverage, and source-separated publication with no combined total.
 
-Implementation session for the re-scoped Surface B. The blocked Vacature API was
-not touched and not worked around, and the robots-disallowed `/api/vindeenjob/`
-was never requested — that prohibition is now enforced in code and covered by
-tests.
+### 2026-08-15 - Iteration 8
 
-- **Contract re-verified live before writing anything** (cheap re-probe, not a
-  re-derivation): `robots.txt` still 3,564 bytes with six advertised sitemaps, no
-  `Crawl-Delay` for `*`, and `/api/vindeenjob/` still `Disallow`ed
-  (`RobotsRule.can_fetch` → False); keyword sitemap index still 4 children;
-  `keyword-0.xml` still 10,000 URLs of which **2,251 are postcode-prefixed**;
-  4 landing pages **4/4 HTTP 200**, 28 tiles each, `Online sinds` + contract
-  label on 100% of tiles, 112 tiles → 55 unique ids. The **no-pagination
-  contract was re-probed**: `?limit=100`, `?page=2` and `?start=15` each returned
-  the identical 28 ids and `/2` answered 404, so the collector sends **no**
-  pagination parameter at all. One drift: the `Server` header now reads
-  `Kestrel` (was `envoy`); still no Cloudflare/Akamai/Incapsula header, no
-  challenge.
-- **`scrapers/reference_vdab.py`** (opt-in network, `make reference-vdab`,
-  Increment 4's builder shape): enumerates postcodes from
-  `api.basisregisters.vlaanderen.be/v2/postinfo?limit=500` across the `volgende`
-  links, then reads `postinfo/{postcode}` for the `nuts3` field the list payload
-  omits, validating every value against Eurostat GISCO `NUTS_AT_2024.csv`.
-  Live build: **529 postcodes enumerated → 528 rows, 1 skipped (no `nuts3`),
-  0 unmatched against GISCO**, 23 distinct NUTS 3 codes = **all 22 Flemish
-  arrondissements** plus `BE100` for the single non-geographic postcode `0612`
-  (unreachable from any landing-page slug). Brussels' `1000` answered
-  `410 Verwijderde postcode`, as the gate predicted, and is absent. The walk is
-  **restartable** (rows flushed every 50 postcodes, an existing CSV is resumed,
-  `--fresh` starts over) and took ~9 minutes at the 1 s floor.
-  `data/reference/vdab_postcode_nuts_2024.csv` + `reference_manifest_vdab.json`
-  are committed so the offline gate keeps working.
-- **`scrapers/vdab.py` (`VDABCollector`)** on the existing Collector Interface —
-  `base.py`, `robots.py`, `retry.py`, `sanitize.py` and `validate.py` were reused
-  unchanged:
-  - **robots.txt is a gate, not a formality.** It is fetched and parsed once per
-    sweep *before any other URL*, and `assert_allowed()` is called on **every**
-    URL before it is requested; a disallowed URL raises `RobotsDisallowedError`
-    instead of being skipped quietly. A `Crawl-Delay` longer than the configured
-    pace would replace the pacer. Every sweep logs `api_path_allowed=False`,
-    i.e. the live proof that the Angular API stays off-limits.
-  - **Discovery** reads the keyword sitemap index and only as many child sitemaps
-    as the page budget needs (`keyword-0.xml` alone yields **1,926**
-    Flemish-postcode landing pages), filters to `<postcode>-<gemeente>` slugs and
-    drops postcodes absent from the crosswalk (Brussels `1000`, foreign
-    `1011-amsterdam`).
-  - **Breadth ordering** (`order_by_postcode_breadth`): sitemap order is
-    postcode-ascending with several slug variants per postcode, so a budgeted
-    prefix would sample one corner of Flanders. Round-robining over postcodes
-    puts one page per postcode first. Measured effect: **500 pages produced only
-    5 duplicate ids** (0.04%) versus the canary's 26% overlap, and the sweep
-    reached all 22 NUTS 3 codes.
-  - **Allowlist-only parse** with BeautifulSoup + lxml (the lab's first HTML
-    source): exactly two things are read per `div.product-tile` — the numeric id
-    from the `/vindeenjob/vacatures/<id>/<slug>` href and the `Online sinds`
-    label. The title, employer, city, description snippet, logo and tracking
-    parameters in the same markup are never read; `VacancyTile(extra="forbid")`
-    and `NormalizedRecord(extra="forbid")` are the backstops. Tiles without a
-    resolvable id are counted, never given a fabricated identifier.
-  - **Dutch date parser** (`parse_dutch_date`) covering all twelve abbreviations
-    (`jan`…`dec`, including `mrt.`, `mei`, `okt.`) plus full names, total by
-    construction: garbage, English, relative phrases (`vandaag`) and impossible
-    dates (`31 feb.`) return `None` rather than a guess.
-  - **SAFE_FIELDS:** `source=vdab`, `country=BE`, `lang`/`source_language=nl`,
-    `number_of_vacancies=1`, `first_published` from the tile date,
-    `last_modified=None`, `removed_at=None`, region from the pinned crosswalk,
-    occupation `not_present` / `not_available_vdab_html` (there is no source
-    occupation code at all — unlike Increment 4's `unmapped`, where `romeCode`
-    existed).
-  - **`last_modified` deliberately skipped.** The weekly vacancy sitemaps do
-    carry a per-URL `<lastmod>`, but re-probing showed they are historic ISO-week
-    slices (214 children from week 25/2024; the newest holds 872 URLs dated
-    Feb/Mar 2026), so their ids largely do not intersect the current tiles. A
-    join would cost 214 extra requests for a partial, sitemap-generation
-    timestamp. Documented in the collector docstring, the feasibility row and
-    every manifest's `coverage_limitations`.
-- **Wiring:** `main.py` gains a typed `SourceConfig` for `vdab`/`be` (scope
-  `be-flanders-all-active`, `reference_hashes` from the new crosswalk) and
-  appends the live breadth/dedupe/coverage numbers to `coverage_limitations`;
-  the Makefile gains `make scrape-vdab` and `make reference-vdab`. Nothing in
-  the existing sources was restructured.
-- **Tests: 45 new** (`tests/test_vdab.py`, `tests/test_vdab_crosswalk.py`), all
-  respx-mocked against hand-written synthetic markup (no real employer, person or
-  vacancy text in the repo): robots fetched first, every disallowed path raising,
-  a sweep proving `/api/vindeenjob/` and `/rest/vindeenjob` are never requested,
-  absent-robots allow-all, sitemap discovery + Flemish filtering + child-budget
-  stop, breadth ordering, tile parsing, malformed/id-less tiles, missing totals,
-  the full Dutch month table and garbage input, cross-page dedupe, page budget,
-  a failed page breaking reconciliation on purpose, the "no pagination params"
-  contract, the SAFE_FIELDS record shape, non-Flemish postcodes staying
-  `unmapped`, crosswalk hit/miss/empty/missing-file, content-addressed reference
-  hashes, HMAC determinism, PII isolation (record **and** intermediate
-  `RawRecord`), 429 + transport-error retries and a fatal sitemap 500. The
-  JobTech output-contract tests pass unchanged.
-- **Live DoD sweep** `vdab/be-flanders-all-active/20260822T000000Z`:
-  **500/500 landing pages, zero 4xx / zero non-200**, 12,287 tiles → **12,282
-  rows** (5 duplicates dropped on HMAC `source_id`, 0 tiles without an id),
-  `status=complete`, `expected_pages == completed_pages`,
-  `expected_rows == row_count == NDJSON lines == 12,282`, 9.7 MB, ~10 minutes at
-  1.2 s pacing. All source_ids unique 64-hex HMAC digests; region **`mapped` on
-  100%** of rows across **all 22 Flemish NUTS 3 arrondissements** (largest BE241
-  Halle-Vilvoorde 1,499); `first_published` on **100%** of rows (2011-02-28 …
-  2026-08-22). PII scan of the raw NDJSON: **0 e-mails, 0 URLs, 0 `vindeenjob`
-  strings, 0 postcodes** (checked against all 528 crosswalk postcodes outside the
-  timestamp/id fields), exactly the 25 allowlist fields, and the only non-id
-  string values are the enums, `NUTS-2024`, `nl`, `BE`, the 22 NUTS codes and
-  their labels. The string `vdab` appears only as the mandatory `source` slug and
-  in two method names — no brand content, employer name or logo, as the
-  disclaimer's trademark clause requires.
-- **Honest coverage gap, unpadded:** 12,282 rows is **5.3% of the advertised
-  232,944** active Flemish vacancies. Each landing page renders at most its first
-  28 tiles and has no pagination, so full coverage would need a large share of
-  the 34,903 published landing pages (a multi-hour sweep). Stated in
-  `coverage_limitations` on the manifest, in the roadmap status and in the
-  feasibility row — not glossed as a snapshot.
-- **Roadmap/feasibility updated:** Increment 5 marked **DONE 2026-08-22** with
-  the DoD evidence; the feasibility row gains the mini-canary result, the built
-  crosswalk row and a `DONE — live DoD evidence` row. Surface A stays **blocked**
-  and unbuilt.
+- Added deterministic pre-privacy enrichment from structured JobTech geography, occupation,
+  and skill fields using pinned local reference tables and manual-review decisions.
+- Added NUTS 2024 region, ESCO 1.2.1 occupation, and ESCO 1.2.1 skill demand views, plus
+  separate quality outcomes for mapped, ambiguous, low-confidence, unmapped, and not-present
+  values.
+- Added a privacy-safe labelled review sample and deterministic precision/recall report.
+- Kept Germany, text classification, trends, deduplication, and dashboard redesign out of
+  scope.
 
-### 2026-08-23 - Increment 6 (NAV stillings-feed, Norway)
+### 2026-08-16 - Iteration 8 (reference hardening)
 
-The lab's first **event-log** source, first **source-reported `removed_at`**, and
-first source that populates **`esco_occupation_uri` from the source itself**. The
-feasibility gate was opened and greened before any collector code was written.
+- Added `scripts/build_reference.py` (`make reference`, opt-in network) that regenerates the
+  pinned crosswalks from the JobTech Taxonomy v30 GraphQL API, which returns ESCO 1.2.1 URIs
+  directly. Committed the real output: 21 Swedish län to NUTS 2024, 3891 occupation mappings,
+  19782 skill mappings, plus `reference_manifest.json` provenance.
+- Replaced every placeholder ESCO URI with real taxonomy data; municipalities resolve to NUTS
+  via their län-code prefix, giving complete Sweden coverage from 21 authored region rows.
+- Repointed the synthetic sample at real developer-scope concept ids and made the latest
+  main-scope sweep mapped, so the published page shows real region, occupation, and skill demand.
+- Reframed the offline precision/recall report as a regression check against the official
+  JobTech to ESCO crosswalk, not an independent accuracy audit, and made the publisher query the
+  mapping models directly instead of hiding missing relations.
+- Added fixture-based enrichment/evaluation tests plus reference-integrity, geography-coverage,
+  honesty, and source-id-leak assertions.
 
-- **Contract re-verified live before building** (a cheap re-probe of the
-  2026-08-22 reconnaissance, not a re-derivation) — and it corrected NAV's own
-  documentation twice:
-  - `robots.txt` on `pam-stilling-feed.nav.no` is **absent** (404, a 156-byte
-    Javalin JSON error body) ⇒ nothing disallowed; unauthenticated
-    `GET /api/v1/feed` answers **401** with **no `WWW-Authenticate`** header, so
-    the token plus the accepted ToS is the operative permission (the keyed-API
-    reading from Increments 3–4; here robots is merely absent, which is strictly
-    more permissive). Neighbouring hosts checked too:
-    `arbeidsplassen.nav.no/robots.txt` is allow-all, `navikt.github.io` 404.
-  - `GET /api/publicToken` → 200 `text/plain`, a 3-segment 287-character JWT.
-  - Feed pages hold **exactly 1,000 items**; `next_url` is `/api/v1/feed/<uuid>`
-    and `next_id` **equals the page's own ETag**; end-of-feed is `next_url` *and*
-    `next_id` both `null` — reproduced live by seeking 20 minutes back (1 item,
-    both null).
-  - **Correction 1 (revalidation).** NAV's documented pseudocode sends
-    `If-Modified-Since` *and* `If-None-Match` together. Measured: on a page URL,
-    `If-None-Match` **alone** returns **304 with a 0-byte body**, while adding
-    `If-Modified-Since` makes the API **re-seek** and return 200 (488,817 bytes);
-    a stale ETag returns 200. The collector therefore sends `If-None-Match` only
-    when revalidating and `If-Modified-Since` only when seeking. 304 is treated
-    as *unchanged* — it is not a retry status and does not break reconciliation.
-  - **Correction 2 (field name).** NAV's migration pseudocode references
-    `_feed_entry.id`, which does not exist; the field is `uuid`. Confirmed and
-    noted in the payload model.
-  - `If-Modified-Since` genuinely **seeks** (a 2-day value started the feed at
-    `2026-08-21T01:32`), and an unknown `feedentry` uuid answers **404 with an
-    empty body**.
-- **Measured, not assumed — INACTIVE details.** The docs distinguish an ad that
-  is *"actively stopped"* (fields masked) from one merely inactive by expiry, so
-  the share was measured on a fresh window: of **20 INACTIVE details, 18 returned
-  111–112 bytes** with only `{uuid,status,sistEndret}` and **2 carried full
-  `ad_content`** (10%). Decision from the measurement: **INACTIVE details are
-  never fetched** — ~9 wasted paced requests per usable payload, and the fields an
-  INACTIVE row needs (`removed_at`, region) are already on the feed event.
-- **Measured — the ESCO win and its limit.** `ad_content.categoryList` carries
-  three code systems on one ad (`ESCO`, `JANZZ`, `STYRK08`); the `ESCO` entry's
-  code is an ESCO occupation URI, present on **12/12** sampled ACTIVE ads in the
-  first probe. A second probe (29 ads) found **26 strict occupation URIs, 2 ads
-  whose "ESCO" code was actually an ISCO-08 **group** URI**
-  (`http://data.europa.eu/esco/isco/c9112`) and 1 ad with only JANZZ+STYRK08. An
-  ISCO group is a coarser concept scheme, so it is **refused** for
-  `esco_occupation_uri` and reported `unmapped` with its own method name
-  (`nav_categorylist_esco_isco_group`) rather than as a parse failure — the first
-  sweep showed this on ~15% of enriched rows, so naming it precisely matters.
-- **`esco_occupation_label` stays `None`, with the reason recorded.** The source's
-  `categoryList[].name` is Norwegian (`butikkmedarbeider`) and this project
-  publishes **English** labels; the pinned
-  `data/reference/jobtech_occupation_esco_1.2.1.csv` cannot help either — it is a
-  JobTech→ESCO crosswalk with **Swedish** labels (3,891 rows), not the ESCO 1.2.1
-  occupation universe. The URI is carried, the label is left to the publishing
-  layer, and the crosswalk is used only as an independent sanity check (**216 of
-  the 229 distinct URIs** in the first sweep also appear in it).
-- **`scrapers/reference_nav.py`** (opt-in network, `make reference-nav`): Eurostat
-  GISCO `NUTS_AT_2024.csv` (**17 Norwegian NUTS 3 codes**) × SSB Klass **104
-  fylker** (16 codes = 15 counties + `99 Uoppgitt`) and **131 kommuner** (358 =
-  357 + `9999 Uoppgitt`). A kommune code's first two digits are its fylke code,
-  verified exhaustively: **0 orphan prefixes across all 358 codes** (`parentCode`
-  is `null` in `codesAt.json`, so the prefix rule is the join). Unlike Increment
-  5's 529-request walk this is **3 requests**, so no resume state was invented.
-  - **The join is by name, and the names disagree on purpose.** SSB writes Sami
-    duals with a spaced hyphen (`"Troms - Romsa - Tromssa"`), GISCO with slashes
-    (`"Troms/Romsa/Tromssa"`), and the feed shouts (`"TRØNDELAG"`). One
-    `normalize_region_name` — shared by the builder *and* the collector so the
-    keys cannot drift — compares the Norwegian part case-, accent- and
-    punctuation-insensitively while preserving inner hyphens (`Aurskog-Høland`,
-    `Nord-Odal`).
-  - **A trap the build surfaced:** SSB disambiguates repeated names with a
-    parenthetical county (`"Herøy (Møre og Romsdal)"` / `"Herøy (Nordland)"`,
-    `"Våler (Innlandet)"` / `"Våler (Østfold)"`) while the feed sends the bare
-    `HERØY`. Keying on the qualified name would leave two rows the feed can never
-    hit, so the qualifier is folded away — which makes the collision **visible**:
-    those keys are written as `kommune-ambiguous` with **no code**, and the
-    collector reports `ambiguous` instead of guessing a county.
-  - Live build: **370 rows = 15 fylke + 353 kommune + 2 ambiguous**, **15/15
-    fylker matched GISCO with 0 unexpected unmatched** (only `99 Uoppgitt`, which
-    has no NUTS equivalent). `NO0B1` Jan Mayen and `NO0B2` Svalbard have no SSB
-    fylke and are **reported in the manifest, never forced onto a county**.
-    Historic kommune names were **deliberately excluded** (a pre-2020 kommune may
-    have been split across two of today's counties, so its NUTS 3 would be a
-    guess; ads are never active >6 months), and the resulting unmapped share is
-    reported honestly — the feed does emit non-kommune strings (`"?"` appeared 23
-    times on one page).
-- **`scrapers/nav_norway.py` (`NAVFeedCollector`)** on the existing Collector
-  Interface — `base.py`, `retry.py`, `sanitize.py`, `validate.py` reused
-  unchanged; `RobotsDisallowedError` was **moved into `scrapers/robots.py`** so
-  VDAB and NAV raise the *same* class instead of duplicating it:
-  - **Event fold.** "Each change to an ad will generate a new entry in the feed,
-    and the latest entry will contain the current state" — so events are folded
-    per ad with last-event-wins, keyed on the **HMAC `source_id`**, never on the
-    native uuid. Measured fold ratio: **~2.0 events per ad**.
-  - **`removed_at` is source-reported** (the INACTIVE event's `sistEndret`), so
-    the MPSV-style cross-sweep reconciliation pass is **not needed here** — stated
-    in the docstring so nobody adds one out of habit. A re-activated ad
-    (INACTIVE→ACTIVE) correctly ends up with `removed_at = None`.
-  - **Token handling.** `NAV_FEED_TOKEN` (private consumer token) from env/`.env`
-    wins; otherwise the public token is used and **cached in gitignored
-    `data/state/nav_public_token.json`** (it is published at a public URL, rotates
-    "at irregular intervals", and its endpoint measured 26–28 s under load, so
-    caching means one request per rotation instead of one per sweep). A 401
-    refreshes once and replays. No token is committed, printed or logged — only
-    its length and segment count.
-  - **Poll cursor** in gitignored `data/state/nav_feed_cursor.json` (page id from
-    the page's own `feed_url`, its ETag, `Last-Modified`, `next_url`), so a poll
-    resumes at `next_url` when the previous sweep stopped mid-feed and otherwise
-    revalidates the tail with `If-None-Match`. The bare `/api/v1/feed` seek URL is
-    never stored, because without `If-Modified-Since` it restarts at 2019.
-  - **Details are budgeted and optional.** `--max-details` bounds them (one paced
-    request each ⇒ the sweep's wall-clock dial), they are spent in HMAC order so a
-    partial budget is a window-wide sample rather than the oldest N events, and a
-    404 or persistent 5xx on a detail is **counted and skipped, not fatal** — a
-    feed-page failure stays fatal, because a lost page is lost events.
-  - **Region** resolves county → municipality → `_feed_entry.municipal`
-    (`low_confidence`: a single denormalized header field that cannot be
-    cross-checked and is all a masked ad has), with locations that disagree →
-    `ambiguous`, a workplace outside Norway → `unmapped`, and NAV's `"?"`
-    placeholder → `unmapped` rather than `not_present` (a field *was* sent).
-  - **PII:** the payload models declare only allowlist-relevant fields
-    (`extra="ignore"`), so `contactList`, `employer`/`orgnr`, the 3.7 kB
-    `description`, `title`/`jobtitle`, `applicationUrl`/`sourceurl`/`link` and
-    `address`/`city`/`postalCode` never reach `parse()`; `RawRecord.payload`
-    carries **model dumps only**, and `NormalizedRecord(extra="forbid")` is the
-    backstop.
-- **A real NAV-side incident, handled the charter's way.** Between ~01:20 and
-  ~14:40 the host degraded intermittently: `/api/publicToken` answered in **26–28
-  s**, the feed returned **500** and **504** and read-timed-out at 60–90 s. The
-  response was to **back off** (five- to fifteen-minute waits, single-request
-  health checks) rather than retry harder, and to harden the collector for what
-  was measured: a **90 s** timeout (the lab's 30 s default expired mid-sweep), the
-  cached token, and 5xx-tolerant detail fetches. The host recovered fully and the
-  DoD sweeps then ran clean.
-- **Wiring:** `main.py` gains a typed `SourceConfig` for `nav`/`no` (scope
-  `no-all-events`, deliberately stable across daily polls — the window and budgets
-  live in `coverage_limitations`, not in `scope_params`, so `scope_hash` does not
-  move), plus `--since`, `--max-details` and `--fresh`; the Makefile gains
-  `make scrape-nav` and `make reference-nav` with an honest runtime comment.
-  Nothing in the existing sources was restructured.
-- **Tests: 93 new** (`tests/test_nav_norway.py`, `tests/test_nav_crosswalk.py`),
-  all respx-mocked against hand-written synthetic payloads (no real employer,
-  person or ad text in the repo): both token routes (env and `.env`), the disk
-  cache reused across sweeps, 401 → refresh once → replay, a second 401 as a real
-  error, robots fetched before any other URL and enforced per URL, `next_url`
-  pagination to a null `next_id`, the seek carrying `If-Modified-Since` only,
-  **304 treated as unchanged with a reconciled zero-row manifest**, cursor resume
-  from `next_url`, an explicit `--since` overriding the cursor, a corrupt cursor
-  ignored, event folding in both orderings (ACTIVE→INACTIVE stamps `removed_at`,
-  INACTIVE→ACTIVE does not), folding keyed on the HMAC digest, INACTIVE ads never
-  costing a detail request, content-masked details, a detail 404 and a persistent
-  detail 5xx counted-not-fatal, a 403 still fatal, the detail budget bounding
-  requests but not rows, `positioncount` coercion (11 cases incl. garbage and
-  negatives), ESCO extraction (single/multiple/tie/ISCO-group/unrecognized/empty/
-  absent), region resolution across all six outcomes, the `"?"` placeholder as
-  `unmapped`, name folding across SSB/GISCO/feed spellings, PII isolation on the
-  record **and** the intermediate `RawRecord`, 429 with `Retry-After`, a transport
-  error, a malformed page failing loudly, and the crosswalk builder's joins and
-  loud failures. The JobTech output-contract tests pass unchanged.
-- **Live DoD sweeps** (serial, ≥1 s pacing, zero 4xx):
-  - **Backfill** `nav/no-all-events/20260822T000000Z` (`--since 12 --max-pages 20
-    --max-details 1500 --fresh`): **20/20 pages, 20,000 events folded to 10,342
-    rows**, `status=complete`, `expected_pages == completed_pages`,
-    `expected_rows == row_count == NDJSON lines == 10,342`, 8.8 MB, ~26 min. All
-    source_ids unique 64-hex HMAC. **5,208 ACTIVE / 5,134 INACTIVE, with all
-    5,134 INACTIVE rows carrying a source-reported `removed_at`.** 1,500 details
-    → 1,434 with `ad_content`, 66 content-masked, 0 missing, 0 abandoned. Region
-    on **10,159 rows (98.2%)** across **all 15 mainland NUTS 3 regions**
-    (`region_mapping_status` populated on 100%); ESCO URI on **1,172 rows =
-    81.7% of the detail-enriched rows** (11.3% of all rows — the detail budget's
-    honest consequence), 261 distinct URIs of which **250 also appear in the
-    pinned JobTech→ESCO crosswalk**, and 230 rows `unmapped` because the "ESCO"
-    code was an ISCO-08 group URI.
-  - **Poll cycle** `nav/no-all-events/20260823T000000Z` (`--max-details 700`, no
-    `--since`): **resumed from the persisted cursor**, 6/6 pages, 4,600 events →
-    **2,239 rows**, reconciled, 1.9 MB, and **reached the true end of the feed
-    live** (`next_url` and `next_id` both null). 1,012 source-reported
-    `removed_at`; 553 ESCO URIs (79.0% of enriched rows); region on 2,201 rows
-    (98.3%); **0 token requests** — it reused the token the backfill had cached.
-  - **Token rotation proven live, not just mocked:** the cached public token had
-    rotated during the overnight incident, so the backfill's first authorized
-    request answered 401; the collector refreshed once and replayed, and the walk
-    continued with no lost page and no aborted sweep (`token_requests=1`,
-    `token_refreshes=1`, visible in the manifest's `coverage_limitations`).
-  - **Combined: 12,581 rows over 12,051 distinct ads**, 530 ads present in both
-    segments (23.7% of poll rows — they had events in both, which is exactly what
-    an event log should show), **6,146 source-reported `removed_at`**, 1,725 ESCO
-    URIs. **PII scan of both NDJSON files: clean** — 0 e-mails, 0 URLs other than
-    ESCO occupation URIs, 0 phone-like, 0 orgnr-like, 0 postcode-like values,
-    exactly the 25 allowlist fields, no native uuid anywhere.
-  - **Two process notes, recorded rather than smoothed over.** The roadmap's
-    "≤100 records" canary size **cannot be expressed against this source** (the
-    server's page size is fixed at 1,000 and there is no smaller unit), so the
-    pre-DoD validation was a completed 3-day backfill through the collector
-    (8/8 pages, 3,615 rows, zero 4xx, reconciled); its partition was later
-    overwritten by the wider DoD backfill under the same `sweep_id`. Separately,
-    two poll runs were killed by an environment-level process reap **after** the
-    feed walk but **before** the partition write; the final poll was therefore run
-    in the foreground, resuming from a cursor reconstructed read-only by
-    re-walking the same 20 pages (the feed is append-only, so page ids are
-    stable).
-- **Honest coverage bound, unpadded:** a sweep is a **window over an append-only
-  event log**, never a snapshot. Coverage is bounded by the `--since` window, by
-  the `--max-details` budget (each detail is one paced request, so ~1 s per
-  enriched row — which is why only 11.3% of backfill rows carry an ESCO URI even
-  though 81.7% of *enriched* rows do), and by Finn.no's documented absence from
-  the API. NAV publishes **no advertised active-ad total**, so no completeness
-  percentage is claimed or invented. All of this is in `coverage_limitations` on
-  every manifest.
-- **Roadmap/feasibility updated:** Increment 6 marked **DONE 2026-08-23** with the
-  DoD evidence; the feasibility row gains the built-crosswalk row, the validation
-  run, the host-incident record and a `DONE — live DoD evidence` row.
+### 2026-08-17 - Iteration 9 (historical analytics)
 
-### 2026-08-23 - Increment 7 (Työmarkkinatori / Job Market Finland, FI) — collector built, DoD blocked
+- Built published views over the existing append-only sweep history and event log:
+  `posting_flows` (openings, active stock, and closures at daily/weekly/monthly grain),
+  `posting_survival` with intermediate `events/posting_lifecycle` (per-posting duration,
+  closure basis, right-censoring), and `collection_frequency` (cadence plus comparability
+  limits published beside the metrics).
+- Surfaced `number_of_vacancies` through staging and kept posting counts distinct from
+  advertised vacancy counts; a data test asserts the two diverge.
+- Added `transform/macros/suppress_small_counts.sql` (`small_count_threshold`, k=5) and reused
+  it to mask non-zero cells below the threshold in every historical mart. Zero stays visible.
+- Labelled disappearance as posting duration or inferred removal, never time to hire, and
+  framed trends within-source only (no cross-source or cross-country absolute comparison).
+- Active-posting durations are right-censored lower bounds, surfaced as `any_right_censored`.
+- Extended the offline sample with a persistent active cohort (regenerated via `make sample`)
+  so one cell clears suppression without changing the pinned closure timeline; added 5 singular
+  dbt tests. `make check` passed (dbt PASS=161, 27 pytest).
+- Added root `AGENTS.md` capturing the stable conventions so they are not re-derived each
+  session. Dashboard redesign remains Iteration 10.
 
-- **Order followed.** SCRAPERS.md -> SCRAPER_ROADMAP.md -> SCRAPER_SOURCE_LANDSCAPE.md
-  -> SCRAPER_FEASIBILITY.md -> SESSIONS.md, then the feasibility gate **before**
-  any code, then reuse of `base.py` / `robots.py` / `retry.py` / `sanitize.py` /
-  `validate.py` with no new compliance helper and no restructuring of `main.py`
-  or the Makefile.
-- **The gate was opened first, and it changed the build three times.**
-  1. **`tyomarkkinatori.fi/robots.txt` disallows `/api/`** (and `/*/api/`),
-     verified with the lab's own `RobotsRule`. That is exactly where the source's
-     `KUNTA` / `MAAKUNTA` / `ESCO_AMMATTI` / `ESCO_OSAAMINEN` codesets live, so
-     they were **not fetched — not even once** (the VDAB `/api/vindeenjob/`
-     precedent). The region crosswalk was built from **Statistics Finland**
-     instead, which turned out to be the better authority anyway. Docs, the
-     OpenAPI description and `/dam/` are all robots-**allowed** and were used.
-  2. **The Kipa gateway is IP-allowlisted, not just key-gated.** `api.ahtp.fi`
-     and `api-qa.ahtp.fi` both fail the TCP handshake on 443 (**21.0 s / 21.1 s
-     timeouts**, ICMP to `13.81.203.220` succeeds) while the sibling
-     `sahkoinenasiointi.ahtp.fi` answers **200 in 0.52 s** — so this is a
-     host-level filter, not an egress problem and not an outage, exactly as the
-     technical doc says (*"the credentials … **and the IP addresses openings** are
-     provided by the KEHA Center"*). Consequence: **no public sandbox exists**,
-     QA included, so the contract was pinned from the **published OpenAPI
-     description** (`P67-tmt-provider-haku-V2`, 19,115 bytes) and every branch is
-     respx-mocked rather than measured. Every contract claim in the docstring and
-     the feasibility row is labelled as contract-derived.
-  3. **The API has no pagination, no cursor and no terminal sentinel.**
-     `FiltersV2` carries only `onlyStatus` (`PUBLISHED`/`ARCHIVED`), five
-     `{from, to}` intervals (`created`/`modified`/`published`/`archived`/
-     `expires`) and eight set filters — no offset, limit, page or continuation
-     field. One POST returns one whole result set as `application/x-ndjson` and
-     the stream ends when the body ends. So the "cursor" the prompt asked about is
-     a **client-side watermark**: the maximum `metadata.lastModified` seen,
-     persisted to `data/state/finland_tmt_cursor.json` and replayed as
-     `modified.from`. A `PUBLISHED` watermark is deliberately **not** reused for
-     an `ARCHIVED` pass, and a `--max-rows`-truncated sample **does not** advance
-     it.
-- **Onboarding: NOT STARTED, on purpose, and said plainly.** The activation
-  notification is an organisation-level commitment whose access right is *"sidottu
-  rajapinnan käyttäjän Y-tunnukseen"* (bound to the API user's Finnish business
-  id), with a KEHA suitability check and contact-person personal data under §5 of
-  the terms. This lab is not a Finnish registered organisation, so the Webropol
-  form was **not submitted** — filing it would have meant committing a
-  non-existent organisation to the Terms of Use. That is materially different from
-  Increment 4 (self-service click-through) and Increment 6 (public experimentation
-  token), and it is recorded as *not started with a reason*, never as "pending".
-  **No key is held; no credential or token is in the repository.**
-- **ToS reviewed in full** (`…/terms-of-use-for-job-market-finlands-job-posting-apis`,
-  updated 12.3.2026). Verdict **restricted, not prohibited**: automated access *is*
-  the mechanism, but the named purpose is displaying postings in the API user's own
-  service and **no statistical/analytical purpose is named** (unlike NAV). Four
-  conditions were answered structurally rather than noted and forgotten:
-  attribution (*"Source: Job Market Finland's customer information system"*, now
-  the manifest's `licence_reference`), no forwarding to third parties (nothing
-  forwardable is produced), *"removed job postings cannot be stored so that they
-  can still be retrieved"* (the output holds **no posting content at all** and
-  stamps the source's own `metadata.archived` as `removed_at`), and no marketing
-  use of the dataset.
-- **Built.** `scrapers/finland_tmt.py` (`FinlandTMTCollector`): robots fetched and
-  asserted per URL before the first request, 1 s pacing floor with `Crawl-delay`
-  adoption, `KIPA-Subscription-Key` on every call plus an optional bearer with
-  **401 refresh-once-and-replay**, a streaming POST whose retryable responses are
-  drained and closed before `scrapers.retry` retries them (so a 429/5xx retry
-  never leaks a connection), `RateLimit-Limit/Remaining/Reset` logged per
-  response, allowlist-only `extra="ignore"` models, and `--max-rows` as the
-  smoke-pull dial. Failure semantics are deliberate: a **corrupt JSON line** is
-  counted and skipped, a **structurally wrong** line raises through pydantic, and
-  a stream that yields lines but **no usable row raises rather than writing an
-  empty partition** (the silent-success trap the manifest reconciliation would
-  otherwise pass).
-- **Two lab firsts.** This is the first source to populate **`skill_mappings`**
-  (from `position.skills`, in the element shape
-  `transform/models/staging/stg_skill_mappings.sql` reads, one element per skill
-  in source order) and the second with a **source-reported `removed_at`**. The
-  FINESCO trap was measured, not assumed: the source's own published distribution
-  (`definitions.zip`, 14,062,560 bytes, `version.txt` = **FINESCO 1.2.0-R8**) holds
-  **3,046** ESCO occupation URIs but also **619** ISCO group URIs and **78 Finnish
-  national extensions** under `data.tyomarkkinatori.fi`, plus **220** ISCED-F
-  concepts among 15,163 skills. So values are classified into five honest
-  outcomes — ESCO -> `mapped`, ISCO group -> `low_confidence` with **no URI
-  written**, national extension -> `unmapped`, unrecognised -> `unmapped`, absent
-  -> `not_present` — and `occupation_mapping_confidence` stays `None` because the
-  source attaches no score (inventing "high" would be an overclaim).
-  `esco_occupation_label` stays `None` for the Increment 6 reason.
-- **Region fully mapped, 0 unmatched.** `scrapers/reference_finland.py` +
-  `data/reference/finland_tmt_region_nuts_2024.csv` (**327 rows** = 308 `kunta` +
-  19 `maakunta` + **0 `maakunta-ambiguous`**), built live in 3 paced requests.
-  Statistics Finland's `kunta_1_20260101#nuts_2_20260101` key names itself
-  *"virallinen NUTS 2024"* and returns **924 maps = 308 municipalities × NUTS
-  levels 1/2/3**; the 308 level-3 maps cover **all 19** Finnish NUTS 3 codes with
-  **0 absent from Eurostat GISCO NUTS 2024 and 0 GISCO codes without a
-  municipality** (bijective). The maakunta layer is **derived then verified**: 19
-  regions each resolving to exactly one NUTS 3 code, which is the empirical proof
-  that a Finnish maakunta *is* a NUTS 3 region. **No name join was needed** — a
-  relief, because the label mismatches that would have broken one are real
-  (Uusimaa vs Helsinki-Uusimaa, Ahvenanmaa vs Åland). One normalizer
-  (`normalize_kunta_code` / `normalize_maakunta_code`) is shared by the builder and
-  the collector so the keys cannot drift, and a maakunta that ever spanned two
-  NUTS 3 codes would be written **with no code** so the collector reports
-  `ambiguous` instead of guessing (tested).
-- **DoD: NOT MET, and not dressed up.** Roadmap DoD is *"streamed pull of active
-  postings ≥5,000 records with ESCO occupation/skill URIs populated; no 4xx/401
-  after credentials issued"*. **0 records were retrieved.** Evidence: without a key
-  the CLI **raises before opening a socket**; with a placeholder key it makes
-  exactly one host contact — `robots.txt`, which needs no credential — and after 4
-  retried attempts over **94.3 s** raises *"cannot reach
-  https://api.ahtp.fi/robots.txt: the Kipa gateway is IP-allowlisted"*. **No
-  authenticated request was sent, no partition and no watermark file were written**
-  (`data/raw/collections/` still has no `tmt/`), so nothing empty is presented as a
-  sweep. Increment 7 is recorded **BLOCKED (build complete, DoD pending KEHA
-  activation)**, not DONE.
-- **Three assumptions flagged for the first authorised sweep** rather than buried:
-  which auth header the gateway actually enforces (the technical doc says
-  `KIPA-Subscription-Key`, the OpenAPI declares `bearerAuth` for the backend
-  behind it — the collector sends both when a bearer exists), whether timestamps
-  are naive (every `date-time` is `maxLength 26`, exactly
-  `YYYY-MM-DDTHH:MM:SS.ffffff` with no room for a designator, so a naive value is
-  read as UTC), and the real rate-limit numbers (headers exist, values are
-  unpublished).
-- **Wiring and gate.** `main.py` gained a `SourceConfig` entry (slug `tmt`, scope
-  `fi-all-active`, aliases `fi`/`tmt`/`finland`, reference hash from the new
-  crosswalk, live counters appended to `coverage_limitations`) and the flags
-  `--max-rows` / `--status`, with `--max-pages` **rejected** for this source
-  because P67 has no pages; the Makefile gained `scrape-finland` and
-  `reference-finland` with honest runtime comments naming the credential and
-  IP-opening preconditions. **`make check` green: 367 tests** (313 before), ruff
-  clean, mypy strict clean; the JobTech output-contract tests pass unchanged.
-### 2026-08-23 - P1 (Germany active-lane architecture) — planning, no code
+### 2026-08-17 - Iteration 10 (elegant dashboard UI/UX)
 
-- **Why:** Germany is the highest-value market and the least covered (Adzuna DE
-  4,841 of ~1.16M advertised = **0.4%**). The user re-ordered the roadmap to make
-  Germany the active build target. This session produced the architecture, ran
-  the live probes that shape it, and recorded the reorder — it built nothing.
-- **Live probes (all at the 1 s floor, single honest UA):** robots.txt for
-  kimeta.de (6,257 B), joblift.de (**403 CloudFront**), stellenanzeigen.de
-  (772 B after the www redirect), arbeitsagentur.de (208 B, allow-all),
-  govdata.de (blanket `*` deny — excluded as a reference source), destatis.de
-  (allow, `Crawl-delay: 30`), gdz.bkg.bund.de (only GPTBot blocked), plus the
-  Joblift partner-API page (`/business-developer`, **also 403 CloudFront**).
-  Parsed kimeta/stellenanzeigen/arbeitsagentur with the lab's own `RobotsRule`.
-- **Three findings that re-ordered the grey chain:**
-  1. **Kimeta is robots-blocked for this lab.** `User-agent: *` → `Disallow: /`.
-     `RobotsRule` confirms DENY on `/jobs/berlin`, `/search`, `/api/job-pdf`.
-     There is no keyed-API reading to rescue it (that reading applies to Adzuna's
-     API host, not a public HTML site). Expected gate verdict: **blocked** — the
-     roadmap's Inc 8 becomes the *tertiary* German source, not the first.
-  2. **Joblift is CloudFront-403 at the edge** — even robots.txt is blocked from
-     this egress, and so is its official partner-API page. Its homepage (fetched
-     via search cache) advertises Berlin 24,296 / Köln 27,064 / München 20,249 /
-     Einzelhandel 96,881 vacancies and openly lists StepStone, Monster and
-     stellenanzeigen as indexed boards. The gate must distinguish a UA-based
-     block (maybe honestly passable) from an egress/WAF block (not).
-  3. **Stellenanzeigen.de is robots-permitted** (`/job/*`, `/suche/*` ALLOW;
-     `/stabi/` etc. DENY), advertises **three sitemaps**, and community scrapers
-     (Apify actors, cited as *reference only* — their proxy/TLS-fingerprint
-     stacks are not lab practice) confirm `JobPosting` JSON-LD on detail pages
-     and "passive Cloudflare, no active challenge". It becomes the **primary
-     German build** and moves first in the serial chain: **10 → 9 → 8**.
-- **New prerequisite found and scheduled:** every German source needs a
-  location → NUTS 3 2024 mapping and none ships one. Germany has **400 NUTS 3
-  codes** (GISCO NUTS 2024, verified). Authority confirmed: BKG Geodatenzentrum
-  (robots-permitted) Orts-/Gemeindeverzeichnis (PLZ + AGS) cross-checked with
-  destatis, validated against GISCO — the German analogue of SSB Klass /
-  Statistics Finland. Deliverable `scrapers/reference_germany.py` +
-  `germany_plz_nuts_2024.csv`, 0-unmatched bar, built before any HTML collector.
-- **Access tracks (parallel, no scraper):** BA Jobsuche (HR-BA-XML / explicit
-  arrangement — the only full-coverage route; the portal's allow-all robots does
-  not extend to the Jobsuche data) and the EURES arrangement (ESCO-native,
-  carries the German PES feed). Their status is recorded, never assumed.
-- **Foolproof mechanisms codified per source:** gate before build (robots on
-  every host via `RobotsRule`, ToS verbatim, rate limits, snapshot semantics,
-  PII, exclusions) → canary (≤100, 1 s+, serial-only) → mini-canary before the
-  sweep → manifest reconciliation → PII scan → NAV-style incident hardening →
-  honest coverage bound in every manifest. Backup chain is predetermined, not
-  improvised under pressure (see the roadmap's Germany section).
-- **Cross-source overlap stated, not hidden:** aggregators share boards; the
-  SAFE_FIELDS contract carries no join key, so cross-source dedupe is
-  impossible at collection and is deliberately left to downstream analytics.
-  Every manifest states its own window against the advertised stock.
-- **Records:** `SCRAPER_ROADMAP.md` gained the "Germany — ACTIVE LANE" section
-  (coverage stack, re-ordered chain, new prerequisite, access tracks, execution
-  order) and a rewritten Parallelization section; the Risk Matrix rows 7–10
-  were corrected to the measured evidence; `SCRAPER_FEASIBILITY.md` gained the
-  "Germany programme" per-surface status table; this session log row. Next
-  sessions: Stellenanzeigen gate-only → `reference_germany.py` → Stellenanzeigen
-  canary + collector + DoD sweep → Joblift gate → Kimeta gate.
-### 2026-08-23 - P2 (Germany re-assessment under the relaxed constraint) — no code
+- Rebuilt `scripts/publish.py` from one monolithic f-string into `_query_*` / `_render_*` /
+  `_table` / `_panel` helpers composed by `build_site`, which keeps its signature and its
+  `labour_demand_latest` row-count return. Every value still passes through `escape()`.
+- Added the two previously unused publish views: `source_coverage` (expected vs observed rows,
+  freshness/coverage status) and `latest_complete_sweeps` (licence, access method, pinned NUTS /
+  JobTech / ESCO versions), and split the merged occupation+skill query into ranked per-dimension
+  queries (`DIMENSION_LIMIT = 25`).
+- Six real `<section>` panels (Overview, Countries, Occupations and skills, Survival, Data
+  quality, Methodology) with `<h2>` headings, a skip link, `scope="col"`, focusable
+  `role="region"` table wrappers, `:focus-visible`, `prefers-reduced-motion`, and the system
+  font stack replacing the `Inter` reference.
+- Charts are server-rendered inline SVG with a fixed `viewBox="0 0 720 160"`, `role="img"`,
+  `<title>`/`<desc>`, one chart per scope at its finest published grain; suppressed buckets break
+  the polyline instead of being plotted as zero. Deviation from the plan: charts are per scope,
+  not per grain, because one line per grain silently merged two scopes.
+- Filters (date range, country, source, occupation, skill), section tabs, `location.hash` state,
+  and per-table CSV export are inline-JS progressive enhancement over `data-row` / `data-*`
+  attributes; all content and every explicit state (empty, filtered-empty, stale, partial
+  coverage, loading, error) is server-rendered and visible without JavaScript.
+- `make check` passed offline (dbt PASS=161, 27 pytest); publish tests gained the two new
+  fixture tables plus assertions for the sections, filter bar, SVG, badges, and CSV controls.
+- Post-review corrections, all pinned by tests: `_query_coverage` now takes the latest sweep per
+  scope (`qualify row_number()`) with a deterministic tiebreaker, so the "latest complete sweeps"
+  table stopped rendering the whole sweep history and the Overview stat counts scopes, not sweeps.
+  `_sparkline` reports the real peak (0 no longer prints as 1) and `_active_series` steps the axis
+  by bucket date, so an unobserved period breaks the line like a suppressed one. The overview
+  trend now picks a scope that actually publishes flows instead of falling back to all scopes.
+  The relative-volume bar is scaled per source, and the k=5 claim names the two masked views
+  instead of appearing above unsuppressed counts. `posting_flows`/`posting_survival`/
+  `collection_frequency` now select `source` (kept last in the row tuples) and carry
+  `data-source`/`data-country` via a scope-to-country crosswalk, so the country and source
+  filters no longer silently skip the scope-keyed tables.
 
-- **Constraint change (user decision):** the ToS/robots gate is **relaxed for
-  this private research/educational student project**. Robots and ToS are still
-  recorded as evidence in the feasibility rows but no longer block a build. The
-  gates that survive: technical anti-bot (Cloudflare/DataDome/Akamai/WAF), the
-  litigation risk on Indeed, the 1 s pacing floor, the PII ban, HMAC
-  pseudonymization, canaries (as a technical check), and manifest reconciliation.
-- **The plan's #1 changed.** Live probes (22:00 UTC, at the 1 s floor) found the
-  **BA Jobsuche public website** is server-rendered, plain-HTTP accessible, and
-  free of anti-bot: `www.arbeitsagentur.de/jobsuche/suche?was=…&wo=…` returned
-  200 / 370 KB with job titles, employers, publish dates, location+distance,
-  salary, employment type, homeoffice and native ref IDs
-  (`Stellenangebot 10000-1202838080-S`); the search host serves no robots.txt
-  (404). That is ~1.9M postings — the single biggest German prize, previously
-  classified as "agreement-only / never scraped". The internal REST API
-  (`rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v6/jobs`, found in
-  `config/config.js`) is **WAF-403 even from a browser** (verified with Playwright
-  from the same-origin SPA), so the collector is an HTML parser, not an API client.
-- **Also verified plain-HTTP accessible with a browser UA:** **StepStone.de**
-  (search 200 / 1.1 MB, `application/ld+json`, no Akamai challenge on search
-  pages), **Indeed.de** (200 / 1.3 MB, `data-jk` ids — **litigation history
-  flagged, decision required**), **Kimeta** (homepage 200 / 214 KB; JS-driven
-  app, no technical anti-bot). **Stellenanzeigen.de** remains robots-permitted
-  with JSON-LD and passive Cloudflare (smaller volume).
-- **Confirmed technically blocked:** **Monster.de** (DataDome challenge even on
-  robots.txt — `geo.captcha-delivery.com`), **Joblift** (CloudFront 403 on
-  robots.txt AND its `/business-developer` partner-API page; needs a real-browser
-  test), **Interamt** (curl loops 50 redirects, JS-only SPA). These become
-  "probe/blocked" rows needing a tooling decision (browser automation), not
-  immediate builds.
-- **Plan recorded:** roadmap gained the tiered German stack (BA Jobsuche →
-  StepStone → Indeed → Kimeta → Stellenanzeigen → Joblift/Monster/Interamt probes
-  → Arbeitnow fill) with the technical-feasibility-first execution order; the
-  feasibility doc's Germany programme table was rewritten from legal verdicts to
-  technical ones; the landscape's German measured-facts paragraph updated; risk
-  matrix rows 8-10 re-scored and G1-G4 rows added. The German region crosswalk
-  (`reference_germany.py`, BKG × GISCO, 400 NUTS 3 codes) remains the build
-  prerequisite. Next session: `reference_germany.py`, then the BA Jobsuche
-  feasibility gate and collector.
+### 2026-08-17 - Iteration 11
 
-### 2026-08-24 — Increment 8 (BA Jobsuche Germany #1 build)
+- Split Iteration 11 by surface: this session did only the dashboard-facing half (Status,
+  Governance, release checks). Scheduling, alert delivery, backups, backfills, and schema
+  migrations are untouched and stay open.
+- New `Status` section is the operational run summary: latest complete sweep, fresh and covered
+  scope counts, sweeps published, build stamp, and one plain sentence per scope stating age
+  against the freshness threshold and stored versus expected rows. It also states that failed or
+  partial runs never enter the warehouse, so absence and ageing are the only failure signals.
+- New `Governance` section publishes per-source licence and attribution (deduplicated from
+  `latest_complete_sweeps`), retention rules, a four-point privacy assessment that names the
+  residual small-cell risk in the latest-sweep marts, the k=5 rule restricted to the two masked
+  views, the five-step architecture, and the reproducible-snapshot statement. `_build_basis()`
+  reads `OBSERVATIONS_PATH`, so a sample build is labelled synthetic on the page.
+- `METHODOLOGY_VERSION = "1.0"` is stamped in the footer, on `<html data-methodology-version>`,
+  and appended to every CSV filename by the inline script. `data-filtered-empty` moved from the
+  cell to its `<tr>` so the only `hidden` attributes in the served HTML are progressive-enhancement
+  hooks; `_licence()` renders a dash instead of an empty `href` when a licence reference is null.
+- `scripts/release_check.py` (stdlib + `html.parser`) checks the built page for accessibility
+  (lang, one h1, heading order, captions, `th scope`, labels, chart `aria-label`, duplicate ids),
+  links and assets (internal anchors resolve, no external asset, external URLs against a string
+  allowlist that is never fetched), disclosure (no 1..k-1 count cell in `table-survival-basis` or
+  `table-survival-flows`, no key-like token or email, prose k matches the macro), and no-JS
+  readability. `make release-check` runs it after `make site`; it is not in `make check`.
+- Gotcha for the next session: the publish fixture writes `posting_flows` directly, so its small
+  counts bypass the dbt mask; the test asserts the checker flags exactly those and nothing else.
+  The usability study (>=5 students or recent graduates; tasks: technology demand in one region,
+  two occupations within one source, a skill comparison, what a removed posting means, whether DE
+  and SE numbers are comparable) has not run, and no interface revision has been made from it.
+- Post-review corrections, all pinned by tests: the Status prose now matches
+  `source_coverage.sql` instead of overstating it - only *complete* manifests are loaded (approval
+  and row-count problems are labelled, and only `labour_demand_latest` filters on `covered`),
+  Partial coverage covers shortfall, surplus, and wrong-country rows, and Unknown coverage is
+  named as unapproved or incomplete metadata. `_run_state` branches on the real arithmetic instead
+  of always saying "incomplete", `_query_coverage` selects `freshness_threshold_hours` so the
+  quoted threshold is the one that set the badge (not `collection_frequency`'s history-wide
+  `max`), the run-summary row count comes from `observed_rows` rather than the manifest's
+  `row_count`, the governance licence row is the source's newest sweep rather than its first
+  scope, and the k=5 claim now says a true zero *posting count* stays visible because vacancy and
+  duration figures are masked with their group. In `release_check.py`: a `<label>` without `for`
+  no longer vouches for every id-less control, a missing masked view or count column is itself a
+  failure (so a rename cannot silently disable the disclosure rule), a figure published beside a
+  suppressed keying count is flagged, asset detection covers any fetching attribute, and the
+  secret/email scans are case-insensitive and cover attribute values. Publish tests now pin
+  `OBSERVATIONS_PATH` for both build-basis labels instead of depending on the ambient value.
 
-**Deliverable 1 — German region crosswalk:**
 
-Built `scrapers/reference_germany.py` + `data/reference/germany_plz_nuts_2024.csv`
-+ `reference_manifest_germany.json`. Three-authority chain: **destatis Kreise
-table** (AGS-Kreis 5-digit → NUTS 2024, the official key, covers 400/400 GISCO
-codes) × **BKG VZ250_GEM** (Orts-/Gemeindeverzeichnis, 11,001 municipalities
-with AGS + Kreis, `dl-de/by-2-0`) × **destatis Anschriftenverzeichnis** (10,749
-municipalities with Zustell-PLZ). Pinned CSV: 22,140 rows (4,862 PLZ + 11,000
-municipality + 400 Kreis), 400/400 NUTS 3 codes, 0 unmatched, 121 Thuringian
-VZ250 stale-NUTS deviations recorded. 11 PLZ codes span >1 NUTS 3 (ambiguous),
-397 municipality names in >1 NUTS 3 (ambiguous). `make reference-germany` target
-added. First commit: `e8c0553` (feat). Second commit: `810d057` (fix — the BKG
-VZ250_GEM `.dbf` stores names as UTF-8; the builder decoded them as latin-1,
-double-encoding umlauts in the pinned CSV; rebuilt).
+### 2026-08-19 - Iteration 11a
 
-**Deliverable 2 — BA Jobsuche feasibility gate + collector:**
+- The first real sweep failed on its first hit. Live JobTech omits top-level `country_code` and
+  nests SCB code `199` (Sverige) in `workplace_address`, but the collector demanded ISO `SE`.
+  Only the synthetic fixture ever used `SE`, so the offline gate could never have caught this;
+  the normaliser now accepts both codes and still stores `SE`.
+- Platsbanken answers a Swedish keyword with a few genuinely foreign ads (1 Frankrike, 1 Danmark
+  out of 622). Sweden-only is an approval constraint, so the sweep now sends `country=199` and
+  lets the API exclude them. Dropping them locally instead would have broken the one-row-per-hit
+  and `row_count`/`total` reconciliation invariants, and would have reported partial coverage
+  forever. The scope id changed with the new parameter, which is correct: it is a different scope.
+- `make live-site` had never been run against live data and could not have succeeded. `dbt
+  build` ran four tests that assert facts about the synthetic sample (its zero-row sweep, its
+  stale scope, its exact closure timeline). They are tagged `sample_fixture` and excluded there;
+  `assert_source_coverage` was split so the real coverage and freshness invariants still run on
+  live partitions.
+- `assert_survival_logic` passed on the first live sweep only because both sides of the set
+  comparison were empty. It would have failed on the second sweep, once inferred closures existed.
+- Changing the scope params and the limitations text invalidated the generated sample, which is
+  built from the same two values, so `make sample` was re-run: without it `make site` would have
+  published a limitation sentence the collector can no longer produce. `assert_key_rotation_does_
+  not_close` turned out to be sample-pinned too (it matches one fixture timestamp), so it is tagged
+  and its live-safe half now exists as `assert_no_cross_key_closures`, which pins no date.
+- The page request is now derived from the recorded scope (`_search_params`) instead of a second
+  literal, because a manifest claiming "filtered to Sweden" must not be able to outlive the filter.
+  A test asserts the filter on the captured URL; verified it fails when the parameter is dropped.
+- First live partition: 620 rows over 7 pages, 620/620 rows covered, fresh at 0.06 h, and
+  `release_check` clean on the live page. `make check` stays green on the sample at 36 Python
+  tests and 163 dbt resources; `make live-site` runs 158 of them.
+- `live-site` and `clean` were cmd.exe-only and broke when make was started from Git Bash, where
+  recipes run under `/usr/bin/sh`. `if not exist ... (...)` is a syntax error there, and worse,
+  `set "VAR=value" &&` sets positional parameters instead of exporting, so dbt would have read the
+  synthetic sample while the footer claimed live partitions. The paths are now target-specific
+  `export`s, the sweep guard is a make-level `$(error)`, the timestamp comes from python instead of
+  powershell, and `clean` uses `shutil`. Verified identical results from PowerShell (cmd.exe) and
+  Git Bash (sh). `clean` also never worked: it omitted `--project-dir transform`.
+- Three sweeps in, the multi-sweep path is exercised for real: 14 `inferred_absence` closures,
+  survival rows, and day/week/month flow buckets, with every sweep `covered`.
 
-Live probes of the public SSR search interface (25 items/page, `&page=N`
-pagination, 400-page = 10,000-listing window, 403 Apache-edge throttle after
-~50 requests, recovers after ~30 s idle). Full feasibility row added to
-`SCRAPER_FEASIBILITY.md`.
+### 2026-08-20 - Iteration 12
 
-`scrapers/ba_jobsuche.py`: BAJobsucheCollector — SSR HTML parser, allowlist-only
-(ref ID + date + city only), robots-as-evidence (disallow logs, 403 stops),
-city→NUTS 3 via German crosswalk (mapped/ambiguous/unmapped), 403 handled as
-rate-limit with 45 s cooldown-then-retry (Apache edge token bucket), HMAC
-dedupe, 25 items/page, 400-page window (10,000 max). `main.py` SourceConfig
-slug `ba` with `--source ba` / `--source ba_jobsuche` / `--source de`. 22 new
-respx tests for parsing, crosswalk, robots, PII, dedupe, 429, schema drift,
-page budget.
+- A scope is now a keyword *or* an occupation field, never both: `_selector` reduces the two
+  selectors to one and `_search_params` stays the single source for the recorded scope and the
+  wire. The keyword `scope_id` is byte-identical (`jobtech-f5cf1d409aa51fad`, pinned by a test) and
+  `make sample` produced no diff, so the four stored keyword sweeps are not orphaned.
+- Resume rehydrates whichever selector the saved scope carries. Defaulting to `q` would have
+  restarted an occupation-field sweep under a different `scope_id` and failed its own checkpoint.
+- The filter guard is a majority test, not equality, because the first version was wrong on live
+  data. Measured with `occupation-field=apaJ_2ja_LuF`: page 0 was 100/100 in-field, page 2 was
+  97/100 — the source counts adjacent occupations as part of the query (a `Säkerhetsingenjör`
+  answers a Data/IT search). An ignored parameter looks nothing like that: the camelCase name
+  returned all 40,649 Swedish ads, where Data/IT is 6%. So the sweep aborts below a simple
+  majority, and the occupation-field `coverage_limitations` now says the scope is not pure.
+- **The Data/IT scope cannot be collected and was not opened.** The search API answers any
+  `offset > 2000` with HTTP 400 whatever the limit (`limit=1&offset=2099` is a 400), so one query
+  reaches at most 2100 records; Data/IT + country=199 reports 2589. The first attempt collected 21
+  pages and died at `offset=2100`. Publishing that prefix as complete would close the 489 unseen
+  postings as `inferred_absence` on the next sweep and invent a duration for each, so
+  `_verify_reachable` now refuses the sweep on its first page, before any page is written.
+- Splitting the field is the open decision, not a detail: slices each need to be independently
+  complete, and every slice is its own `scope_hash`, so "never sum across scopes" would forbid a
+  Data/IT total unless disjointness is proven — and the 3% cross-field bleed above shows the
+  source's own grouping is not clean. Search `stats=occupation-group` is a noisy top-N (5 values,
+  a duplicated term, summing 2031 of 2589), so a group inventory has to come from the Taxonomy
+  API. Largest group measured: `DJh5_yyF_hEM` at 1157, comfortably inside the window.
+- `make check` green at 50 Python tests and 163 dbt resources (no dbt resource added, so the
+  `USER_MANUAL.md` PASS count is unchanged); `make sweep` still lands in the keyword scope (628
+  rows, 7 pages, fifth partition); `make live-site` runs 158 and `release_check` is clean.
+- Review caught three holes in the new guards, all now closed with tests. The reachable window has
+  to follow the page-size grid (`2000 // page_size * page_size + page_size`), because offsets only
+  land on multiples of the page size and rounding up let a non-divisor size pass the check and die
+  at offset 2010 with 67 pages already written. The filter majority test now skips pages shorter
+  than `JOBTECH_FILTER_MIN_SAMPLE`, because a two-row final page with one adjacent hit is exactly
+  the threshold and the resumable checkpoint would refuse the same page forever. And an
+  occupation field is now shape-checked against the concept-id format before any request: a typo
+  the API answers with zero hits would have published a complete empty partition under a new
+  scope, which is the one case the filter guard cannot see and which append-only scopes make
+  permanent.
 
-**DoD verification (foreground, serial, ≥1 s pacing):**
+### 2026-08-21 - Iteration 13
 
-Sweep 400/400 pages, 10,000 rows, `status=complete`, `expected_pages ==
-completed_pages == 400`, `expected_rows == row_count == 10,000 NDJSON lines`,
-zero 4xx, 10,000 unique 64-hex HMAC source_ids, 100% first_published coverage,
-358/400 distinct NUTS 3 codes mapped (6,448 mapped, 3,497 unmapped, 55
-ambiguous), zero PII. 7 throttle events absorbed (45 s cooldown each). Honest
-bound: 10,000-listing per-query window, plus ~50-request burst throttle.
+- `_mapping` no longer discards a concept just because the crosswalk offers more than one
+  candidate: if exactly one of them is an `exact-match`, that one is selected as `mapped` under a
+  distinct `method = exact_match_tiebreak`. Two or more exact matches are a real conflict and stay
+  `ambiguous`. The method is separate from `crosswalk` so every such decision stays auditable, and
+  the `mapping_method` vocabulary is now pinned by `accepted_values` (eight values) because an
+  unpinned vocabulary cannot be audited and would swallow a typo.
+- Reach of the rule in the pinned reference, counted: 277 of 2179 occupation concepts and 820 of
+  5962 skill concepts have several candidates of which exactly one is exact. 152 occupation and 96
+  skill concepts have two or more exact matches and are still refused.
+- **`make live-site` cannot show the improvement, and re-running it never will.** Enrichment happens
+  before the privacy boundary, so each immutable partition already carries its own
+  `*_mapping_status`, and `sanitize.py`'s allowlist drops the JobTech concept id — re-enriching a
+  stored partition is not merely undesirable, it is impossible. Live figures were therefore measured
+  by re-enriching the latest sweep's retained private checkpoint pages
+  (`data/raw/collection-state/<sweep>/pages/`), with the pre-change rule reimplemented alongside so
+  both halves are counted over one identical input set. That reimplementation reproduces the
+  published distribution exactly (615 postings, occupation 456/63/65/31, skill 108/76/33/558/3),
+  which is what makes the comparison trustworthy.
+- Measured on the latest sweep (615 postings): occupation `mapped` 65 to 510 and `ambiguous` 456 to
+  11, with `low_confidence` 63 and `unmapped` 31 untouched. Skill mappings `mapped` 33 to 76 and
+  `ambiguous` 108 to 65; postings with at least one mapped skill 25 to 47. **None of this is on the
+  page yet.** The published page still reads 65 of 615 and will until the next sweep is collected.
+- **This is a provenance change, not a validated accuracy gain.** 445 of 615 postings changing state
+  on one rule is an eightfold jump measured against a review sample of three rows. A sole stated
+  equivalence is a defensible selection rule and `exact_match_tiebreak` makes each instance
+  traceable, but nothing here measures live precision. The honest follow-up is a manual spot-check
+  of a handful of tiebroken occupations and skills; it is not something this increment did, and
+  nothing on the page claims improved accuracy.
+- New view `mapping_coverage_latest`: one row per source, scope, sweep and dimension carrying
+  `postings_total`, `postings_with_source_value` and `postings_mapped`, all counted as distinct
+  postings. `mapping_quality_latest` could not carry this: its skill rows come from
+  `stg_skill_mappings`, so they count mappings, and a posting asking for five mapped skills would
+  inflate its own denominator. The three live denominators now on the page: region 589 mapped of
+  615 with 589 carrying source geography; occupation 65 of 615 with all 615 carrying a structured
+  occupation, so that loss is entirely in mapping and not in source coverage; skill 25 of 615 with
+  only 57 carrying a structured skill at all. The skill figure looks bad and is published as-is.
+- `assert_mapping_coverage.sql` is deliberately untagged, so it runs against live partitions too. It
+  pins the narrowing `mapped <= with_source_value <= total`, the one-row-per-dimension grain, and
+  the agreement of `postings_total` with `mapping_quality_latest.total_outcomes` for region and
+  occupation only — never for skill, whose quality grain is per mapping (615 against 778). The file
+  says so, so nobody "fixes" the asymmetry.
+- The build now refuses to publish once a second scope has postings, because `_query_dimension`,
+  `_query_skills` and `_query_mapping` all read their views without a scope filter and would sum
+  unrelated populations under a denominator naming one sweep. Green today with one collecting scope,
+  and a zero-row scope publishes no coverage row to collide with. Exercised by a test rather than
+  left as an assumption. This is the deferral mechanism for per-scope sections: it fires the moment
+  Increment 12b's slicing decision lands.
+- `release_check` now insists each ranked table is directly preceded by its `class="denominator"`
+  sentence, and treats a missing ranked table as a fault of its own. The sentence is consumed by the
+  first table that follows it, so two rankings cannot lean on one denominator. Counts only: a
+  percentage would invite a coverage trend that a single sweep cannot support.
+- The skill ranking needed one extra clause. Its rows count postings per skill, so the eight
+  published rows sum to 33 while the denominator states 25 distinct mapped postings; without saying
+  that, a reader would try to reconcile the two. The definition text now does.
+- Nothing in the offline gate exercises the new rule on its own, so four fixture concepts were
+  added (`occ-tiebreak`, `occ-two-exact`, `skill-tiebreak`, `skill-two-exact`) and all four are in
+  the placeholder set that keeps them out of the committed reference. `make sample` produced no
+  diff, as predicted: of the sample's four occupation concepts one is all `close-match`, one is
+  resolved by manual review, and two were already single exact matches. The real review sample did
+  not move either — its only unmapped skill has one `broad-match` candidate — so occupation
+  precision/recall stay 1.0/1.0 and skill 1.0/0.75, unedited.
+- `make check` green at 53 Python tests and 175 dbt resources (12 new: the view, its nine column
+  tests, the pinned method vocabulary, and the coverage assertion); `make live-site` runs 170 and
+  `release_check` is clean on the live page.
+- Review caught the traceability hole: `METHODOLOGY_VERSION` is the declared mechanism for tracing a
+  saved figure back to the rules that produced it, it is stamped in the footer, in
+  `data-methodology-version`, and in every CSV file name, and its own text claims to cover the
+  *mapping rules* — yet a mapping rule had changed under it. Two CSVs both named
+  `...-methodology-1-0.csv` would have carried figures from two different rules. Bumped to **1.1**,
+  and the selection rule is now stated in the occupations definition text (stated, not praised: the
+  page still makes no accuracy claim). A test pins both, because a silent revert to 1.0 is exactly
+  the failure this guards.
+- Open item, deliberately not fixed: the single-scope guard has no override, and scopes are
+  append-only, so the first successful second-scope sweep blocks every republish — including an
+  urgent privacy fix — until per-scope sections land. Not reachable today: `make sweep-datait` is
+  refused by `_verify_reachable` before it can open the scope. Whoever lands the slicing decision
+  should either ship per-scope sections with it or add a narrow single-scope escape hatch.
 
-**make check:** 389 tests passed (367 + 22), ruff + mypy strict + pytest green.
+### 2026-08-22 - Iteration 13a
 
-### 2026-08-24 — P3 (EU coverage + main-app push-readiness assessment) — no code
+- **The audit covered 100% of the rule's live population, not a sample of it.** The tiebreak reaches
+  277 of 2179 occupation and 820 of 5962 skill concepts in the pinned reference, but only **13
+  occupation** and **16 skill** concepts occur in the 615-posting sweep it was measured on. All 29
+  were audited by descending live impact, covering 445 of 445 delta postings and 43 of 43 delta skill
+  mappings. There was no "next 15 by impact" to fall back on, because there is no tail.
+- Task 1 reproduced the published old-rule distribution exactly before anything else was believed:
+  occupation 456/63/65/31 and skill 108/76/33/558/3 over 615 postings, re-enriched offline from the
+  retained raw pages of `20260820T235159Z-f5cf1d409aa5`.
+- Verdicts: **24 `same`, 4 `narrower-or-broader`, 1 `wrong`.** Impact is extremely concentrated -
+  `fg7B_yov_smw` `Systemutvecklare/Programmerare` alone is 350 of the 445 delta postings (78.7%) and
+  is `same`; nine of the 13 occupation concepts move exactly one posting each.
+- The one `wrong`: **`9yMK_8ep_D1K` `IT-säkerhetstekniker` → `riskanalytiker, cybersäkerhet`**. Not a
+  judgement call - the crosswalk declares that same ESCO URI an `exact-match` for
+  `FHwx_yXu_FAd` `IT-säkerhetsanalytiker` as well, and the analyst is plainly the owner. A security
+  technician implements controls; a cybersecurity risk analyst quantifies risk. 1 posting of 615.
+- The four `narrower-or-broader`: `TU7g_mwa_VzB` `Testutvecklare` → `IKT-testanalytiker`,
+  `XZaM_BRb_3mM` `Infrastrukturarkitekt` → `it-nätverksarkitekt`, `iXzD_6DF_sL4` `Brandväggar` →
+  `installera och uppdatera brandvägg` (a knowledge concept mapped to an action, because ESCO offers
+  no bare firewall concept), and `uvcb_DuX_NW8` `Tekniska beräkningar/MATLAB` → `MATLAB`. In all four
+  the pick is the best candidate the reference contains; none was forced to `same` to flatter the
+  rule. 9 further postings of 615.
+- **Correction to a standing assumption: the crosswalk's `target_label` is Swedish, not English.**
+  ESCO 1.2.1 was pulled in the Swedish locale (221 of a 400-label sample carry å/ä/ö), so the audit
+  is a Swedish-to-Swedish comparison. Any future audit should not budget for translation.
+- **The decision rule's 1-2-`wrong` branch could not be executed as written, for two factual
+  reasons, and this was reported before acting rather than papered over.** There is no correct ESCO
+  URI for an IT security technician anywhere in the reference - the only neighbours are
+  `säkerhetstekniker för inbyggda system` (embedded-specific) and `it-säkerhetsansvarig` (a manager,
+  already owned by two other source concepts) - so a redirect could only trade one wrong mapping for
+  another. And `load_references` skipped every manual row whose `status != "mapped"`, so a reviewer
+  could redirect but never refuse.
+- **Remedy: the veto the previous session predicted would be needed.** `ManualReview` now carries a
+  status and an optional candidate; a row naming no target refuses the mapping outright. The refusal
+  still publishes `method = "manual_review"`, so the pinned eight-value `mapping_method` vocabulary
+  did not grow and `assert_mapping_outputs.sql` was untouched. Two invariants came with it: a status
+  the loader cannot express is now an **error** rather than a silent skip (a dropped review reads
+  exactly like no review), and a refusing row that also names a target is rejected as two
+  contradictory intentions. `occupation,9yMK_8ep_D1K,,,,ambiguous,,13a-audit,2026-08-22` is the first
+  such row. Effect on the measured sweep: occupation `mapped` 510 → **509**, `ambiguous` 11 → **12**,
+  `exact_match_tiebreak` 445 → **444**. Skill untouched.
+- **A collision guard was measured as the alternative remedy and deliberately rejected.** Requiring
+  the sole exact match to be the only source concept claiming that URI is a systematic test - the
+  defect it detects affects **34 of 277** tiebroken occupation concepts (12.3%) and **102 of 820**
+  skill concepts (12.4%), closely matching the 2-of-13 and 2-of-16 rates the audit saw live. But on
+  this sweep it would have refused 5 live concepts of which only 1 is `wrong`: it also kills
+  `Xnmr_kYS_YKY` `SQL, frågespråk` → `SQL` (the rival claimant is *SQLite*) and `xZLY_ZU5_E1q`
+  `Elektronikkonstruktion` → `designa elektroniska system` (the rival is the near-synonym
+  `Elektronikutveckling`), both judged `same`. Collisions arise as often from duplicated source
+  concepts as from mis-assertions, so it is a good diagnostic and a bad rule. Recorded here so the
+  measurement is not repeated: it is the obvious narrowing and it does not work.
+- **The occupation ranking hit `DIMENSION_LIMIT = 25` for the first time, and the denominator stopped
+  reconciling.** 519 mapped postings, but the visible 25 rows sum to 514. `release_check` reported
+  zero problems, because its rule is that a ranked table has a denominator sentence, not that the
+  two agree. `_denominator` now takes the listed rows for a one-row-per-posting ranking and publishes
+  the shortfall: "Only the 25 most frequent occupations are listed below, accounting for 514 of those
+  mapped postings; the rest sit in an unlisted tail." Counts only, no percentage. The clause appears
+  only when it is true, and never on the skill ranking, whose column legitimately exceeds its
+  denominator because a posting is counted in each of its skills' rows.
+- Published from a fresh sweep `20260822T160021Z-f5cf1d409aa5`: **627 rows, 7 pages**, seventh
+  partition, keyword scope. Denominators moved region 589 of 615 → 598 of 627, occupation **65 of 615
+  → 519 of 627** (all 627 carry a structured occupation, so the remaining loss is entirely in
+  mapping), skill 25 of 615 → **47 of 627** with only 60 carrying a structured skill. Occupation
+  outcomes on the page: `mapped` 519, `unmapped` 34, `low_confidence` 62, `ambiguous` **12** - the
+  vetoed concept is one of those 12. The ranked occupation table went from 18 rows to 25 (truncated),
+  and its long tail of single-posting occupations is now the bulk of the distribution.
+- `make sample` produced the diff Iteration 13 did not: `reference_hashes` is stamped into every
+  manifest, so the new `manual_reviews.csv` rewrote all 5 rows of `data/sample/sweeps_sample.ndjson`.
+  Correct, committed. `postings_sample.ndjson` did not move, and neither did the evaluation: none of
+  the pinned concepts (`CZkP_hCz_KM8`, `71Ji_irM_rSJ`, `3vry_gaE_yfQ`, `jBKc_5Yx_Y6T`,
+  `qfkh_ZRK_w4W`) is tiebroken at all, so occupation stays 1.0/1.0 and skill 1.0/0.75.
+- `make check` green at **56 Python tests** (three added: the veto, its rejected-row invariants, and
+  the truncation clause) and **dbt PASS=175** unchanged, since no dbt resource was added.
+  `make live-site` runs 170 and `release_check` is clean on the live page.
+- Still open, and now sharper: `scripts/evaluate.py` remains a three-row sample, and it is the only
+  precision metric behind a rule that decides most postings. The audit measured this rule's live
+  precision once, by hand, at a single point in time; nothing repeats that automatically. The
+  collision census above is the cheapest candidate for a standing offline check, provided it is
+  reported rather than enforced.
 
-Prep step for the Increment 9 segmented-DE build: measured what the lab has
-collected so far and whether it can be pushed into the main app.
+### 2026-08-22 - Increment 14
 
-**Rows per EU country across all collection partitions (11 partitions, 7 sources):**
+- **Coverage, measured on the 627-posting sweep of 13a and confirmed on the 628-posting sweep
+  published here.** All three source blocks are present as an object on **627 of 627** and then
+  **628 of 628** postings - better than the parent plan's recorded 98%/97%. The nullability sits in
+  the `concept_id`, not the block: `employment_type` 0 null, `working_hours_type` **12**, `duration`
+  **11**. Distinct codes are 4, 2 and 6, unchanged across all eight retained sweeps, and this sweep
+  published **zero `Unrecognised code` rows**, so the vocabulary held on an eighth independent
+  observation.
+- **Published distributions, 628 postings each.** Employment type: Regular employment 428 ·
+  Permanent employment (probationary period possible) 160 · Fixed-term employment 27 · On-demand
+  employment 13. Working hours: Full-time 610 · Part-time 6 · **Not stated 12**. Duration:
+  Open-ended 543 · 6 months or longer 40 · 6 months up to 12 months 20 · **Not stated 11** ·
+  3 months up to 6 months 8 · 12 months up to 2 years 5 · 11 days up to 3 months **1**. Every
+  column sums to 628 by inspection, which is the whole point of the row shape below.
+- **The design deviates from the parent plan's `dimension / value_uri / value_label /
+  posting_count` shape, deliberately.** Every posting lands in exactly one row per dimension: a null
+  source `concept_id` is published as **`Not stated`** (`not_present`) and a code the reference does
+  not carry as **`Unrecognised code`** (`unmapped`), with its code kept. 13a shipped a bug where the
+  occupation column silently stopped summing to its own denominator once the ranking truncated, and
+  `release_check` could not see it because its rule is that a denominator sentence exists, not that
+  the two agree. A closed vocabulary of at most six values cannot truncate, so the honest move is to
+  publish the unresolved buckets as rows and drop the denominator caveat entirely. The two
+  unresolved kinds stay apart because they are two different facts: the source left the field empty,
+  versus our vocabulary is out of date.
+- `transform/tests/assert_requirement_totals.sql` is the machine-checkable form of that: each
+  dimension's `posting_count` sums to the sweep's posting total, the grain is unique per
+  dimension and value, and a sweep publishes all three dimensions or none. Deliberately
+  **untagged**, so it ran against the live partitions under `make live-site` and passed. Its teeth
+  were checked rather than assumed - re-run against a view with one dimension filtered out it
+  reports `incomplete-dimensions`, and against a duplicated bucket both the sum and the grain
+  branch fire.
+- **The absent durations are informative, not missing at random.** Measured in 13a: all 11 postings
+  without a `duration.concept_id` are `Behovsanställning` (on-demand employment), 11 of that type's
+  13. That is exactly why `Not stated` is published as its own row instead of being dropped from a
+  denominator - dropping it would delete the only signal that one employment type does not carry a
+  duration at all.
+- **The fifth employment type could not be established offline, and was not guessed.** The taxonomy
+  declares 5 employment types; 4 have ever been observed, across eight sweeps. There is no taxonomy
+  snapshot in the repo (`build_reference.py` only fetches over the network, and `working-hours-type`
+  is not a valid taxonomy type - it returns 0 concepts), so `jobtech_requirement_labels.csv` carries
+  the **12 measured rows**. This is a known gap, and it is safe rather than silent: an unobserved
+  code arrives as a visible, counted `Unrecognised code` row. Whoever next runs `make reference`
+  should add it. `test_requirement_reference_carries_the_live_vocabulary` pins the 12 observed codes
+  as a subset, not an equality, so adding the fifth does not break the gate.
+- **Open item, created knowingly: the page now mixes label languages.** The requirement dimensions
+  publish our English labels (`Permanent employment`, `Full-time`, `Open-ended`) because
+  "Tillsvidareanställning (inkl. eventuell provanställning)" is not usable text on an English page
+  and this is a 12-row vocabulary under our control. The occupation and skill rankings publish
+  Swedish ESCO labels, because ESCO 1.2.1 was pulled in the Swedish locale (13a's correction). So
+  one page carries both, and the definition text says which is which rather than leaving a reader to
+  infer it. Recorded here instead of being discovered later; not fixed in this increment, because
+  re-pulling ESCO is a reference change with its own blast radius.
+- `salary_type` is 100% present with 3 codes but only 89.6% single-valued (the parent plan's 94% is
+  corrected), and `scope_of_work` is a `{min,max}` object that is null on all 627 - so both stay
+  excluded, one for low information and one for having none.
+- The nine new keys are `varchar` in the `read_json` `columns` map, in the `select`, and in
+  `schema.yml`, with **no `not_null` on any of them**: the seven partitions collected before this
+  increment have no such key and are NULL there permanently, because a stored partition is never
+  rewritten. `requirement_demand_latest` therefore excludes a NULL status rather than rendering it
+  as `Not stated` - a partition that predates the field is not the source declining to state a
+  value, and inventing that row would be a lie about what was collected. Until a sweep lands the
+  section is legitimately empty; a sweep carrying the status on only some of its postings would sum
+  short and fail the assertion instead of publishing.
+- `METHODOLOGY_VERSION` is **1.2**, pinned by a test. 1.1 published no requirement dimension at all,
+  and two files named `...-methodology-1-1.csv` must not carry figures from two different definition
+  sets. Same lesson as 13a, applied before the fact this time.
+- The new sweep is `20260822T201202Z-f5cf1d409aa5`: **628 rows, 7 pages**, eighth partition, keyword
+  scope. Denominators moved with it: region 598 of 627 to **599 of 628**, occupation 519 of 627 to
+  **520 of 628**, skill 47 of 627 to **48 of 628** with 61 carrying a structured skill. The
+  occupation ranking still truncates at 25 and still says so, accounting for 515 of its 520 mapped
+  postings.
+- `make sample` produced the diff it had to: `reference_hashes` is stamped into every manifest, so
+  the new reference file rewrote all 5 rows of `sweeps_sample.ndjson`, and the nine keys rewrote
+  every row of `postings_sample.ndjson`. The fixture now exercises both unresolved paths offline -
+  one ad with a null `working_hours_type.concept_id` and one with a code no reference row carries -
+  so `not_present` and `unmapped` are covered by the gate rather than only by the live page.
+- `make check` green at **59 Python tests** (three added: the requirement triple across all three
+  statuses, the reference vocabulary plus its presence in `reference_hashes`, and the methodology
+  pin) and **dbt PASS=187**, up 12: the view, its eight `not_null` tests, two pinned vocabularies,
+  and the totals assertion. `make live-site` runs 182 and `release_check` is clean on the live page.
+- Noticed, pre-existing, not fixed here: `data/reference/reference_manifest.json` records
+  `manual_reviews.csv` as `f7d72a98…` while the committed file hashes to `4898e357…`. That manifest
+  is only ever written by the networked `make reference`, so it is stale for the two hand-maintained
+  reference files, and the new one is absent from it for the same reason. Per-sweep provenance is
+  unaffected - `reference_hashes` in every sweep manifest covers all five files - but the manifest
+  should not be read as authoritative for hand-written references.
+- **Review pass over the published commit, three findings fixed in a follow-up.** All three were the
+  same shape - the page or a comment asserting an invariant no test enforced - which is the failure
+  class 13a shipped and the reason this increment exists in the form it does.
+  1. The definition text claimed `Not stated` meant "the source published the field but left its
+     value empty". `requirement_mapping` returns that bucket for three source shapes: an omitted
+     block, a block that is not an object, and an empty `concept_id`. The collector verifies none of
+     them, so a renamed source field would bake 100% `Not stated` into an immutable partition and
+     publish it under a sentence asserting the source left it blank - and nothing would fail: the
+     totals still reconcile at 628 = 628 and `release_check` never inspects values. Reworded to
+     "the source did not state a value for that field", which is true of all three shapes.
+  2. `value_code` was the one leg of writer -> `SAFE_FIELDS` -> `columns` map -> `select` that
+     nothing checked: it is nullable by design so a `Not stated` row invents no code, so a key
+     misspelt at any of those four points would have published a whole dimension with an empty
+     Source code column, permanently for that sweep, while the page kept promising the code is
+     printed beside every label. `assert_requirement_totals.sql` now pins both directions - a
+     resolved value carries its code, an unstated one does not - and passes on the live partitions,
+     which is also the first positive proof that the code leg survived the wire.
+  3. This commit created the repo's first heterogeneous partition history (7 partitions with none of
+     the nine keys, 1 with all of them), and no committed fixture could express the old shape, since
+     `make sample` builds every row through `normalize_jobtech_hit`. The `is not null` filter and
+     the empty-view path were therefore exercised only by `make live-site` - the step that publishes,
+     where a failure blocks every republish. A new test now runs the model's own SQL text against a
+     synthetic legacy-shaped `stg_postings`: an all-NULL sweep publishes nothing, a half-migrated
+     sweep fails the assertion on all three dimensions, and an all-collected sweep is silent again,
+     so the test cannot pass by always failing.
+- That new test earned its place immediately: it caught a stray ` to` line that an edit to the
+  model's comment block had split out of a `--` comment, which would have broken `dbt run` for
+  everyone. The gate found it before dbt did. `make check` is now **60 Python tests** / **dbt
+  PASS=187** (no new dbt resource - the code-leg check is another branch of the same assertion), and
+  `make live-site` 182 with `release_check` clean.
+- Left as accepted suggestions rather than fixed: the three near-identical CTEs are combined
+  positionally with `select *` and nothing pins which vocabulary belongs to which dimension (the
+  sibling `dimension_demand_latest` is protected from that mistake by `assert_mapping_outputs.sql`
+  pinning `taxonomy_version`); the page-level `Not stated` / `Unrecognised code` assertions are
+  satisfied by the definition prose rather than by a table row; `order by dimension, posting_count
+  desc, value_label` is not a total order once two unmapped codes share the `Unrecognised code`
+  label; and the status assertion compares against the five-value `enrich.STATUSES` while the model
+  contract pins three.
 
-| Country | Sources | Sweeps | Rows (all) | Distinct postings |
-| --- | --- | --- | --- | --- |
-| BE | vdab | 1 | 12,282 | 12,282 |
-| CZ | mpsv | 2 | 77,806 | 38,903 |
-| DE | adzuna, ba | 2 | 14,841 | 14,841 |
-| FR | francetravail | 2 | 234,861 | 217,680 |
-| NL | adzuna | 1 | 4,956 | 4,956 |
-| NO | nav | 2 | 12,581 | 12,051 |
-| PL | cbop | 1 | 22,068 | 22,068 |
-| **Total** | | 11 | **379,395** | **≈322.8k** |
+### 2026-08-23 - Increment 13b
 
-Every partition is `status=complete` with `expected_pages == completed_pages`
-and `expected_rows == row_count == NDJSON lines` (verified per file, not trusted
-from the manifest alone).
+- **Correction to the record: this file recorded 8 of the 29 tiebreak verdicts per concept, not all
+  29.** Increment 14's plan deferred this increment on the strength of the claim that 13a "records
+  every judgement call by concept id", which would have made 13b transcription plus a scoring
+  decision. It does not. Every JobTech concept id that appears anywhere in this file amounts to 16
+  distinct ids, of which 5 are sample fixtures (`CZkP_hCz_KM8`, `71Ji_irM_rSJ`, `3vry_gaE_yfQ`,
+  `jBKc_5Yx_Y6T`, `qfkh_ZRK_w4W`), 2 are occupation-field scope ids (`apaJ_2ja_LuF`,
+  `DJh5_yyF_hEM`) and 1 is the
+  rival claimant that motivated the veto (`FHwx_yXu_FAd`). The 8 audited concepts recorded
+  individually are the one `wrong` (`9yMK_8ep_D1K`), the four `narrower-or-broader`
+  (`TU7g_mwa_VzB`, `XZaM_BRb_3mM`, `iXzD_6DF_sL4`, `uvcb_DuX_NW8`) and three `same` (`fg7B_yov_smw`,
+  `Xnmr_kYS_YKY`, `xZLY_ZU5_E1q`). The other **21 `same` verdicts exist only inside the aggregate
+  "24 `same`"**, and no fuller record exists in the repo or in `.kilo/`. Nothing was lost - 13a's
+  kickoff asked for the verdict counts, every `wrong` concept and what was done about it, so the
+  per-concept judgements were never captured - but they are judged first-hand here rather than
+  transcribed, and every review row carries `13a-recorded` or `13b-rejudged` so a later reader can
+  tell the two apart.
+- **The live tiebroken population, re-derived offline before anything was judged.** Re-enriched the
+  retained raw pages of the published sweep `20260822T201202Z-f5cf1d409aa5` (7 pages, 628 hits, 628
+  distinct source ids) with `enrich_hit` against the pinned references: `exact_match_tiebreak` on
+  **12 occupation concepts / 454 postings** and **16 skill concepts / 43 posting-mentions**. The
+  rule *reaches* 13 occupation concepts / 455 postings; the thirteenth is `9yMK_8ep_D1K`, which now
+  publishes `manual_review` because of 13a's veto, so it is scored here as an expected refusal
+  rather than as a tiebreak. The same derivation over 13a's own sweep
+  (`20260820T235159Z-f5cf1d409aa5`, 615 hits) returns **identical membership** - 13 occupation and
+  16 skill concepts, none added, none dropped - with only two counts moved: `fg7B_yov_smw` 350 →
+  357 and `rQds_YGd_quU` 81 → 84, so occupation 445 → 455 postings and skill 43 → 43. The 29
+  concepts 13a audited are exactly the 29 the rule decides today, which is why re-judging the 21 is
+  a re-judgement of the same population and not a new audit.
+- **Pre-registered decision 1, how a `narrower-or-broader` concept scores. Written before any figure
+  was computed, and it stands whichever way the figures fall.** The review row's expected URI is the
+  URI the tiebreak chose, not `null`: 13a judged all four picks the best candidate ESCO 1.2.1
+  contains and refused none of them, so writing `null` would assert the mapper ought to refuse -
+  the veto decision 13a deliberately did not take for these four - and would collapse them into the
+  expected-refusal case that belongs to `9yMK_8ep_D1K` alone. The doubt is carried by the verdict
+  field instead, and the report publishes **two figures side by side off the same sample**:
+  `strict`, which counts a `narrower-or-broader` row as a false positive because an inexact mapping
+  is not the equivalence the crosswalk asserts, and `lenient`, which counts it as a true positive
+  because it is the best target the reference contains. Neither is published as *the* precision, the
+  gap between them is the honest size of the judgement, and a single flattering number is not an
+  option this decision allows. `same` rows are true positives and `9yMK_8ep_D1K` is an expected
+  refusal under both readings.
+- **Pre-registered decision 2, the true-negative treatment.** A correct refusal - a row naming an
+  occupation concept with `expected_occupation_uri: null` where the mapper produces no URI - is
+  counted as a `true_negatives` and reported; an incorrect refusal stays a false negative, which it
+  already is. `precision` and `recall` keep their textbook formulas, `tp/(tp+fp)` and `tp/(tp+fn)`,
+  and true negatives enter neither: a metric whose name no longer matches its formula is worse than
+  a missing metric. The report also carries the refusal pair `correct_refusals` /
+  `incorrect_refusals` explicitly, so "the mapper declined, correctly" is legible without
+  arithmetic. `occupation_concept_id: null` stays a different fact - the row does not test the
+  occupation side at all - and is skipped there rather than scored as a refusal; conflating the two
+  nulls would silently restore the hole this increment exists to close.
+- **Pre-registered decision 3, the fate of the `skill recall < 1.0` pin
+  (`tests/test_probe.py:593`).** It encodes "the metric is not trivially perfect", so it is
+  re-expressed, never deleted. It stays as `skill recall < 1.0` provided the enlarged sample still
+  produces at least one skill false negative - `review-002`'s `qfkh_ZRK_w4W`
+  ("Python, programmeringsspråk"), whose single candidate `Python (datorprogrammering)` is a
+  `broad-match` and therefore publishes `low_confidence` with no URI while the row expects that URI,
+  is untouched by the new rows and should still supply it - and it gains two companions that make
+  the property independent of that one row: the report shows at least one skill false negative, and
+  at least one scored refusal. If the enlarged sample were to drive skill
+  recall to exactly 1.0, the assertion becomes "the sample contains at least one mapping the mapper
+  does not reproduce", read off the report's own counters instead of off the ratio. Either way a
+  mapper that mapped everything and a mapper that refused everything must both fail the gate.
+- **Verdicts: 23 `same`, 5 `narrower-or-broader`, 1 `wrong` - one disagreement with 13a's
+  aggregate, published rather than reconciled away.** The 8 transcribed verdicts stand unchanged.
+  Of the 21 re-judged first-hand, 20 are `same`: occupation `rQds_YGd_quU` Mjukvaruutvecklare,
+  `rz2m_96d_vyF` Databasutvecklare, `bDCc_dTJ_qcd` Civilingenjör bygg, `QaQC_ozP_Bme`
+  Rekryterare/Rekryteringskonsult, `FuJx_cGT_5im` Civilingenjör elkraft, `i1F4_cZZ_PJu`
+  Systemarkitekt, `7TWG_1jQ_ULf` Datorlingvist, `KWFX_juL_yMb` Civilingenjör energi,
+  `WWXN_Y22_6fy` Fordonsingenjör; skill `TMVb_DnH_etF` Agila arbetsmetoder, `kraG_fcm_3Mo`
+  Felsökningsverktyg, `SaTd_K5z_ex1` AI, `XThy_HCH_FFc` Inbyggda system, `WQdS_Jtu_qPC` Android,
+  `t78J_nRk_xGn` IOS, `iUew_moc_BRk` Programmering, `eBgZ_cwn_FN8` Spelutvecklingsverktyg,
+  `bZ2o_tXM_Z9d` Sensorteknik, `5q4a_wi4_WYk` Molnteknik, `ksNo_7bD_ez3` Signalbehandling. The
+  disagreement is **`muKv_rHW_7ES` `Testautomatisering/Test automation` → `utveckla automatiska
+  programvarutester`, judged `narrower-or-broader` where 13a's aggregate counted it `same`**: the
+  source is a competence area and the target is a single activity inside it, which is exactly the
+  knowledge-concept-to-an-action shift 13a called `narrower-or-broader` for `Brandväggar`. ESCO's
+  own nearer knowledge concept, `verktyg för automatisering av it-tester`, is marked `narrow-match`
+  in the crosswalk, so there is no exact-level target to prefer instead.
+- **Three judgements were close and were resolved on evidence, not on the label pair.**
+  `KWFX_juL_yMb` `Civilingenjör, energi` → `energiingenjör` looks like a level-of-generality
+  mismatch until the crosswalk is read: JobTech's separate `Gnrd_Brt_15j` `Energiingenjör` claims
+  that same URI as a **`broad-match`**, so the reference does not treat the ESCO concept as broader
+  than this one - `same`. `TMVb_DnH_etF` `Agila arbetsmetoder` → `agil utveckling` keeps its
+  `same` because the genuinely narrower `agil projektledning` was offered and passed over as
+  `narrow-match`. `bZ2o_tXM_Z9d` `Sensorteknik` → `sensorer` is `same` because ESCO names
+  technology-knowledge concepts after the object (`signalbehandling` the same way) and the
+  reference carries no `sensorteknik` to prefer.
+- **The figures that followed the pre-registration, in the order the decisions demanded.** The
+  sample is **32 rows**: the 3 crosswalk-regression rows from Increment 8 plus 29 audit rows, 13
+  occupation and 16 skill. Occupation precision is **1.0 lenient and 0.857 strict** (14 true
+  positives lenient, 12 with 2 false positives strict) with recall **1.0 in both**; skill is
+  **1.0/0.95 lenient and 0.842/0.941 strict** (19 and 16 true positives, 3 strict false positives,
+  1 false negative in both). The strict-lenient gap is the whole of the judgement and nothing else:
+  no row moves between readings unless a reviewer judged it `narrower-or-broader`.
+- **A refusal is finally an outcome.** `true_negatives` is **2** - `review-003` and the vetoed
+  `9yMK_8ep_D1K`, whose expected non-mapping is now in the sample rather than absent from it - with
+  `correct_refusals` 2 and `incorrect_refusals` 0. Before this increment both rows incremented no
+  counter at all, so a mapper that refused everything would have reported `precision: null` instead
+  of being penalised. `precision` and `recall` keep their textbook formulas; the true negatives sit
+  beside them. Refusal counters are on the occupation side only, and deliberately: the skill side
+  compares URI sets and has no way to say "expect nothing for this concept", so publishing a zero
+  there would invent a measurement rather than report one.
+- **Collision census: reported, enforced nowhere - and one figure of 13a's is corrected.** Under
+  the definition that reproduces 13a's population figures exactly - a rival source concept the
+  crosswalk also calls an `exact-match` on the chosen URI - the census is **34 of 277** tiebroken
+  occupation concepts and **102 of 820** skill concepts, both reproduced to the digit. But live it
+  affects **4 concepts, not 5**: `9yMK_8ep_D1K` (the one `wrong`), `XZaM_BRb_3mM`
+  (`narrower-or-broader`), `Xnmr_kYS_YKY` and `xZLY_ZU5_E1q` (both `same`). That is 2 of 13 and 2
+  of 16, which is what 13a's own "closely matching the 2-of-13 and 2-of-16 rates" sentence says;
+  its next sentence said "5 live concepts", and that number does not reproduce. The looser reading
+  - any relation claiming the URI - gives 18 live concepts and 142/357 in the reference, so it is
+  not the definition 13a used either. The conclusion is unchanged and if anything sharper:
+  enforcing sole claimancy would refuse 4 live concepts to catch 1 wrong mapping, so it stays a
+  diagnostic. Reported in the committed report, with no threshold and no failing branch, and a test
+  pins that the census function contains neither.
+- **Four carry-overs from the Increment 14 review, all closed.** The three union branches in
+  `requirement_demand_latest.sql` now name every column, because a positional `select *` would keep
+  compiling while publishing one dimension's codes under another's labels. Each dimension's
+  vocabulary is pinned separately in `schema.yml` with a per-dimension `accepted_values` on
+  `value_code`, restricted to `mapping_status = 'mapped'` so an `Unrecognised code` row still
+  publishes instead of blocking a republish - and its teeth were checked rather than assumed: a
+  bogus mapped duration code fails only the duration pin, and the same code marked `unmapped`
+  passes. A Python test reads both the reference CSV and those `accepted_values` lists and requires
+  them to agree, so the two cannot drift while both look pinned. `scripts/publish.py` orders
+  requirement rows by `value_code` last, because two unmapped codes share the label
+  `Unrecognised code` and the previous order was not total. The page-level `Not stated` /
+  `Unrecognised code` assertions now read the `<tbody>` of the dimension each belongs to; before,
+  the definition prose satisfied them, so they would have passed on a page that dropped the rows.
+  And the requirement statuses are compared against the three values
+  `requirement_demand_latest`'s contract accepts, read out of `schema.yml` rather than restated -
+  the five-value `enrich.STATUSES` would have accepted `ambiguous` and `low_confidence`.
+- `make check` green at **63 Python tests** (three added: the two-nulls separation with the closed
+  verdict/provenance sets, the sample covering the rule's live population, and the census being
+  reported without a failing branch) and **dbt PASS=190**, up 3 for the per-dimension vocabulary
+  pins. `make live-site` runs **185** and `release_check` is clean.
+- **The negative check passed, which is the safety property of this increment.** Word-diffing the
+  rebuilt page against the one published in Increment 14 gives **6 differing spans, all
+  clock-derived**: `data-built`, the Page built stat, the footer time, the sweep age 0.1 → 0.7 days
+  in both the column and its sentence, and the coverage age 1.3 → 17.4 hours. Token count identical
+  at 5652. Every published figure - 628 postings, occupation 520 of 628, skill 48 of 628, all three
+  requirement distributions, every mapping-quality count - is byte-identical. The report is not on
+  the page, so `METHODOLOGY_VERSION` stays **1.2**: 13a's lesson was that a *rule* change under a
+  stale version breaks traceability, and bumping for internal metric work would dilute that signal.
+- **What this still does not measure, stated so it is not mistaken for more than it is.** The
+  expected URI of an audit row is the crosswalk's own sole exact match, so the metric is a
+  regression check plus a reviewed judgement of that pick - not an independent accuracy audit of
+  live ads, which would need manually labelled postings. `EVALUATION_BASIS` says exactly that. The
+  sample is pinned to the population of one sweep: a future sweep that carries a concept the rule
+  reaches for the first time will not be covered until someone re-derives the set, and
+  `test_review_sample_covers_every_tiebroken_concept_in_the_published_sweep` fails loudly if the
+  reference moves the population instead of letting it drift silently.
 
-**Advertised-vs-collected coverage (latest sweep against the advertised total
-recorded in the same manifest):**
+### 2026-08-24 - Increment 16, pre-registration
 
-| Country | Source | Collected | Advertised | Coverage |
-| --- | --- | --- | --- | --- |
-| CZ | mpsv | 38,903 | full active-set dump | **~100%** (the dump IS the dataset) |
-| PL | cbop | 22,068 | 22,068 active | **100%** |
-| FR | francetravail | 217,455 | 503,269 | **43.2%** |
-| BE | vdab | 12,282 | 232,944 | **5.3%** (28 tiles/page, no pagination) |
-| NL | adzuna | 4,956 | 190,607 | **2.6%** |
-| DE | ba | 10,000 | 10,000-listing window | **100% of window / ~0.5% of ~1.9M stock** |
-| DE | adzuna | 4,841 | 1,155,948 | **0.4%** |
-| NO | nav | 2,239 (window) | none published | n/a (event log, not a snapshot) |
+Written before `scripts/insights.py` existed and before any figure was computed, because a gate
+chosen after seeing whether it fires is not a gate. Everything below stands whichever way the
+figures fall.
 
-**Sufficiency for a main app push:**
+- **The trend gate: `TREND_MIN_SWEEPS = 14`, `TREND_MIN_SPAN_DAYS = 7`.** The span comes first
+  because it is the binding idea. A daily bucket's active stock is one point-in-time reading taken
+  at the last sweep in that day, so a day-over-day change is a single transition. Swedish postings
+  are published on working days, which means a Friday-to-Saturday reading moves for calendar
+  reasons and a Sunday-to-Monday reading moves the other way for the same reason. Seven days is
+  the shortest span that contains every weekday once, so it is the shortest record in which a
+  day-over-day claim can be read against data that holds its own counterexample. Below that the
+  observatory cannot distinguish "demand rose" from "Monday is bigger than Sunday", and stating
+  the former would be exactly the overstatement this increment must not make. The sweep count
+  follows from the span: 14 complete sweeps is two per day across those seven days, the weakest
+  cadence under which the last sweep of a bucket is plausibly near the end of that bucket, so two
+  adjacent daily readings are taken at comparable points in their days rather than at whatever
+  hour a single daily sweep happened to run. One sweep per day would satisfy the span while
+  comparing a 06:00 reading against a 23:00 one and calling the difference a day of demand.
+- **The trend rule reads the two most recent observed buckets and requires them to be adjacent. It
+  never searches backwards for an older pair that happens to be adjacent.** Skipping over a gap to
+  find a usable pair is the interpolation the guard forbids, wearing a different hat: it would
+  publish a transition from days ago as though it were the current movement, and the sentence would
+  be true of a period the reader is not looking at. A gap next to the newest bucket silences the
+  rule, full stop.
+- **`METHODOLOGY_VERSION` bumps to 1.3, pinned by a test.** The version claims to cover "the
+  definitions, mapping rules, and suppression rule described on this page", and this increment adds
+  published statements that are definitions in the only sense that matters: a median, a share, a
+  superlative, each with its own rule for when it appears and which denominator it carries. Under a
+  stale 1.2 a reader could not tell a page carrying those sentences from one that does not, which
+  is 13a's lesson (a rule change under a stale version) rather than 13b's exception (internal
+  metric work that publishes nothing). 1.2 published no derived sentence at all, so the bump is a
+  fact about the page and not a courtesy.
+- **No insight ever appears in a CSV export.** The CSV control serialises one table's `thead` and
+  `tbody`; a sentence is not a row and would have to invent a column to become one. Exports stay
+  tabular. Nothing is lost, because every insight is derived from the table it sits above, so the
+  CSV of that table already contains the numbers needed to reproduce the sentence.
+- **The precondition list the shared guard enforces, and the reason each one exists.**
+  1. **A stated, non-zero denominator.** A rule refuses when its denominator is absent, zero, or
+     not positive, and the denominator is interpolated into the sentence, so a sentence cannot
+     exist without one.
+  2. **Never read a suppressed cell.** `posting_flows` and `posting_survival` mask groups of 1 to 4
+     by publishing NULL, which arrives as `None`. Any `None` the rule needs disqualifies it. The
+     same treatment covers "never observed", which is also `None`, and both must be refusals: a
+     rule that could tell them apart would be reconstructing the masked value.
+  3. **One scope per sentence.** Every insight carries exactly one scope, and a rule handed rows
+     from two scopes returns `None` instead of pooling them. No sentence names two scopes, two
+     sources or two countries.
+  4. **A share's numerator cannot exceed its stated denominator.** A >100% share is a caller bug,
+     not a finding. This is not hypothetical: the skill column legitimately exceeds its
+     mapped-posting denominator because a posting is counted in every skill it asks for, so the
+     skill rule states a count against its denominator and must never turn it into a share.
+  5. **A duration claim states the closed-posting count and carries the right-censoring caveat**,
+     and refuses outright for a group flagged right-censored, because an open posting's duration is
+     a lower bound and a median of lower bounds is not a median duration.
+  6. **A trend claim** needs the two constants above, plus two adjacent most-recent observed
+     buckets with an unsuppressed value in each.
+  7. **Purity, so the rules are testable at all.** Rows in, `None` or `Insight(scope, text,
+     evidence)` out. No query, no file, no clock. Every numeric token in the text is in `evidence`
+     and in the rows it was built from, and a test proves that rather than trusting it.
 
-1. **Schema — byte-compatible, no code change needed.** Lab `observations.ndjson`
-   fields match the main app's `stg_postings.sql` column map exactly (including
-   the Increment-14 dimension keys), and manifests match
-   `stg_collection_manifests.sql`. The main app reads both via
-   `MANIFESTS_PATH`/`OBSERVATIONS_PATH` env vars and joins on
-   `source/scope_id/sweep_id/observed_at`, which align in every lab partition.
-2. **The single gate blocker is `accepted_values: [DE, SE]` on
-   `stg_postings.country` (`transform/models/staging/schema.yml:66`).** DE is
-   already eligible; SE is the main project's own JobTech lane. BE, CZ, FR, NL,
-   NO, PL (≈309k of 379k rows) would fail `dbt test` until the main checkout
-   widens the list — that is a main-project decision, explicitly out of this
-   lab's remit (plan §10, charter golden rule 8).
-3. **DE is pipeline-ready but not coverage-sufficient.** 14,841 distinct DE rows
-   ≈ 0.5% of the ~1.9M advertised stock; BA region mapping is 64.5% mapped
-   (6,448/10,000) with 358/400 NUTS 3 codes, and Adzuna DE is region
-   `not_present`. A DE-only push would pass the dbt gate today but is a windowed
-   sample with no coverage claim. The Increment 9 DoD (≥100,000 distinct DE
-   rows, ≥80% region mapped, ≥380/400 NUTS 3 codes) is the correct readiness
-   bar before "sufficient" is claimed.
-4. **Data trees are separate checkouts.** The main app reads its own
-   `data/raw/collections/jobtech/`; a push is an ingestion-side operation
-   (env-var override or copying partitions into the main tree), not a lab code
-   change.
+### 2026-08-24 - Increment 16, completion
 
-### 2026-08-24 — Increment 9 (BA Jobsuche segmented regional census) — code + live
+- **The trend gate fires or stays silent exactly as pre-registered: it stays silent.** The live
+  data has 8 complete sweeps against `TREND_MIN_SWEEPS = 14` and 3 observed daily buckets
+  (08-19 active 606, 08-20 615, 08-22 628) against a `TREND_MIN_SPAN_DAYS = 7` span, so the gate
+  fails on both counts before the rule ever looks at a pair of buckets. And the one adjacent pair
+  that does exist, 08-19 -> 08-20, is not the two most recent observed buckets, which are 08-20
+  and 08-22 separated by the 08-21 gap - so the adjacency clause would have silenced it too. No
+  trend sentence renders, and the reason is recorded here rather than implied.
+- **Every non-gated rule fired and every sentence states its denominator, byte-matched against
+  the tables beneath it.** Overview digest and section lines: "The latest complete sweep observed
+  628 active posting(s) on 2026-08-22"; "The most frequently mapped occupation is
+  IKT-systemutvecklare, in 382 of 520 mapped posting(s)"; "The most frequently mapped skill is
+  C++, asked for in 16 of 48 posting(s) with a mapped skill"; "Of 628 postings in the latest
+  sweep, 160 are permanent employment and 27 are fixed-term employment"; "Of 628 postings in the
+  latest sweep, 610 are full-time and 6 are part-time"; "The median observed duration is 1.0 days
+  across the 58 closed posting(s); postings still open are right-censored and are excluded."
+  Each number was verified against the live rows the sentence was built from: the occupation and
+  skill counts are the ranking's first row and the coverage denominator, the requirement counts
+  are the published `posting_count` values, the duration median and count are the one closed
+  basis (`inferred_absence`, 58 postings, median 1.0, not right-censored) with the caveat
+  appended.
+- **The rules that stayed silent, and why each one is silent.** The freshness/coverage warning is
+  silent because the live scope is `fresh` and `covered` - an absence of a warning is not itself
+  a finding. The trend rule is silent per the gate above. The fixture exercises the silence
+  branches the live data does not: a suppressed duration group, a missing fixed-term or part-time
+  bucket, a ranking tie, a count above its stated denominator, a gap next to the newest bucket,
+  and a second collecting scope all render nothing.
+- **`METHODOLOGY_VERSION` is 1.3, pinned by a test**, as pre-registered. 1.2 published no derived
+  sentence at all, and the version claims to cover "the definitions, mapping rules, and
+  suppression rule described on this page", so a page carrying insight sentences must not share a
+  version with one that does not. No insight text appears in any CSV export: the CSV control
+  serialises one table's rows, a sentence is not a row, and the table beneath each sentence
+  already holds the numbers needed to reproduce it.
+- **The traceability contract is a test, run over both the synthetic fixture and the live
+  partition rows.** `test_insight_traceability_every_number_appears_in_the_source_rows` asserts
+  that every numeric token in every generated sentence appears in the rows it was built from; a
+  re-run against the live `dev.duckdb` rows reports the same sentences and no missing token. The
+  contract also forced a wording choice worth recording: percentages are derived numbers the rows
+  cannot vouch for, so the employment and working-hours rules state the two counts and the total
+  and let the reader see the share - "160 permanent and 27 fixed-term of 628 postings", never a
+  percentage.
+- **Three carry-overs from the 13b review, closed.** (1) `tests/test_probe.py` now anchors the
+  vocabulary-guard block on `- {name: value_label`, the flow-style the schema actually writes,
+  instead of a `- name: value_label` that never matches and silently spanned the rest of the
+  file. (2) `scripts/evaluate.py`'s `_sole_exact` is gone; the tiebreak predicate now lives once,
+  as `enrich.sole_exact_match`, used by `enrich._mapping`, the collision census, and (indirectly)
+  the sample-coverage test, so there is no second copy to drift. (3) The three error-severity
+  `accepted_values` pins on `requirement_demand_latest.value_code` are now `severity: warn`,
+  because they run on the publish path against immutable partitions and a newly observed mapped
+  code must never hold up every republish while the pin catches up; the Python test still
+  requires the pinned list and the reference file to agree. The equality assertion was kept, not
+  relaxed to a subset, because a subset would let the pin lag while dbt silently blocked - the
+  worse failure mode.
+- **`make check` green at 70 Python tests** (seven added: the firing set with denominators, the
+  traceability contract, the one-scope sentence property, the unmet-precondition silence, the
+  freshness warning, the trend gate firing case, and the two-scope refusal; plus the 
+  `METHODOLOGY_VERSION` pin moved to 1.3) and **dbt PASS=190 WARN=0** unchanged, since the
+  severity change alters a test's config, not the resource count. `make live-site` runs 185 with
+  the fixture-tagged tests excluded, and `release_check` reports 0 problems on the live page,
+  including the two new rules: no empty insight paragraph, and the Overview digest present
+  whenever the page renders any insight.
 
-**Gate probes (~40 paced requests, live, zero 4xx):** verified the segment axes
-that the plan's predecessor assumed. The critical finding: **`wo=Landkreis+…`
-queries are broken** — `Landkreis+Kiel`, `Landkreis+München`, `Landkreis+Starnberg`,
-`Landkreis+Teltow-Fläming`, `Landkreis+Konstanz`, `Landkreis+Karlsruhe` all return
-the **same 7 postings labelled "Rosenheim"**. Compound `-Kreis` names also fail
-(`Rhein-Sieg-Kreis` → 25 Rüdesheim am Rhein items, wrong region). So the
-level-2 backbone is **municipality names + PLZ codes** from the crosswalk, not
-Kreis names. `umkreis=0` confirmed tight (different result set from the default
-radius) ⇒ **Tier 3 = `mapped`**. `veroeffentlichtseit` filter works (controlled
-A/B with different refs). No server-rendered total. Non-existent locations
-return empty (no silent national fallback). Crosswalk analysis: 10,085 unique
-municipality names (single NUTS 3), 397 ambiguous (all resolve via PLZ, each
-PLZ → single NUTS 3), 400/400 NUTS 3 covered by PLZ rows.
-
-**Code delivered:**
-- `scrapers/ba_segments.py` — Segment model, SegmentFrontier (keyed by
-  `(level, key)` to avoid Bundesland/municipality key collisions), `pending()`
-  with breadth-first region ordering (level 2 → level 0 → level 1 → level 3 →
-  level 4), `build_initial_frontier()` (16 Bundesländer, 3 city-states
-  pre-subdivided, 10,761 level-2 segments).
-- `scrapers/ba_jobsuche.py` — `BA_NON_GEOGRAPHIC_MARKERS` → `ambiguous`,
-  `BA_NUTS1_ALIASES` (qualifier→NUTS-1 prefix), `normalize_location()` shared
-  helper (Tier 1 qualifier strip/alias, Tier 2 segment-context disambiguation,
-  non-geographic → `ambiguous`); `GermanCrosswalk` extended with
-  `candidates_for_name()`, `municipality_names_by_nuts3()`,
-  `plz_rows_for_name()`, `plz_codes_for_nuts()`, `resolve_by_city_segmented()`;
-  `BAJobsucheCollector` extended with segmented mode (frontier, segment oracle,
-  truncation probe, subdivide, `_walk_segment`, `_fetch_segmented`); Tier 3
-  applied in `normalize()` when `segment_nuts3` present and `umkreis=0` →
-  `mapped/ba_segment_provenance_nuts3`, radius → `low_confidence`.
-- `main.py` — `--segmented/--max-segments/--min-level/--umkreis` flags,
-  `_ba_jobsuche_segmented()` factory, per-chunk timestamped sweep_id to avoid
-  partition overwrite on resume.
-- `Makefile` — `scrape-ba-segmented` / `check-ba-segmented`.
-- `tests/test_ba_segments.py` — 21 new respx tests (oracle, subdivision,
-  tiers, frontier, budget, dedupe, throttle, schema drift, PII, city-states).
-- `scripts/check_ba_segmented_readiness.py` — §9 DoD proof: loads all
-  `de-stock-segmented` partitions, reconciles manifests, asserts ≥85% mapped,
-  ≥390/400 NUTS 3, ≤5% unmapped, per-tier breakdown.
-- `SCRAPER_FEASIBILITY.md` — "BA Jobsuche — segmented stock" sub-row with all
-  probe results and the locked segment-key strategy.
-
-**Live evidence (two sessions, 63 bounded chunks of `--max-segments 40`):**
-65 partitions under `de-stock-segmented`, every one `status=complete` with
-matching `expected_pages == completed_pages` and `expected_rows == row_count`;
-**203,674 distinct rows** (deduped on HMAC source_id across partitions),
-**mapped 203,215 (99.77%), ambiguous 459 (the non-geographic markers —
-`Verschiedene Arbeitsorte` / `Deutschland` / `Bundesweit` — classified
-`ba_location_multiple`/`ba_location_nationwide`), unmapped 0, low_confidence 0**.
-**Per-tier breakdown: Tier 1 186,761 (city crosswalk + qualifier), Tier 2 2,284
-(segment-context disambiguation), Tier 3 14,170 (segment provenance)** — the
-inference is doing real work in production: 16,454 rows recovered from labels
-the crosswalk alone cannot resolve. PII scan of all NDJSON: **0 e-mails, 0 URLs,
-0 native refs, 0 PLZ, 0 city strings**. Zero unresolved 4xx; all throttles
-absorbed as `throttle_events` (45 s cooldown each). **München (DE212) truncated
-at the 400-page cap and was subdivided** into its crosswalk PLZ children with
-the segment marked `subdivided`; **zero truncated segments left unsubdivided**.
-Structural DoD holds at the session boundary: all Bundesländer complete or
-subdivided, all processed Kreise complete or subdivided. The frontier at
-`data/state/ba_segment_frontier.json` has **8,171 pending segments** (2,604
-complete, 4 subdivided) ready for the next session.
-
-**make check:** 410 tests passed (389 + 21), ruff + mypy strict + pytest green.
-
-**Next session:** run `make scrape-ba-segmented` with `--max-segments 40`
-repeatedly (foreground, serial, ~5–15 min per chunk; do NOT pass `--fresh`,
-which would discard the frontier) until `make check-ba-segmented` passes. The
-remaining ~8,171 segments are the level-2 backbone's tail (Bavaria regions,
-the DExx–DEGx states) plus the level-0 unscoped catch-all and level-1
-Bundesland probes that come after the backbone; Berlin and Hamburg will each
-truncate at 400 pages and subdivide like München. Remaining runtime is on the
-order of ~20 h at the measured ~10 chunks/hour; the frontier is durable and a
-reap loses at most one segment. Once `make check-ba-segmented` passes, the
-`de-stock-segmented` scope is push-ready for the main app (the only main-side
-blocker is `_verify_single_scope` — a multi-scope orchestration constraint,
-not a data-quality issue).
-
-**SUPERSEDED 2026-08-31 — do not follow the paragraph above.** The census was
-cancelled by the descoping decision (see P4 below): do not run
-`make scrape-ba-segmented`, do not pass `--fresh`, and never resume the
-`de-stock-segmented` scope — a long gap followed by resumption would record a
-mass fake `inferred_absence` closure spike downstream. The 8,171 pending
-frontier segments will never run; the stored partitions stand untouched.
-
-### 2026-08-31 — P4 (descoping decision: census cancelled, frozen NUTS-3 panel) — no code
-
-**Decision (user, 2026-08-31):** the German census is cancelled. The
-observatory's published views need breadth and repeat observations, not
-exhaustive counts — a top-25 region table, a per-sweep denominator, and
-flow/survival series keyed by scope. A one-shot census cannot populate the
-survival views at any size; only repeat sweeps of a frozen panel can.
-
-**Cancelled, not paused:** the ~8,171 pending municipality/PLZ frontier
-queries (~20+ h) will never run. A long gap followed by resumption of the same
-scope would record a mass fake `inferred_absence` closure spike downstream,
-because closures are inferred from any later sweep of the same scope. The 65
-stored `de-stock-segmented` partitions (203,674 rows, 99.77% mapped) stand
-untouched and that scope is never re-swept.
-
-**New plan for BA Jobsuche (replaces census completion; full detail in
-`SCRAPER_ROADMAP.md` Germany step 2b and `SCRAPER_FEASIBILITY.md`):**
-
-1. **Envelope probe FIRST, before building anything:** does the BA response
-   envelope carry a total-hits field? If yes, one request per region yields
-   exact regional counts and the whole map costs 400 requests. The outcome is
-   to be recorded in `SCRAPER_FEASIBILITY.md` (the 2026-08-24 probe found no
-   server-rendered `Treffer`/`Ergebnisse` node in the HTML; the envelope /
-   embedded SSR state is the open question).
-2. **Replace the municipality/PLZ frame with a 400-unit NUTS-3 frame.** The
-   destatis Kreise table in the reference crosswalk is the authoritative
-   AGS→NUTS 2024 key and covers all 400 GISCO NUTS-3 codes; VZ250 is for
-   municipality names only (it carries 7 stale Thuringian codes). Frame sizes
-   recorded for traceability: decision text 10,778 units; the lab frontier
-   held 10,761 level-2 segments.
-3. **Cap-as-scope honesty rule:** the within-stratum page cap must be encoded
-   in `scope_json` and stated in `coverage_limitations` ("stratified
-   region-bounded sample, not a census"), so `expected_pages ==
-   completed_pages` is true of the declared capped scope. A collector that
-   caps at k pages and writes k=k without declaring the cap passes every
-   downstream test while silently truncating — forbidden (now also in the
-   charter's manifest contract).
-4. **Frozen panel:** the query set must be byte-identical across sweeps, seed
-   recorded. Membership drift between sweeps fabricates closures and corrupts
-   survival durations.
-5. **Burst:** 400-query region probe, then ~5 daily sweeps of the frozen panel
-   (~30 min each, ~3 h total over a week), 1 s pacing per host, zero 4xx.
-
-**Acceptance criteria recorded:** sweep 1 covers ≥390 of 400 NUTS-3 regions;
-every sweep `status=complete` with `expected_pages == completed_pages` and
-`expected_rows == row_count`; panel membership hash identical across sweeps;
-zero failed requests.
-
-**Cuts recorded (roadmap + landscape):** StepStone (~1.5M postings, days of
-crawling; cross-source counts are never summed downstream, so a second DE
-source adds a non-additive column); Kimeta (grey-ToS HTML, same non-additive
-problem); Indeed (stays a charter never-build); other-country re-sweeps
-(conditional on the observatory's live-service budget only). BA census
-completion: cancelled, not deferred.
-
-**Constraints that still bind (restated, not weakened):** `make check` before
-`make sweep`; exactly one source per increment with a Definition-of-Done;
-Windows-safe sweep directory names (`YYYYMMDDTHHMMSSZ`); the PII ban (no
-names/emails/URLs/postcodes stored); HMAC pseudonymization; robots/ToS
-recorded as evidence in feasibility rows (gate relaxed for this private
-research project — evidence still mandatory); canary discipline for grey
-sources.
-
-**Cadence context:** the observatory may later run as a live service at
-weekly cadence (monthly only as a demand snapshot — survival resolution can
-never be finer than the sweep interval, and postings live ~30 days). The
-panel is designed for weekly re-sweep.
-
-Docs updated: `SCRAPERS.md` (scope decision + cap-as-scope contract rule),
-`SCRAPER_ROADMAP.md` (constraints block, census cancelled, step 2b panel plan
-with DoD, cuts, risk matrix, parallelization), `SCRAPER_SOURCE_LANDSCAPE.md`
-(cut annotations + BA status update), `SCRAPER_FEASIBILITY.md` (Germany
-programme table + segmented-stock descope and replacement plan), this log. No
-collector code, no sweeps, no stored partitions touched.
