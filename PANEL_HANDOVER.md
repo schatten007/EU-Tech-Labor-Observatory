@@ -264,3 +264,147 @@ Probe scripts kept as evidence for how the design was chosen:
 (`wo=` addressing forms), `scripts/probe_ba_resolve.py` (why tile postcodes are not
 a sound region key). Their findings are recorded in `SCRAPER_FEASIBILITY.md`
 (probes E1–E6); re-running them is not part of any sweep.
+
+---
+
+## 8. Data transfer: `data/handover/ba/`
+
+`data/raw/` is gitignored on both branches ("the irreplaceable asset lives outside
+git"), and this worktree is removed after the merge, so the German BA partitions
+would be lost. They are carried across as **compressed archives** under
+`data/handover/ba/`, which is the single narrow exception added to `.gitignore`:
+
+| Archive | Contents | Size | NDJSON rows |
+| --- | --- | --- | --- |
+| `de-nuts3-panel.zip` | 1 partition (3 files) — **the published scope** | 1.27 MB | 28,900 |
+| `de-stock-segmented.zip` | 65 partitions (130 files) — archived census | 9.08 MB | 203,674 |
+| `de-all-window.zip` | 1 partition (2 files) — archived window bound | 0.49 MB | 10,000 |
+
+Total 10.8 MB for 190 MB of raw NDJSON (~17× compression on this data). Sizes and
+`sha256` digests are recorded in `data/handover/ba/CHECKSUMS.json`; verify before
+extracting.
+
+### Restore into the main project
+
+```powershell
+# From the main checkout root, after the merge.
+Expand-Archive -Path data/handover/ba/de-nuts3-panel.zip `
+               -DestinationPath data/raw/collections/ba/de-nuts3-panel
+# Repeat per archive as needed. Verify the digests first:
+uv run --offline python -c "
+import hashlib, json
+from pathlib import Path
+want = json.loads(Path('data/handover/ba/CHECKSUMS.json').read_text())
+for name, meta in want.items():
+    got = hashlib.sha256(Path(f'data/handover/ba/{name}.zip').read_bytes()).hexdigest()
+    print(name, 'OK' if got == meta['sha256'] else 'MISMATCH')
+"
+```
+
+Each archive expands to `<sweep_id>/` directories containing
+`manifest.json` + `observations.ndjson` (+ `panel_regions.json` for the panel), so
+the restored layout is exactly `data/raw/collections/ba/<scope>/<sweep_id>/…` and
+needs no rewriting.
+
+**Rules that still apply after restore.** Restoring `de-stock-segmented` does not
+make it re-sweepable — it is cancelled, and §4 governs. Only
+`de-nuts3-panel` is published (§2). The archives are a **one-time transfer, not a
+backup policy**: once restored, treat `data/raw/` as the append-only private store
+it is on both branches, and do not keep adding archives to git.
+
+---
+
+## 9. Merge readiness (assessed 2026-09-03)
+
+The `scrapers` branch is 26 commits ahead of `main`, which is itself 7 commits
+ahead of the merge base `c9ade31`. Both sides moved, so this is a real merge, not a
+fast-forward.
+
+**Overlap is tiny.** Of the files each side changed since the merge base, exactly
+**one** is touched by both: `SESSIONS.md`. Main's 7 commits touch its own pipeline
+(`scripts/publish.py`, `scripts/insights.py`, `transform/models/**`,
+`tests/fixtures/**`, `README.md`, `data/sample/**`, two `data/reference` files) and
+none of the lab's files. The lab touches `scrapers/**`, `main.py`, `Makefile`,
+`pyproject.toml`, `uv.lock`, its five planning docs, `tests/test_*` for the
+collectors, and `data/reference/**` for the crosswalks.
+
+**One expected conflict: `SESSIONS.md`.** Both branches appended to their own
+session tables from a shared 304-line ancestor (main → 863 lines, lab → 1,221),
+which git cannot auto-merge. It is content-only and additive on both sides:
+resolve by keeping **both** sets of rows.
+
+**Three files the lab replaces wholesale, unchanged on main since the base** — so
+they merge cleanly but change behaviour in the main checkout:
+
+* `Makefile` — the lab version drops main's targets (`check` loses `evaluate` and
+  `dbt`; `sample`, `site`, `release-check`, `probe`, `sweep*`, `live-site` are
+  gone) and adds the `scrape-*` / `reference-*` / `check-ba-*` targets. **Merging
+  the lab Makefile as-is would break `make check`, `make sample`, and
+  `make release-check` in the main project.** The two files must be *combined*, not
+  taken from one side.
+* `pyproject.toml` and `uv.lock` — lab dependencies (`httpx`, `respx`,
+  `beautifulsoup4`, …) need to be unioned with main's, then the lock regenerated.
+* `SOURCE_FEASIBILITY.md` — deleted by the lab (deliberately: it recorded
+  decisions this lab does not inherit) but **still live on main**. A plain merge
+  deletes it from main. Decide explicitly; the safe default is to keep main's copy.
+
+`README.md` does not exist on the lab side at all, so main's version survives
+untouched. `.gitignore` was identical on both sides until this handover commit, so
+the exception added in §8 applies cleanly.
+
+### Guided merge
+
+Do this from the **main checkout**, not from this worktree, and on a branch — never
+straight onto `main`.
+
+```powershell
+# 1. From the main checkout root.
+git switch main
+git switch -c merge/scrapers-lab
+
+# 2. Merge without committing, so nothing lands before you have inspected it.
+git merge --no-commit --no-ff scrapers
+
+# 3. Expect exactly one conflict: SESSIONS.md. Confirm:
+git status --short
+git diff --name-only --diff-filter=U
+
+# 4. Resolve SESSIONS.md by keeping BOTH tables' rows (main's pipeline sessions
+#    and the lab's L0/1-9/P1-P5/2b rows). Then:
+git add SESSIONS.md
+
+# 5. Fix the three wholesale replacements BEFORE committing.
+#    Makefile: combine, do not take one side.
+git checkout main -- Makefile          # start from main's working targets
+#    then re-add the lab targets from the scrapers side by hand:
+git show scrapers:Makefile             # copy the scrape-*/reference-*/check-ba-* recipes
+
+#    pyproject.toml: union the dependency lists, then relock.
+git show main:pyproject.toml
+git show scrapers:pyproject.toml
+uv lock                                 # regenerate uv.lock after unioning
+
+#    SOURCE_FEASIBILITY.md: keep main's copy unless you decide otherwise.
+git checkout main -- SOURCE_FEASIBILITY.md
+
+# 6. Verify the combined result in the main checkout.
+make check                              # main's gate: lint types test evaluate dbt
+uv run --offline python -m pytest tests/test_ba_panel.py -q
+
+# 7. Only then commit.
+git commit
+```
+
+Post-merge, before publishing: restore the panel partition from
+`data/handover/ba/de-nuts3-panel.zip` (§8), then run the panel gate from the main
+checkout to confirm the data survived the transfer:
+
+```powershell
+uv run --offline python scripts/check_ba_panel_readiness.py
+```
+
+It must still print six PASS lines and the membership hash `545b162ec6e5fbdc…`.
+
+**Do not** cherry-pick a subset of the lab commits: the panel depends on the
+crosswalk reference, the collector, and the pinned artifact together, and a partial
+import produces a panel whose membership hash cannot be reproduced.
