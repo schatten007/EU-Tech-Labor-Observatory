@@ -24,11 +24,9 @@ than expanding the active increment.
 | 14 | 2026-08-22 | Complete; three dimensions published, one taxonomy code still unobserved | Publish employment type, working-hours type, and contract duration from three structured fields that are 100% present, mapped through a new hand-written reference to English labels. Every posting lands in exactly one row per dimension, so each published column sums to the sweep's 628 postings and `Not stated` is a visible row rather than a caveat; a new untagged assertion pins that on live partitions. Methodology version bumped to 1.2. | `make check && make sweep && make live-site && make release-check && make sample` passed |
 | 13b | 2026-08-23 | Complete; the tiebreak is scored, refusals counted, both readings published | Extend the review sample from 3 rows to 32 so it covers every concept the exact-match tiebreak decides in the published sweep - 13 occupation and 16 skill - each row recording whether its verdict was transcribed from 13a or re-judged here. `scripts/evaluate.py` scores a correct refusal as a true negative, keeps `precision`/`recall` textbook, and publishes strict and lenient figures for the five `narrower-or-broader` concepts side by side under a rule written down before the numbers. The collision census is reported and enforced nowhere. No sweep, no network, and no published figure moved. | `make check && make live-site && make release-check` passed |
 | 16 | 2026-08-24 | Complete; findings published, trend gate silent | State the findings instead of making the reader derive them: a pure stdlib inference layer (`scripts/insights.py`) renders a digest on Overview and one line at the top of the Occupations, Requirements, Survival, and Status sections, every sentence built from the tables beneath it with its denominator stated and every numeric token proven - by test - to appear in the source rows. Methodology bumped to 1.3 before the first insight rendered. The trend gate was pre-registered at N=14 sweeps / M=7 days and stays silent on 8 sweeps and 3 daily buckets with a gap at 08-21, exactly as pre-registered. Three 13b review carry-overs closed. | `make check && make live-site && make release-check` passed |
-<<<<<<< HEAD
 | 20-25 | 2026-08-31 | Planning only; scope decision recorded, Increment 18 cancelled | Record the sister scraper lab's descope of German collection from a full census to a stratified region-bounded sample, and replan the observatory's publishing work as Increments 20-25: widen the live globs, per-scope/country sections, a German breadth line, German occupation mapping, methodology 1.3 to 1.4, and an optional live service. Four earlier planning assumptions corrected against the checkout (no map, no mapped-share ratio, suppression not regional, no exhaustiveness test). No code, no sweep, no data. | Not run — markdown planning documents only |
 | 20 | 2026-09-01 | Complete; every stored source can now reach the page, and the next failure is the intended one | Widen the source segment of all three live globs at unchanged depth, so `make live-site` reads `data/raw/collections/*/*/*/` instead of `jobtech/*/*/`: the sweep count (`Makefile:29`) and the exported `OBSERVATIONS_PATH`/`MANIFESTS_PATH` (`Makefile:101-102`). Partition shape confirmed as `source/scope_id/sweep_id` before editing, so the segment count after `data/raw/collections/` is unchanged and the count is a depth check: 8 stored sweeps before, 8 after. `LIVE_READY` (`Makefile:30`) left byte-identical, so zero sweeps still fails the build instead of publishing an empty page. Makefile only — no collector, dbt, publisher, test or data change. | `make check && make live-site && make release-check` passed |
-=======
->>>>>>> scrapers
+| 20 (re-applied) | 2026-09-03 | Complete as code this time; the widened glob is committed, and the intended next failure turned out to be two earlier ones | Re-apply Increment 20, whose 2026-09-01 record survived a merge but whose Makefile edit did not: `git log -- Makefile` stopped at `c9ade31` and the commit claiming increment 20 (`1a2b6be`) touched only `.gitignore` and `SESSIONS.md`, so all three globs were still `jobtech/*/*/`. Widened the source segment only, at unchanged depth: `LIVE_SWEEPS` (`Makefile:30`) and the exported `OBSERVATIONS_PATH`/`MANIFESTS_PATH` (`Makefile:103-104`); `LIVE_READY` (`Makefile:31`) left byte-identical. Depth verified by count rather than by reading: the depth-3 glob resolves 9, which equals 8 `jobtech` + 1 `ba`, and the depth-4 glob resolves 0. `make` itself confirms it, printing `publishing from 9 stored sweeps`. Also resolved six committed merge-conflict markers in this file (two blocks, at the table and before the 2026-08-31 scope note); both kept HEAD and the `scrapers` side was empty, so only the marker lines were removed and no recorded line was lost. Makefile and SESSIONS.md only - no collector, dbt, publisher, test or data change. | `make check` green (ruff, mypy 62 files, **459 passed**, dbt PASS=190 WARN=0 ERROR=0). `make live-site` **red by design, but earlier than predicted**: it fails in `dbt build` (PASS=183 ERROR=2) before `scripts/publish.py` runs, so `_verify_single_scope` was never reached. `make release-check` not run - it builds on `site`, not `live-site`, and would only have re-tested the sample |
 
 
 ## Session Notes
@@ -915,7 +913,6 @@ figures fall.
   including the two new rules: no empty insight paragraph, and the Overview digest present
   whenever the page renders any insight.
 
-<<<<<<< HEAD
 ### 2026-08-31 - Scope decision: Germany is a sample, not a census
 
 Planning session. No code, no partitions, no data, no gate: only `FUNCTIONALITY_ROADMAP.md`,
@@ -1043,6 +1040,74 @@ no test, no partition moved. Both gate runs bracket the edit.
   described jobtech-only behaviour by implication; they now state that every collector's partitions
   are read, why the depth is fixed, and that the per-scope guard is the next barrier.
 
+### 2026-09-03 - Increment 20, re-applied (corrective)
 
-=======
->>>>>>> scrapers
+- **Why this note exists.** The 2026-09-01 entry above is accurate about intent and was left
+  untouched, but the repository never carried its code. Verified before editing anything:
+  `git log -- Makefile` stopped at `c9ade31`, an old collector commit, and `1a2b6be` - whose message
+  says "record ... and increment 20" - touched only `.gitignore` and `SESSIONS.md`. The Makefile
+  still globbed `data/raw/collections/jobtech/*/*/` in all three places. The edit was lost to a
+  checkout or reset around the scraper-lab merge, and nothing was cherry-pickable. The record
+  preceded the surviving edit; this note is the correction, not a rewrite.
+- **What was re-applied.** Exactly the three globs, source segment only, depth unchanged:
+  `LIVE_SWEEPS` (`Makefile:30`), and the two exported paths `OBSERVATIONS_PATH` and `MANIFESTS_PATH`
+  (`Makefile:103-104`). `LIVE_READY` (`Makefile:31`) is byte-identical, so an empty wildcard still
+  raises `no stored sweeps found` instead of publishing an empty page. The comment above
+  `LIVE_SWEEPS` (`Makefile:24-29`) and the `live-site` block (`Makefile:91-102`) now say that every
+  collector is read, why the depth is pinned at three segments, and that a second scope is expected
+  to fail loudly rather than be summed.
+- **Depth verified by counting, not by reading.** The depth-3 glob
+  `data/raw/collections/*/*/*/manifest.json` resolves **9**; per source that is **8** `jobtech` plus
+  **1** `ba`, which sums to 9, so the segment count after `data/raw/collections/` is unchanged. The
+  depth-4 equivalent resolves **0**, so nothing nested can be double-counted. `make -n live-site`
+  prints `publishing from 9 stored sweeps`, so make's own expansion agrees with the shell's. The
+  2026-09-01 expectation of "8 before, 8 after" is stale - it was written when only `jobtech/` was on
+  disk, and `ba/de-nuts3-panel/20260902T080422Z` has landed since.
+- **Merge damage repaired in this file.** `SESSIONS.md` carried six committed conflict markers in two
+  blocks - at the increment table and immediately before the 2026-08-31 scope note. In both blocks
+  the `scrapers` side was empty and HEAD held all the content, so the six marker lines were deleted
+  and nothing else. No recorded line was removed. It was the only tracked file with markers:
+  `git grep -c -E "^(<<<<<<<|=======|>>>>>>>)" HEAD` reported `SESSIONS.md:6` and nothing else.
+- **Gates, stated as run.** `make check` green before and after (ruff clean, mypy clean over 62
+  source files, **459 pytest passed**, dbt `PASS=190 WARN=0 ERROR=0`), fully offline. No test and no
+  `check` target was edited. `make release-check` was deliberately **not** run: it depends on `site`,
+  not `live-site`, so it would have re-tested the synthetic sample and told us nothing about the
+  widened glob.
+- **The predicted failure was wrong, and the measured one matters more.** `make live-site` is red, as
+  the 2026-09-01 note said it would be, but not where it said: it dies inside
+  `dbt build --exclude tag:sample_fixture` with `PASS=183 ERROR=2`, so `scripts/publish.py` never
+  starts and `_verify_single_scope` (`scripts/publish.py:756-772`) is never reached.
+  **Increment 21 is therefore blocked behind two dbt failures, both of them the German panel meeting
+  a pinned vocabulary for the first time.** Diagnosed against `data/dev.duckdb`, not guessed:
+  - `accepted_values_mapping_quality_latest_mapping_method`: the `de-nuts3-panel` scope emits **six**
+    methods absent from the list pinned at `transform/models/publish/schema.yml:153` -
+    `not_available_ba_html` (occupation / `not_present`, 28,900 outcomes),
+    `ba_city_municipality_nuts3` (22,575), `ba_city_qualifier_nuts3` (5,013),
+    `ba_segment_provenance_nuts3` (839), `ba_city_municipality_ambiguous` (region / `ambiguous`, 297)
+    and `ba_segment_disambiguated` (176). The pin behaved exactly as its comment
+    (`schema.yml:151-152`) says it should: an unaudited vocabulary cannot be published silently. The
+    fix is to extend the list deliberately, **never** to unpin it or lower its severity.
+  - `not_null_dimension_demand_latest_value_label`: **12** German NUTS-3 codes reach the page with a
+    null label, covering **839** postings - which is exactly the `ba_segment_provenance_nuts3` total,
+    so the two are the same defect seen twice. When the region is attributed from the panel segment's
+    own provenance rather than from the posting's city text, the collector wrote `nuts_code` and left
+    `nuts_label` null, and `dimension_demand_latest.sql:38` publishes that null straight through from
+    `stg_postings`. The codes are `DE937 DE403 DEB11 DE233 DE927 DEB35 DE273 DE943 DEE05 DEB3D DE938
+    DEE0C`.
+  - **The labels are recoverable in-repo, so this needs no re-sweep and no partition rewrite.**
+    `data/reference/germany_plz_nuts_2024.csv` carries `nuts_code` and `nuts_label` over **all 400**
+    distinct NUTS-3 codes from the destatis Anschriften source, and it resolves every one of the 12
+    (e.g. `DE937` -> `Rotenburg (Wuemme)`, `DEB11` -> `Koblenz, Kreisfreie Stadt`). The published
+    label is the Kreis name, not the panel's query seed - `DEF0B` publishes
+    `Rendsburg-Eckernfoerde` where the panel seeded the town `Eckernfoerde`, and `DE408` publishes
+    `Havelland` where the panel seeded `Brieselang` - so the backfill must join the reference, not
+    `data/reference/ba_panel_nuts3.json`. Since `data/raw/` is immutable, the coalesce belongs in the
+    transform or enrich layer.
+- **Measured while diagnosing, for Increment 22.** The panel's postings map to **393** distinct
+  NUTS-3 codes (381 labelled + 12 unlabelled) out of the 400-region frame. That is the count the
+  German breadth line should state - a count, never a share - once the 12 labels are filled.
+- **What this deliberately does not do.** No attempt to fix either dbt failure: extending a
+  deliberately pinned vocabulary and backfilling a label join are data-model decisions with their own
+  pinned tests, and folding them into a Makefile increment is how the 2026-09-01 edit got lost. No
+  collector, model, publisher, test or data file was touched, and nothing under `data/` was written.
+

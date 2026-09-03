@@ -22,7 +22,12 @@ STAMP = $(shell uv run --offline python -c "import datetime,os,re;t=os.environ.g
 REFERENCE_TIME = $(or $(STAMP),$(error could not resolve a valid UTC OBSERVATORY_REFERENCE_TIME; expected yyyy-mm-ddThh:mm:ssZ))
 
 # Expanded only inside the live-site recipe, so check and site never pay for the glob.
-LIVE_SWEEPS = $(wildcard data/raw/collections/jobtech/*/*/manifest.json)
+# Every collector, not just jobtech: the leading wildcard is the source segment, so a new collector
+# is published by storing a partition and needs no Makefile edit. The depth stays exactly three
+# segments (source/scope_id/sweep_id) because that is the stored shape; widening the depth instead
+# would match nested paths and silently double-count a sweep. The count printed by live-site must
+# equal the per-source counts summed - if it does not, the glob is wrong, not the count.
+LIVE_SWEEPS = $(wildcard data/raw/collections/*/*/*/manifest.json)
 LIVE_READY = $(if $(LIVE_SWEEPS),$(words $(LIVE_SWEEPS)),$(error no stored sweeps found; run make sweep before make live-site))
 
 .PHONY: check lint types test evaluate dbt sample site release-check probe sweep sweep-datait sweep-all reference live-site clean
@@ -84,6 +89,10 @@ reference:
 	uv run python -m scripts.build_reference
 
 # Offline preview of final, immutable live partitions only. This does not collect data.
+# All stored sources are read, not jobtech alone, and the depth is pinned to three segments for the
+# reason given above LIVE_SWEEPS. Publishing more than one scope is a separate concern: the page
+# still verifies its own scope assumptions, so a second scope is expected to fail publish loudly
+# rather than be summed into one ranking.
 # tag:sample_fixture is excluded because those tests are exact assertions about the synthetic
 # sample (its zero-row sweep, its stale scope, its closure and key-rotation timeline): on live
 # partitions they cannot fire, so running them would only claim coverage they do not give. Every
@@ -91,8 +100,8 @@ reference:
 # make exports the paths itself instead of the recipe setting them, because `set "VAR=value" &&`
 # is cmd.exe-only: under Git Bash's sh it sets positional parameters and silently leaves dbt
 # reading the synthetic sample while the page claims to be live.
-live-site: export OBSERVATIONS_PATH := data/raw/collections/jobtech/*/*/observations.ndjson
-live-site: export MANIFESTS_PATH := data/raw/collections/jobtech/*/*/manifest.json
+live-site: export OBSERVATIONS_PATH := data/raw/collections/*/*/*/observations.ndjson
+live-site: export MANIFESTS_PATH := data/raw/collections/*/*/*/manifest.json
 live-site: export OBSERVATORY_REFERENCE_TIME = $(REFERENCE_TIME)
 live-site:
 	@echo publishing from $(LIVE_READY) stored sweeps
