@@ -1,0 +1,20 @@
+{
+  "de-all-window": {
+    "bytes": 509217,
+    "files": 2,
+    "ndjson_rows": 10000,
+    "sha256": "cf64a545b3a8d25218f1843b349c3fec9e1689395a838e6498b56810a8806c18"
+  },
+  "de-nuts3-panel": {
+    "bytes": 1332922,
+    "files": 3,
+    "ndjson_rows": 28900,
+    "sha256": "f7a9da1f2dbbf200943b6a2df36cdb0eae26c6178cfaca529c9c621d25003463"
+  },
+  "de-stock-segmented": {
+    "bytes": 9516273,
+    "files": 130,
+    "ndjson_rows": 203674,
+    "sha256": "036ec5e934554a1b1aadbd9d464bb38c6e144a7332af7a09be21e6c5bbfda502"
+  }
+}

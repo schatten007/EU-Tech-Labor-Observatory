@@ -1,0 +1,4817 @@
+{
+  "entries": [
+    {
+      "form": "name",
+      "nuts_code": "DE111",
+      "value": "Stuttgart"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE112",
+      "value": "Böblingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE113",
+      "value": "Aichtal"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE114",
+      "value": "Göppingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE115",
+      "value": "Ludwigsburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE116",
+      "value": "Alfdorf"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE117",
+      "value": "Heilbronn"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE118",
+      "value": "Abstatt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE119",
+      "value": "Bretzfeld"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE11A",
+      "value": "Schwäbisch Hall"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE11B",
+      "value": "Assamstadt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE11C",
+      "value": "Dischingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE11D",
+      "value": "Aalen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE121",
+      "value": "Baden-Baden"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE122",
+      "value": "Karlsruhe"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE123",
+      "value": "Bad Schönborn"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE124",
+      "value": "Rastatt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE125",
+      "value": "Heidelberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE126",
+      "value": "Mannheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE127",
+      "value": "Adelsheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE128",
+      "value": "Altlußheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE129",
+      "value": "Pforzheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE12A",
+      "value": "Calw"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE12B",
+      "value": "Engelsbrand"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE12C",
+      "value": "Freudenstadt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE131",
+      "value": "Freiburg im Breisgau"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE132",
+      "value": "Auggen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE133",
+      "value": "Emmendingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE134",
+      "value": "Achern"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE135",
+      "value": "Rottweil"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE136",
+      "value": "Bad Dürrheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE137",
+      "value": "Tuttlingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE138",
+      "value": "Konstanz"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE139",
+      "value": "Lörrach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE13A",
+      "value": "Albbruck"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE141",
+      "value": "Reutlingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE142",
+      "value": "Tübingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE143",
+      "value": "Albstadt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE144",
+      "value": "Ulm"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE145",
+      "value": "Allmendingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE146",
+      "value": "Achstetten"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE147",
+      "value": "Bermatingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE148",
+      "value": "Ravensburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE149",
+      "value": "Sigmaringen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE211",
+      "value": "Ingolstadt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE212",
+      "value": "München"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE213",
+      "value": "Rosenheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE214",
+      "value": "Altötting"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE215",
+      "value": "Ainring"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE216",
+      "value": "Wolfratshausen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE217",
+      "value": "Dachau"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE218",
+      "value": "Ebersberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE219",
+      "value": "Eichstätt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21A",
+      "value": "Erding"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21B",
+      "value": "Freising"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21C",
+      "value": "Fürstenfeldbruck"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21D",
+      "value": "Garmisch-Partenkirchen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21E",
+      "value": "Landsberg am Lech"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21F",
+      "value": "Miesbach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21G",
+      "value": "Ampfing"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21H",
+      "value": "Aschheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21I",
+      "value": "Schrobenhausen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21J",
+      "value": "Baar-Ebenhausen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21K",
+      "value": "Albaching"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21L",
+      "value": "Starnberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21M",
+      "value": "Traunstein"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE21N",
+      "value": "Schongau"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE221",
+      "value": "Landshut"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE222",
+      "value": "Passau"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE223",
+      "value": "Straubing"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE224",
+      "value": "Deggendorf"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE225",
+      "value": "Freyung"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE226",
+      "value": "Kelheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE227",
+      "value": "Aham"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE228",
+      "value": "Aicha vorm Wald"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE229",
+      "value": "Regen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE22A",
+      "value": "Arnstorf"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE22B",
+      "value": "Bogen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE22C",
+      "value": "Dingolfing"
+    },
+    {
+      "form": "plz",
+      "nuts_code": "DE231",
+      "value": "92211"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE232",
+      "value": "Regensburg"
+    },
+    {
+      "form": "plz",
+      "nuts_code": "DE233",
+      "value": "92637"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE234",
+      "value": "Ammerthal"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE235",
+      "value": "Cham"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE236",
+      "value": "Berching"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE237",
+      "value": "Bechtsrieth"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE238",
+      "value": "Alteglofsheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE239",
+      "value": "Schwandorf"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE23A",
+      "value": "Tirschenreuth"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE241",
+      "value": "Bamberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE242",
+      "value": "Bayreuth"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE243",
+      "value": "Coburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE244",
+      "value": "Hof"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE245",
+      "value": "Baunach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE246",
+      "value": "Ahorntal"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE247",
+      "value": "Bad Rodach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE248",
+      "value": "Dormitz"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE249",
+      "value": "Bad Steben"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE24A",
+      "value": "Kronach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE24B",
+      "value": "Kulmbach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE24C",
+      "value": "Altenkunstadt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE24D",
+      "value": "Wunsiedel"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE251",
+      "value": "Ansbach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE252",
+      "value": "Erlangen"
+    },
+    {
+      "form": "plz",
+      "nuts_code": "DE253",
+      "value": "Fürth"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE254",
+      "value": "Nürnberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE255",
+      "value": "Schwabach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE256",
+      "value": "Arberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE257",
+      "value": "Adelsdorf"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE258",
+      "value": "Ammerndorf"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE259",
+      "value": "Burgthann"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE25A",
+      "value": "Bad Windsheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE25B",
+      "value": "Abenberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE25C",
+      "value": "Absberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE261",
+      "value": "Aschaffenburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE262",
+      "value": "Schweinfurt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE263",
+      "value": "Würzburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE264",
+      "value": "Bessenbach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE265",
+      "value": "Bad Kissingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE266",
+      "value": "Aubstadt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE267",
+      "value": "Aidhausen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE268",
+      "value": "Kitzingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE269",
+      "value": "Miltenberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE26A",
+      "value": "Bischbrunn"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE26B",
+      "value": "Bergrheinfeld"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE26C",
+      "value": "Altertheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE271",
+      "value": "Augsburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE272",
+      "value": "Kaufbeuren"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE273",
+      "value": "Kempten (Allgäu)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE274",
+      "value": "Memmingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE275",
+      "value": "Friedberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE276",
+      "value": "Allmannshofen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE277",
+      "value": "Aislingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE278",
+      "value": "Günzburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE279",
+      "value": "Neu-Ulm"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE27A",
+      "value": "Lindau (Bodensee)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE27B",
+      "value": "Aitrang"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE27C",
+      "value": "Apfeltrach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE27D",
+      "value": "Alerheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE27E",
+      "value": "Altusried"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE300",
+      "value": "Berlin"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE401",
+      "value": "Brandenburg an der Havel"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE402",
+      "value": "Cottbus"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE403",
+      "value": "Frankfurt (Oder)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE404",
+      "value": "Potsdam"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE405",
+      "value": "Althüttendorf"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE406",
+      "value": "Alt Zauche-Wußwerk"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE407",
+      "value": "Bad Liebenwerda"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE408",
+      "value": "Brieselang"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE409",
+      "value": "Alt Tucheband"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE40A",
+      "value": "Birkenwerder"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE40B",
+      "value": "Altdöbern"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE40C",
+      "value": "Bad Saarow"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE40D",
+      "value": "Dabergotz"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE40E",
+      "value": "Bad Belzig"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE40F",
+      "value": "Bad Wilsnack"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE40G",
+      "value": "Burg (Spreewald)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE40H",
+      "value": "Am Mellensee"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE40I",
+      "value": "Angermünde"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE501",
+      "value": "Bremen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE502",
+      "value": "Bremerhaven"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE600",
+      "value": "Hamburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE711",
+      "value": "Darmstadt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE712",
+      "value": "Frankfurt am Main"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE713",
+      "value": "Offenbach am Main"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE714",
+      "value": "Wiesbaden"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE715",
+      "value": "Abtsteinach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE716",
+      "value": "Dieburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE717",
+      "value": "Groß-Gerau"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE718",
+      "value": "Grävenwiesbach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE719",
+      "value": "Bad Orb"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE71A",
+      "value": "Bad Soden am Taunus"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE71B",
+      "value": "Bad König"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE71C",
+      "value": "Dietzenbach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE71D",
+      "value": "Aarbergen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE71E",
+      "value": "Bad Nauheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE721",
+      "value": "Gießen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE722",
+      "value": "Aßlar"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE723",
+      "value": "Weilburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE724",
+      "value": "Biedenkopf"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE725",
+      "value": "Alsfeld"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE731",
+      "value": "Kassel"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE732",
+      "value": "Fulda"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE733",
+      "value": "Alheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE734",
+      "value": "Ahnatal"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE735",
+      "value": "Bad Zwesten"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE736",
+      "value": "Allendorf (Eder)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE737",
+      "value": "Bad Sooden-Allendorf"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE803",
+      "value": "Rostock"
+    },
+    {
+      "form": "plz",
+      "nuts_code": "DE804",
+      "value": "19053"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE80J",
+      "value": "Alt Schwerin"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE80K",
+      "value": "Admannshagen-Bargeshagen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE80L",
+      "value": "Ahrenshagen-Daskow"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE80M",
+      "value": "Bad Kleinen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE80N",
+      "value": "Greifswald"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE80O",
+      "value": "Ludwigslust"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE911",
+      "value": "Braunschweig"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE912",
+      "value": "Salzgitter"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE913",
+      "value": "Wolfsburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE914",
+      "value": "Gifhorn"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE916",
+      "value": "Goslar"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE917",
+      "value": "Helmstedt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE918",
+      "value": "Northeim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE91A",
+      "value": "Peine"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE91B",
+      "value": "Wolfenbüttel"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE91C",
+      "value": "Göttingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE922",
+      "value": "Diepholz"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE923",
+      "value": "Hameln"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE925",
+      "value": "Hildesheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE926",
+      "value": "Holzminden"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE927",
+      "value": "Nienburg (Weser)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE928",
+      "value": "Apelern"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE929",
+      "value": "Hannover"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE931",
+      "value": "Celle"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE932",
+      "value": "Cuxhaven"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE933",
+      "value": "Appel"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE934",
+      "value": "Clenze"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE935",
+      "value": "Lüneburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE936",
+      "value": "Axstedt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE937",
+      "value": "Rotenburg (Wümme)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE938",
+      "value": "Ahlden (Aller)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE939",
+      "value": "Stade"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE93A",
+      "value": "Uelzen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE93B",
+      "value": "Blender"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE941",
+      "value": "Delmenhorst"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE942",
+      "value": "Emden"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE943",
+      "value": "Oldenburg (Oldb)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE944",
+      "value": "Osnabrück"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE945",
+      "value": "Wilhelmshaven"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE946",
+      "value": "Apen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE947",
+      "value": "Aurich"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE948",
+      "value": "Cloppenburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE949",
+      "value": "Andervenne"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE94A",
+      "value": "Jever"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE94B",
+      "value": "Bad Bentheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE94C",
+      "value": "Borkum"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE94D",
+      "value": "Beckeln"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE94E",
+      "value": "Alfhausen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE94F",
+      "value": "Vechta"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE94G",
+      "value": "Berne"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DE94H",
+      "value": "Wittmund"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA11",
+      "value": "Düsseldorf"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA12",
+      "value": "Duisburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA13",
+      "value": "Essen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA14",
+      "value": "Krefeld"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA15",
+      "value": "Mönchengladbach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA16",
+      "value": "Mülheim an der Ruhr"
+    },
+    {
+      "form": "plz",
+      "nuts_code": "DEA17",
+      "value": "46045"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA18",
+      "value": "Remscheid"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA19",
+      "value": "Solingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA1A",
+      "value": "Wuppertal"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA1B",
+      "value": "Bedburg-Hau"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA1C",
+      "value": "Mettmann"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA1D",
+      "value": "Neuss"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA1E",
+      "value": "Viersen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA1F",
+      "value": "Alpen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA22",
+      "value": "Bonn"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA23",
+      "value": "Köln"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA24",
+      "value": "Leverkusen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA26",
+      "value": "Düren"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA27",
+      "value": "Bedburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA28",
+      "value": "Euskirchen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA29",
+      "value": "Heinsberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA2A",
+      "value": "Bergneustadt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA2B",
+      "value": "Bergisch Gladbach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA2C",
+      "value": "Alfter"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA2D",
+      "value": "Aachen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA31",
+      "value": "Bottrop"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA32",
+      "value": "Gelsenkirchen"
+    },
+    {
+      "form": "plz",
+      "nuts_code": "DEA33",
+      "value": "48143"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA34",
+      "value": "Borken"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA35",
+      "value": "Coesfeld"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA36",
+      "value": "Recklinghausen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA37",
+      "value": "Steinfurt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA38",
+      "value": "Warendorf"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA41",
+      "value": "Bielefeld"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA42",
+      "value": "Gütersloh"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA43",
+      "value": "Herford"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA44",
+      "value": "Höxter"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA45",
+      "value": "Augustdorf"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA46",
+      "value": "Lübbecke"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA47",
+      "value": "Paderborn"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA51",
+      "value": "Bochum"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA52",
+      "value": "Dortmund"
+    },
+    {
+      "form": "plz",
+      "nuts_code": "DEA53",
+      "value": "58095"
+    },
+    {
+      "form": "plz",
+      "nuts_code": "DEA54",
+      "value": "59065"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA55",
+      "value": "Herne"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA56",
+      "value": "Breckerfeld"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA57",
+      "value": "Arnsberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA58",
+      "value": "Altena"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA59",
+      "value": "Olpe"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA5A",
+      "value": "Siegen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA5B",
+      "value": "Soest"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEA5C",
+      "value": "Unna"
+    },
+    {
+      "form": "plz",
+      "nuts_code": "DEB11",
+      "value": "56068"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB12",
+      "value": "Adenau"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB13",
+      "value": "Altenkirchen (Westerwald)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB14",
+      "value": "Bad Kreuznach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB15",
+      "value": "Allenbach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB17",
+      "value": "Mayen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB18",
+      "value": "Neuwied"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB1A",
+      "value": "Altendiez"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB1B",
+      "value": "Ailertchen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB1C",
+      "value": "Cochem"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB1D",
+      "value": "Alterkülz"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB21",
+      "value": "Trier"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB22",
+      "value": "Wittlich"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB23",
+      "value": "Bitburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB24",
+      "value": "Beinhausen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB25",
+      "value": "Saarburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB31",
+      "value": "Frankenthal (Pfalz)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB32",
+      "value": "Kaiserslautern"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB33",
+      "value": "Landau in der Pfalz"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB34",
+      "value": "Ludwigshafen am Rhein"
+    },
+    {
+      "form": "plz",
+      "nuts_code": "DEB35",
+      "value": "55116"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB36",
+      "value": "Neustadt an der Weinstraße"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB37",
+      "value": "Pirmasens"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB38",
+      "value": "Speyer"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB39",
+      "value": "Worms"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB3A",
+      "value": "Zweibrücken"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB3B",
+      "value": "Alzey"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB3C",
+      "value": "Bad Dürkheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB3D",
+      "value": "Albisheim (Pfrimm)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB3E",
+      "value": "Germersheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB3F",
+      "value": "Bann"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB3G",
+      "value": "Kusel"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB3H",
+      "value": "Albersweiler"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB3I",
+      "value": "Altrip"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB3J",
+      "value": "Appenheim"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEB3K",
+      "value": "Bobenthal"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEC01",
+      "value": "Saarbrücken"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEC02",
+      "value": "Merzig"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEC03",
+      "value": "Eppelborn"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEC04",
+      "value": "Saarlouis"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEC05",
+      "value": "Bexbach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEC06",
+      "value": "St. Wendel"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DED21",
+      "value": "Dresden"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DED2C",
+      "value": "Bautzen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DED2D",
+      "value": "Görlitz"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DED2E",
+      "value": "Meißen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DED2F",
+      "value": "Altenberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DED41",
+      "value": "Chemnitz"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DED42",
+      "value": "Amtsberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DED43",
+      "value": "Altmittweida"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DED44",
+      "value": "Bad Brambach"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DED45",
+      "value": "Zwickau"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DED51",
+      "value": "Leipzig"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DED52",
+      "value": "Bad Lausick"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DED53",
+      "value": "Bad Düben"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE01",
+      "value": "Dessau-Roßlau"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE02",
+      "value": "Halle (Saale)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE03",
+      "value": "Magdeburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE04",
+      "value": "Salzwedel"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE05",
+      "value": "Aken (Elbe)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE06",
+      "value": "Biederitz"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE07",
+      "value": "Am Großen Bruch"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE08",
+      "value": "An der Poststraße"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE09",
+      "value": "Ballenstedt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE0A",
+      "value": "Mansfeld"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE0B",
+      "value": "Bad Dürrenberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE0C",
+      "value": "Alsleben (Saale)"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE0D",
+      "value": "Stendal"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEE0E",
+      "value": "Annaburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF01",
+      "value": "Flensburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF02",
+      "value": "Kiel"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF03",
+      "value": "Lübeck"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF04",
+      "value": "Neumünster"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF05",
+      "value": "Arkebek"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF06",
+      "value": "Albsfelde"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF07",
+      "value": "Achtrup"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF08",
+      "value": "Ahrensbök"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF09",
+      "value": "Pinneberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF0A",
+      "value": "Plön"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF0B",
+      "value": "Eckernförde"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF0C",
+      "value": "Schleswig"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF0D",
+      "value": "Alveslohe"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF0E",
+      "value": "Altenmoor"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEF0F",
+      "value": "Ahrensburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG01",
+      "value": "Erfurt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG02",
+      "value": "Gera"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG03",
+      "value": "Jena"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG05",
+      "value": "Weimar"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG06",
+      "value": "Am Ohmberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG07",
+      "value": "Nordhausen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG09",
+      "value": "Bad Langensalza"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0A",
+      "value": "Abtsbessingen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0C",
+      "value": "Gotha"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0D",
+      "value": "Sömmerda"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0E",
+      "value": "Hildburghausen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0G",
+      "value": "Am Ettersberg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0J",
+      "value": "Altenberga"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0K",
+      "value": "Bad Lobenstein"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0L",
+      "value": "Greiz"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0M",
+      "value": "Altenburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0Q",
+      "value": "Meiningen"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0R",
+      "value": "Amt Creuzburg"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0S",
+      "value": "Suhl"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0T",
+      "value": "Alkersleben"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0U",
+      "value": "Rudolstadt"
+    },
+    {
+      "form": "name",
+      "nuts_code": "DEG0V",
+      "value": "Sonneberg"
+    }
+  ],
+  "evidence": {
+    "candidate_order": "seat town, towns by postcode count, unambiguous postcodes, ambiguous seat name as last resort",
+    "evidence_reused": 268,
+    "per_region": {
+      "DE111": {
+        "advertised": 7202,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Stuttgart",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE112": {
+        "advertised": 652,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Böblingen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE113": {
+        "advertised": 34,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aichtal",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE114": {
+        "advertised": 635,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Göppingen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE115": {
+        "advertised": 1096,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Ludwigsburg, Württemberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE116": {
+        "advertised": 48,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alfdorf",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE117": {
+        "advertised": 1734,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Heilbronn, Neckar",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE118": {
+        "advertised": 43,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Abstatt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE119": {
+        "advertised": 95,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bretzfeld",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE11A": {
+        "advertised": 1035,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Schwäbisch Hall",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE11B": {
+        "advertised": 39,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Assamstadt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE11C": {
+        "advertised": 38,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Dischingen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE11D": {
+        "advertised": 951,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aalen, Württemberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE121": {
+        "advertised": 861,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Baden-Baden",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE122": {
+        "advertised": 4120,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Karlsruhe, Baden",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE123": {
+        "advertised": 104,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Schönborn",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE124": {
+        "advertised": 636,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Rastatt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE125": {
+        "advertised": 1830,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Heidelberg, Neckar",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE126": {
+        "advertised": 4196,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Mannheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE127": {
+        "advertised": 37,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Adelsheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE128": {
+        "advertised": 49,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Altlußheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE129": {
+        "advertised": 1360,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Pforzheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE12A": {
+        "advertised": 250,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Calw",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE12B": {
+        "advertised": 14,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Engelsbrand",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE12C": {
+        "advertised": 296,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Freudenstadt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE131": {
+        "advertised": 2580,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Freiburg im Breisgau",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE132": {
+        "advertised": 5,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Auggen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE133": {
+        "advertised": 230,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Emmendingen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE134": {
+        "advertised": 457,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Achern, Baden",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE135": {
+        "advertised": 477,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Rottweil",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE136": {
+        "advertised": 136,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Dürrheim, Schwarzwald",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE137": {
+        "advertised": 538,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Tuttlingen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE138": {
+        "advertised": 895,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Konstanz",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE139": {
+        "advertised": 686,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Lörrach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE13A": {
+        "advertised": 46,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Albbruck",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE141": {
+        "advertised": 1087,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Reutlingen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE142": {
+        "advertised": 827,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Tübingen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE143": {
+        "advertised": 343,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Albstadt, Württemberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE144": {
+        "advertised": 3067,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ulm, Donau",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE145": {
+        "advertised": 29,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Allmendingen, Württemberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE146": {
+        "advertised": 67,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Achstetten",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE147": {
+        "advertised": 31,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bermatingen, Baden",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE148": {
+        "advertised": 955,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Ravensburg, Württemberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE149": {
+        "advertised": 272,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Sigmaringen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE211": {
+        "advertised": 1505,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ingolstadt, Donau",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE212": {
+        "advertised": 15166,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "München",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE213": {
+        "advertised": 950,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Rosenheim, Oberbayern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE214": {
+        "advertised": 164,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Altötting",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE215": {
+        "advertised": 83,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ainring",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE216": {
+        "advertised": 310,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Wolfratshausen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE217": {
+        "advertised": 388,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Dachau",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE218": {
+        "advertised": 158,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Ebersberg, Oberbayern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE219": {
+        "advertised": 119,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Eichstätt, Bayern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21A": {
+        "advertised": 497,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Erding",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21B": {
+        "advertised": 603,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Freising, Oberbayern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21C": {
+        "advertised": 433,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Fürstenfeldbruck",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21D": {
+        "advertised": 304,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Garmisch-Partenkirchen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21E": {
+        "advertised": 518,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Landsberg am Lech",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21F": {
+        "advertised": 111,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Miesbach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21G": {
+        "advertised": 75,
+        "candidate_rank": 1,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ampfing",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21H": {
+        "advertised": 175,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aschheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21I": {
+        "advertised": 316,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Schrobenhausen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21J": {
+        "advertised": 40,
+        "candidate_rank": 1,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Baar-Ebenhausen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21K": {
+        "advertised": 4,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Albaching",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21L": {
+        "advertised": 321,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Starnberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21M": {
+        "advertised": 348,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Traunstein, Oberbayern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE21N": {
+        "advertised": 224,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Schongau",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE221": {
+        "advertised": 962,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Landshut, Isar",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE222": {
+        "advertised": 696,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Passau",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE223": {
+        "advertised": 801,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Straubing",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE224": {
+        "advertised": 596,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Deggendorf",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE225": {
+        "advertised": 119,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Freyung, Niederbayern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE226": {
+        "advertised": 231,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Kelheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE227": {
+        "advertised": 3,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Aham, Vils",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE228": {
+        "advertised": 20,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aicha vorm Wald",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE229": {
+        "advertised": 174,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Regen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE22A": {
+        "advertised": 135,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Arnstorf",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE22B": {
+        "advertised": 144,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Bogen, Niederbayern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE22C": {
+        "advertised": 316,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Dingolfing",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE231": {
+        "advertised": 0,
+        "candidate_rank": 0,
+        "evidence": "no-candidate-resolved"
+      },
+      "DE232": {
+        "advertised": 3071,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Regensburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE233": {
+        "advertised": 701,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "92637",
+        "search_mode": "PLZSUCHE"
+      },
+      "DE234": {
+        "advertised": 11,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ammerthal, Oberpfalz",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE235": {
+        "advertised": 530,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Cham, Oberpfalz",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE236": {
+        "advertised": 81,
+        "candidate_rank": 1,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Berching",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE237": {
+        "advertised": 7,
+        "candidate_rank": 2,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Bechtsrieth",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE238": {
+        "advertised": 10,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alteglofsheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE239": {
+        "advertised": 498,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Schwandorf, Bayern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE23A": {
+        "advertised": 88,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Tirschenreuth",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE241": {
+        "advertised": 1168,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bamberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE242": {
+        "advertised": 1470,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bayreuth",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE243": {
+        "advertised": 753,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Coburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE244": {
+        "advertised": 773,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Hof, Saale",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE245": {
+        "advertised": 40,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Baunach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE246": {
+        "advertised": 8,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ahorntal",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE247": {
+        "advertised": 83,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Rodach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE248": {
+        "advertised": 3,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Dormitz",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE249": {
+        "advertised": 31,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Steben",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE24A": {
+        "advertised": 230,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Kronach, Oberfranken",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE24B": {
+        "advertised": 471,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Kulmbach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE24C": {
+        "advertised": 43,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Altenkunstadt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE24D": {
+        "advertised": 146,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Wunsiedel",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE251": {
+        "advertised": 706,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ansbach, Mittelfranken",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE252": {
+        "advertised": 2217,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Erlangen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE253": {
+        "advertised": 1468,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Fürth, Bayern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE254": {
+        "advertised": 7426,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Nürnberg, Mittelfranken",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE255": {
+        "advertised": 564,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Schwabach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE256": {
+        "advertised": 7,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Arberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE257": {
+        "advertised": 73,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Adelsdorf, Mittelfranken",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE258": {
+        "advertised": 5,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ammerndorf",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE259": {
+        "advertised": 48,
+        "candidate_rank": 2,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Burgthann",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE25A": {
+        "advertised": 200,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Windsheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE25B": {
+        "advertised": 55,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Abenberg, Mittelfranken",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE25C": {
+        "advertised": 12,
+        "candidate_rank": 1,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Absberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE261": {
+        "advertised": 1031,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aschaffenburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE262": {
+        "advertised": 1080,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Schweinfurt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE263": {
+        "advertised": 2530,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Würzburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE264": {
+        "advertised": 62,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Bessenbach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE265": {
+        "advertised": 452,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Bad Kissingen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE266": {
+        "advertised": 2,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aubstadt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE267": {
+        "advertised": 2,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aidhausen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE268": {
+        "advertised": 440,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Kitzingen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE269": {
+        "advertised": 131,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Miltenberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE26A": {
+        "advertised": 11,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Bischbrunn",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE26B": {
+        "advertised": 44,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bergrheinfeld",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE26C": {
+        "advertised": 2,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Altertheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE271": {
+        "advertised": 3617,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Augsburg, Bayern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE272": {
+        "advertised": 573,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Kaufbeuren",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE273": {
+        "advertised": 1036,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Kempten (Allgäu)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE274": {
+        "advertised": 1166,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Memmingen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE275": {
+        "advertised": 246,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Friedberg, Bayern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE276": {
+        "advertised": 2,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Allmannshofen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE277": {
+        "advertised": 11,
+        "candidate_rank": 1,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aislingen, Schwaben",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE278": {
+        "advertised": 556,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Günzburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE279": {
+        "advertised": 816,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Neu-Ulm",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE27A": {
+        "advertised": 542,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Lindau (Bodensee)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE27B": {
+        "advertised": 27,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aitrang",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE27C": {
+        "advertised": 3,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Apfeltrach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE27D": {
+        "advertised": 10,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alerheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE27E": {
+        "advertised": 99,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Altusried",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE300": {
+        "advertised": 26612,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Berlin",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE401": {
+        "advertised": 927,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Brandenburg an der Havel",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE402": {
+        "advertised": 1220,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Cottbus",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE403": {
+        "advertised": 556,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Frankfurt (Oder)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE404": {
+        "advertised": 1871,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Potsdam",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE405": {
+        "advertised": 4,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Althüttendorf",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE406": {
+        "advertised": 4,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alt Zauche-Wußwerk",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE407": {
+        "advertised": 128,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Liebenwerda",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE408": {
+        "advertised": 109,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Brieselang",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE409": {
+        "advertised": 1,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alt Tucheband",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE40A": {
+        "advertised": 41,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Birkenwerder",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE40B": {
+        "advertised": 18,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Altdöbern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE40C": {
+        "advertised": 84,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Saarow",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE40D": {
+        "advertised": 6,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Dabergotz",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE40E": {
+        "advertised": 130,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Belzig",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE40F": {
+        "advertised": 56,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Wilsnack",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE40G": {
+        "advertised": 118,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Burg (Spreewald)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE40H": {
+        "advertised": 26,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Am Mellensee",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE40I": {
+        "advertised": 85,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Angermünde",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE501": {
+        "advertised": 8184,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bremen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE502": {
+        "advertised": 1768,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bremerhaven",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE600": {
+        "advertised": 18903,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Hamburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE711": {
+        "advertised": 2132,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Darmstadt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE712": {
+        "advertised": 9460,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Frankfurt am Main",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE713": {
+        "advertised": 1009,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Offenbach am Main",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE714": {
+        "advertised": 2464,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Wiesbaden",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE715": {
+        "advertised": 9,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Abtsteinach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE716": {
+        "advertised": 302,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Dieburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE717": {
+        "advertised": 279,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Groß-Gerau",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE718": {
+        "advertised": 25,
+        "candidate_rank": 2,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Grävenwiesbach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE719": {
+        "advertised": 97,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Orb",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE71A": {
+        "advertised": 73,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Soden am Taunus",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE71B": {
+        "advertised": 47,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad König",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE71C": {
+        "advertised": 374,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Dietzenbach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE71D": {
+        "advertised": 29,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aarbergen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE71E": {
+        "advertised": 297,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Nauheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE721": {
+        "advertised": 1114,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Gießen, Lahn",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE722": {
+        "advertised": 153,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aßlar",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE723": {
+        "advertised": 136,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Weilburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE724": {
+        "advertised": 127,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Biedenkopf",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE725": {
+        "advertised": 196,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alsfeld",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE731": {
+        "advertised": 3768,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Kassel, Hessen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE732": {
+        "advertised": 1120,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Fulda",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE733": {
+        "advertised": 9,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE734": {
+        "advertised": 17,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ahnatal",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE735": {
+        "advertised": 13,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Zwesten",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE736": {
+        "advertised": 184,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Allendorf (Eder)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE737": {
+        "advertised": 65,
+        "candidate_rank": 1,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Sooden-Allendorf",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE803": {
+        "advertised": 2950,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Rostock",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE804": {
+        "advertised": 381,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "19053",
+        "search_mode": "PLZSUCHE"
+      },
+      "DE80J": {
+        "advertised": 9,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alt Schwerin",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE80K": {
+        "advertised": 27,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Admannshagen-Bargeshagen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE80L": {
+        "advertised": 24,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ahrenshagen-Daskow",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE80M": {
+        "advertised": 13,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Bad Kleinen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE80N": {
+        "advertised": 677,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Greifswald, Hansestadt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE80O": {
+        "advertised": 223,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Ludwigslust, Mecklenburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE911": {
+        "advertised": 2738,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Braunschweig",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE912": {
+        "advertised": 1236,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Salzgitter",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE913": {
+        "advertised": 1385,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Wolfsburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE914": {
+        "advertised": 415,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Gifhorn",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE916": {
+        "advertised": 558,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Goslar",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE917": {
+        "advertised": 299,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Helmstedt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE918": {
+        "advertised": 381,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Northeim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE91A": {
+        "advertised": 533,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Peine",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE91B": {
+        "advertised": 440,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Wolfenbüttel, Niedersachsen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE91C": {
+        "advertised": 1624,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Göttingen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE922": {
+        "advertised": 299,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Diepholz",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE923": {
+        "advertised": 719,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Hameln",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE925": {
+        "advertised": 1281,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Hildesheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE926": {
+        "advertised": 292,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Holzminden",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE927": {
+        "advertised": 498,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Nienburg (Weser)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE928": {
+        "advertised": 5,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Apelern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE929": {
+        "advertised": 7409,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Hannover",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE931": {
+        "advertised": 932,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Celle",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE932": {
+        "advertised": 648,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Cuxhaven",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE933": {
+        "advertised": 8,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Appel, Nordheide",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE934": {
+        "advertised": 25,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Clenze",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE935": {
+        "advertised": 1177,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Lüneburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE936": {
+        "advertised": 4,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Axstedt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE937": {
+        "advertised": 461,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Rotenburg (Wümme)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE938": {
+        "advertised": 8,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ahlden (Aller)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE939": {
+        "advertised": 909,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Stade, Niederelbe",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE93A": {
+        "advertised": 735,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Uelzen, Lüneburger Heide",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE93B": {
+        "advertised": 8,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Blender",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE941": {
+        "advertised": 763,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Delmenhorst",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE942": {
+        "advertised": 775,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Emden, Ostfriesland",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE943": {
+        "advertised": 2441,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Oldenburg (Oldb)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE944": {
+        "advertised": 2668,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Osnabrück",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE945": {
+        "advertised": 1087,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Wilhelmshaven",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE946": {
+        "advertised": 128,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Apen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE947": {
+        "advertised": 604,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aurich, Ostfriesland",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE948": {
+        "advertised": 491,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Cloppenburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE949": {
+        "advertised": 1,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Andervenne",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE94A": {
+        "advertised": 112,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Jever",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE94B": {
+        "advertised": 281,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Bentheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE94C": {
+        "advertised": 40,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Borkum",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE94D": {
+        "advertised": 6,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Beckeln",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE94E": {
+        "advertised": 11,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alfhausen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE94F": {
+        "advertised": 683,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Vechta",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE94G": {
+        "advertised": 324,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Berne, Kreis Wesermarsch",
+        "search_mode": "ORTSUCHE"
+      },
+      "DE94H": {
+        "advertised": 194,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Wittmund",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA11": {
+        "advertised": 7416,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Düsseldorf",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA12": {
+        "advertised": 4270,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Duisburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA13": {
+        "advertised": 5091,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Essen, Ruhr",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA14": {
+        "advertised": 2348,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Krefeld",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA15": {
+        "advertised": 2526,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Mönchengladbach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA16": {
+        "advertised": 1916,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Mülheim an der Ruhr",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA17": {
+        "advertised": 382,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "46045",
+        "search_mode": "PLZSUCHE"
+      },
+      "DEA18": {
+        "advertised": 1038,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Remscheid",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA19": {
+        "advertised": 1120,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Solingen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA1A": {
+        "advertised": 2490,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Wuppertal",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA1B": {
+        "advertised": 34,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bedburg-Hau",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA1C": {
+        "advertised": 342,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Mettmann",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA1D": {
+        "advertised": 1774,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Neuss",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA1E": {
+        "advertised": 725,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Viersen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA1F": {
+        "advertised": 57,
+        "candidate_rank": 1,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alpen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA22": {
+        "advertised": 3604,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bonn",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA23": {
+        "advertised": 9958,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Köln",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA24": {
+        "advertised": 1583,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Leverkusen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA26": {
+        "advertised": 909,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Düren, Rheinland",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA27": {
+        "advertised": 194,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bedburg, Erft",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA28": {
+        "advertised": 698,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Euskirchen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA29": {
+        "advertised": 390,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Heinsberg, Rheinland",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA2A": {
+        "advertised": 167,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bergneustadt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA2B": {
+        "advertised": 941,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bergisch Gladbach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA2C": {
+        "advertised": 169,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alfter",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA2D": {
+        "advertised": 2386,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aachen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA31": {
+        "advertised": 901,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bottrop",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA32": {
+        "advertised": 1770,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Gelsenkirchen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA33": {
+        "advertised": 827,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "48143",
+        "search_mode": "PLZSUCHE"
+      },
+      "DEA34": {
+        "advertised": 533,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Borken, Westfalen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA35": {
+        "advertised": 594,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Coesfeld",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA36": {
+        "advertised": 1134,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Recklinghausen, Westfalen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA37": {
+        "advertised": 332,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Steinfurt, Westfalen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA38": {
+        "advertised": 416,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Warendorf",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA41": {
+        "advertised": 3202,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bielefeld",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA42": {
+        "advertised": 1267,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Gütersloh",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA43": {
+        "advertised": 869,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Herford",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA44": {
+        "advertised": 295,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Höxter",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA45": {
+        "advertised": 172,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Augustdorf",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA46": {
+        "advertised": 356,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Lübbecke, Westfalen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA47": {
+        "advertised": 1626,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Paderborn",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA51": {
+        "advertised": 3332,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bochum",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA52": {
+        "advertised": 4914,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Dortmund",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA53": {
+        "advertised": 366,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "58095",
+        "search_mode": "PLZSUCHE"
+      },
+      "DEA54": {
+        "advertised": 462,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "59065",
+        "search_mode": "PLZSUCHE"
+      },
+      "DEA55": {
+        "advertised": 1129,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Herne, Westfalen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA56": {
+        "advertised": 67,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Breckerfeld",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA57": {
+        "advertised": 752,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Arnsberg, Westfalen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA58": {
+        "advertised": 138,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Altena, Westfalen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA59": {
+        "advertised": 368,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Olpe, Biggesee",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA5A": {
+        "advertised": 1092,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Siegen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA5B": {
+        "advertised": 739,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Soest, Westfalen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEA5C": {
+        "advertised": 800,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Unna",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB11": {
+        "advertised": 607,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "56068",
+        "search_mode": "PLZSUCHE"
+      },
+      "DEB12": {
+        "advertised": 50,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Adenau",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB13": {
+        "advertised": 166,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Altenkirchen (Westerwald)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB14": {
+        "advertised": 862,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Bad Kreuznach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB15": {
+        "advertised": 3,
+        "candidate_rank": 2,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Allenbach, Hunsrück",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB17": {
+        "advertised": 344,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Mayen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB18": {
+        "advertised": 758,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Neuwied",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB1A": {
+        "advertised": 18,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Altendiez",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB1B": {
+        "advertised": 1,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ailertchen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB1C": {
+        "advertised": 161,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Cochem",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB1D": {
+        "advertised": 4,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alterkülz",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB21": {
+        "advertised": 1322,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Trier",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB22": {
+        "advertised": 402,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Wittlich",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB23": {
+        "advertised": 416,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Bitburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB24": {
+        "advertised": 1,
+        "candidate_rank": 2,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Beinhausen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB25": {
+        "advertised": 152,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Saarburg, Saar",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB31": {
+        "advertised": 447,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Frankenthal (Pfalz)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB32": {
+        "advertised": 1179,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Kaiserslautern",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB33": {
+        "advertised": 569,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Landau in der Pfalz",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB34": {
+        "advertised": 1768,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ludwigshafen am Rhein",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB35": {
+        "advertised": 658,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "55116",
+        "search_mode": "PLZSUCHE"
+      },
+      "DEB36": {
+        "advertised": 440,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Neustadt an der Weinstraße",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB37": {
+        "advertised": 436,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Pirmasens",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB38": {
+        "advertised": 680,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Speyer",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB39": {
+        "advertised": 1007,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Worms",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB3A": {
+        "advertised": 243,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Zweibrücken, Pfalz",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB3B": {
+        "advertised": 404,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Alzey",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB3C": {
+        "advertised": 301,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Bad Dürkheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB3D": {
+        "advertised": 11,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Albisheim (Pfrimm)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB3E": {
+        "advertised": 245,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Germersheim",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB3F": {
+        "advertised": 4,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bann, Pfalz",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB3G": {
+        "advertised": 81,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Kusel",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB3H": {
+        "advertised": 11,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Albersweiler",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB3I": {
+        "advertised": 10,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Altrip, Rhein-Pfalz-Kr",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB3J": {
+        "advertised": 7,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Appenheim, Rheinhessen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEB3K": {
+        "advertised": 2,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Bobenthal",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEC01": {
+        "advertised": 1812,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Saarbrücken",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEC02": {
+        "advertised": 318,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Merzig",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEC03": {
+        "advertised": 56,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Eppelborn",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEC04": {
+        "advertised": 510,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Saarlouis",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEC05": {
+        "advertised": 140,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bexbach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEC06": {
+        "advertised": 202,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "St. Wendel, Saar",
+        "search_mode": "ORTSUCHE"
+      },
+      "DED21": {
+        "advertised": 7050,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Dresden",
+        "search_mode": "ORTSUCHE"
+      },
+      "DED2C": {
+        "advertised": 878,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Bautzen, Sachsen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DED2D": {
+        "advertised": 615,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Görlitz, Neiße",
+        "search_mode": "ORTSUCHE"
+      },
+      "DED2E": {
+        "advertised": 464,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Meißen, Sachsen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DED2F": {
+        "advertised": 42,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Altenberg, Erzgebirge",
+        "search_mode": "ORTSUCHE"
+      },
+      "DED41": {
+        "advertised": 2642,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Chemnitz, Sachsen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DED42": {
+        "advertised": 7,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Amtsberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DED43": {
+        "advertised": 7,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Altmittweida",
+        "search_mode": "ORTSUCHE"
+      },
+      "DED44": {
+        "advertised": 14,
+        "candidate_rank": 2,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Bad Brambach",
+        "search_mode": "ORTSUCHE"
+      },
+      "DED45": {
+        "advertised": 1115,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Zwickau",
+        "search_mode": "ORTSUCHE"
+      },
+      "DED51": {
+        "advertised": 6962,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Leipzig",
+        "search_mode": "ORTSUCHE"
+      },
+      "DED52": {
+        "advertised": 70,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Lausick",
+        "search_mode": "ORTSUCHE"
+      },
+      "DED53": {
+        "advertised": 97,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Düben",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE01": {
+        "advertised": 1079,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Dessau-Roßlau",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE02": {
+        "advertised": 2368,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Halle (Saale)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE03": {
+        "advertised": 3455,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Magdeburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE04": {
+        "advertised": 308,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Salzwedel, Hansestadt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE05": {
+        "advertised": 86,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Aken (Elbe)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE06": {
+        "advertised": 70,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Biederitz",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE07": {
+        "advertised": 8,
+        "candidate_rank": 1,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Am Großen Bruch",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE08": {
+        "advertised": 11,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "An der Poststraße",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE09": {
+        "advertised": 62,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ballenstedt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE0A": {
+        "advertised": 49,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Mansfeld, Südharz",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE0B": {
+        "advertised": 70,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Dürrenberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE0C": {
+        "advertised": 5,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alsleben (Saale)",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE0D": {
+        "advertised": 504,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Stendal",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEE0E": {
+        "advertised": 24,
+        "candidate_rank": 1,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Annaburg, Sachsen-Anhalt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF01": {
+        "advertised": 1099,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Flensburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF02": {
+        "advertised": 3618,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Kiel",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF03": {
+        "advertised": 2597,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Lübeck",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF04": {
+        "advertised": 1115,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Neumünster, Holstein",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF05": {
+        "advertised": 1,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Arkebek",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF06": {
+        "advertised": 1,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Albsfelde",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF07": {
+        "advertised": 1,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Achtrup",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF08": {
+        "advertised": 66,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ahrensbök",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF09": {
+        "advertised": 506,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Pinneberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF0A": {
+        "advertised": 93,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Plön",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF0B": {
+        "advertised": 272,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Eckernförde",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF0C": {
+        "advertised": 361,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Schleswig",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF0D": {
+        "advertised": 6,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alveslohe",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF0E": {
+        "advertised": 5,
+        "candidate_rank": 3,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Altenmoor",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEF0F": {
+        "advertised": 519,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Ahrensburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG01": {
+        "advertised": 2796,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Erfurt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG02": {
+        "advertised": 1290,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Gera",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG03": {
+        "advertised": 2012,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Jena",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG05": {
+        "advertised": 831,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Weimar, Thüringen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG06": {
+        "advertised": 30,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Am Ohmberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG07": {
+        "advertised": 664,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Nordhausen, Thüringen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG09": {
+        "advertised": 162,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Langensalza",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0A": {
+        "advertised": 3,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Abtsbessingen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0C": {
+        "advertised": 694,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Gotha, Thüringen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0D": {
+        "advertised": 248,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Sömmerda",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0E": {
+        "advertised": 209,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Hildburghausen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0G": {
+        "advertised": 57,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Am Ettersberg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0J": {
+        "advertised": 4,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Altenberga",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0K": {
+        "advertised": 123,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Bad Lobenstein",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0L": {
+        "advertised": 197,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Greiz",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0M": {
+        "advertised": 341,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Altenburg, Thüringen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0Q": {
+        "advertised": 407,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Meiningen",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0R": {
+        "advertised": 97,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Amt Creuzburg",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0S": {
+        "advertised": 528,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Suhl",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0T": {
+        "advertised": 2,
+        "candidate_rank": 0,
+        "evidence": "sweep:20260901T195317Z",
+        "resolved_place": "Alkersleben",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0U": {
+        "advertised": 266,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Rudolstadt",
+        "search_mode": "ORTSUCHE"
+      },
+      "DEG0V": {
+        "advertised": 306,
+        "candidate_rank": 0,
+        "evidence": "probe:2026-09-01",
+        "resolved_place": "Sonneberg, Thüringen",
+        "search_mode": "ORTSUCHE"
+      }
+    },
+    "pinned_at": "2026-09-01",
+    "requests_made": 175,
+    "rule": "first candidate the source resolves to itself with >=1 hit",
+    "unresolved_regions": [
+      "DE231"
+    ]
+  },
+  "frame": "nuts3-kreise-destatis-2024",
+  "frame_size": 400,
+  "membership_hash": "545b162ec6e5fbdc224a4c6f771650679e856cc71470292908c88c57e91a2311"
+}

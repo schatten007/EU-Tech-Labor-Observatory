@@ -5,6 +5,12 @@ data/*
 !data/sample/**
 !data/reference/
 !data/reference/**
+# Exception (2026-09-03, scrapers lab handover): the German BA partitions are
+# carried to the main project as compressed archives, because this worktree is
+# removed after the merge and data/raw is otherwise untracked. Archives only —
+# never un-ignore data/raw itself. See PANEL_HANDOVER.md section 8.
+!data/handover/
+!data/handover/**
 
 # ── Warehouses / local state ─────────────────────────────────────────────────
 *.duckdb

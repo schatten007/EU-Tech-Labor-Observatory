@@ -24,8 +24,11 @@ than expanding the active increment.
 | 14 | 2026-08-22 | Complete; three dimensions published, one taxonomy code still unobserved | Publish employment type, working-hours type, and contract duration from three structured fields that are 100% present, mapped through a new hand-written reference to English labels. Every posting lands in exactly one row per dimension, so each published column sums to the sweep's 628 postings and `Not stated` is a visible row rather than a caveat; a new untagged assertion pins that on live partitions. Methodology version bumped to 1.2. | `make check && make sweep && make live-site && make release-check && make sample` passed |
 | 13b | 2026-08-23 | Complete; the tiebreak is scored, refusals counted, both readings published | Extend the review sample from 3 rows to 32 so it covers every concept the exact-match tiebreak decides in the published sweep - 13 occupation and 16 skill - each row recording whether its verdict was transcribed from 13a or re-judged here. `scripts/evaluate.py` scores a correct refusal as a true negative, keeps `precision`/`recall` textbook, and publishes strict and lenient figures for the five `narrower-or-broader` concepts side by side under a rule written down before the numbers. The collision census is reported and enforced nowhere. No sweep, no network, and no published figure moved. | `make check && make live-site && make release-check` passed |
 | 16 | 2026-08-24 | Complete; findings published, trend gate silent | State the findings instead of making the reader derive them: a pure stdlib inference layer (`scripts/insights.py`) renders a digest on Overview and one line at the top of the Occupations, Requirements, Survival, and Status sections, every sentence built from the tables beneath it with its denominator stated and every numeric token proven - by test - to appear in the source rows. Methodology bumped to 1.3 before the first insight rendered. The trend gate was pre-registered at N=14 sweeps / M=7 days and stays silent on 8 sweeps and 3 daily buckets with a gap at 08-21, exactly as pre-registered. Three 13b review carry-overs closed. | `make check && make live-site && make release-check` passed |
+<<<<<<< HEAD
 | 20-25 | 2026-08-31 | Planning only; scope decision recorded, Increment 18 cancelled | Record the sister scraper lab's descope of German collection from a full census to a stratified region-bounded sample, and replan the observatory's publishing work as Increments 20-25: widen the live globs, per-scope/country sections, a German breadth line, German occupation mapping, methodology 1.3 to 1.4, and an optional live service. Four earlier planning assumptions corrected against the checkout (no map, no mapped-share ratio, suppression not regional, no exhaustiveness test). No code, no sweep, no data. | Not run — markdown planning documents only |
 | 20 | 2026-09-01 | Complete; every stored source can now reach the page, and the next failure is the intended one | Widen the source segment of all three live globs at unchanged depth, so `make live-site` reads `data/raw/collections/*/*/*/` instead of `jobtech/*/*/`: the sweep count (`Makefile:29`) and the exported `OBSERVATIONS_PATH`/`MANIFESTS_PATH` (`Makefile:101-102`). Partition shape confirmed as `source/scope_id/sweep_id` before editing, so the segment count after `data/raw/collections/` is unchanged and the count is a depth check: 8 stored sweeps before, 8 after. `LIVE_READY` (`Makefile:30`) left byte-identical, so zero sweeps still fails the build instead of publishing an empty page. Makefile only — no collector, dbt, publisher, test or data change. | `make check && make live-site && make release-check` passed |
+=======
+>>>>>>> scrapers
 
 
 ## Session Notes
@@ -912,6 +915,7 @@ figures fall.
   including the two new rules: no empty insight paragraph, and the Overview digest present
   whenever the page renders any insight.
 
+<<<<<<< HEAD
 ### 2026-08-31 - Scope decision: Germany is a sample, not a census
 
 Planning session. No code, no partitions, no data, no gate: only `FUNCTIONALITY_ROADMAP.md`,
@@ -1040,3 +1044,5 @@ no test, no partition moved. Both gate runs bracket the edit.
   are read, why the depth is fixed, and that the per-scope guard is the next barrier.
 
 
+=======
+>>>>>>> scrapers

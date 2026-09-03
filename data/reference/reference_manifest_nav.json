@@ -1,0 +1,138 @@
+{
+  "source": "ssb-klass-104-fylker + ssb-klass-131-kommuner x eurostat-gisco-nuts-2024",
+  "nuts_version": "NUTS-2024",
+  "source_version": "2026-08-23",
+  "retrieved_at": "2026-08-22T23:01:14.031114+00:00",
+  "classification_date": "2026-08-22",
+  "source_urls": {
+    "nuts_2024": "https://gisco-services.ec.europa.eu/distribution/v2/nuts/csv/NUTS_AT_2024.csv",
+    "fylker": "https://data.ssb.no/api/klass/v1/classifications/104/codesAt.json?date=<date>",
+    "kommuner": "https://data.ssb.no/api/klass/v1/classifications/131/codesAt.json?date=<date>"
+  },
+  "join": "SSB fylke/kommune name -> folded name -> GISCO NUTS 2024 level 3 (NO); kommune -> fylke via the code's first two digits",
+  "row_counts": {
+    "nav_region_nuts_2024.csv": 370,
+    "fylke": 15,
+    "kommune": 353,
+    "kommune-ambiguous": 2
+  },
+  "ssb_fylker_read": 16,
+  "ssb_kommuner_read": 358,
+  "gisco_nuts3_codes": [
+    "NO020",
+    "NO060",
+    "NO071",
+    "NO072",
+    "NO073",
+    "NO081",
+    "NO083",
+    "NO084",
+    "NO085",
+    "NO092",
+    "NO093",
+    "NO094",
+    "NO0A1",
+    "NO0A2",
+    "NO0A3",
+    "NO0B1",
+    "NO0B2"
+  ],
+  "distinct_nuts3_mapped": [
+    "NO020",
+    "NO060",
+    "NO071",
+    "NO072",
+    "NO073",
+    "NO081",
+    "NO083",
+    "NO084",
+    "NO085",
+    "NO092",
+    "NO093",
+    "NO094",
+    "NO0A1",
+    "NO0A2",
+    "NO0A3"
+  ],
+  "nuts3_without_ssb_fylke": [
+    "NO0B1",
+    "NO0B2"
+  ],
+  "unmatched_fylker": [
+    "99:Uoppgitt"
+  ],
+  "unspecified_kommuner": [
+    "9999:Uoppgitt"
+  ],
+  "ambiguous_kommune_names": [
+    "heroy",
+    "valer"
+  ],
+  "fylke_join": {
+    "Innlandet": {
+      "nuts_code": "NO020",
+      "nuts_label": "Innlandet"
+    },
+    "Trøndelag - Trööndelage": {
+      "nuts_code": "NO060",
+      "nuts_label": "Trøndelag/Trööndelage"
+    },
+    "Nordland - Nordlánnda": {
+      "nuts_code": "NO071",
+      "nuts_label": "Nordland/Nordlánnda"
+    },
+    "Troms - Romsa - Tromssa": {
+      "nuts_code": "NO072",
+      "nuts_label": "Troms/Romsa/Tromssa"
+    },
+    "Finnmark - Finnmárku - Finmarkku": {
+      "nuts_code": "NO073",
+      "nuts_label": "Finnmark/Finnmárku/Finmarkku"
+    },
+    "Oslo - Oslove": {
+      "nuts_code": "NO081",
+      "nuts_label": "Oslo"
+    },
+    "Østfold": {
+      "nuts_code": "NO083",
+      "nuts_label": "Østfold"
+    },
+    "Akershus": {
+      "nuts_code": "NO084",
+      "nuts_label": "Akershus"
+    },
+    "Buskerud": {
+      "nuts_code": "NO085",
+      "nuts_label": "Buskerud"
+    },
+    "Agder": {
+      "nuts_code": "NO092",
+      "nuts_label": "Agder"
+    },
+    "Vestfold": {
+      "nuts_code": "NO093",
+      "nuts_label": "Vestfold"
+    },
+    "Telemark": {
+      "nuts_code": "NO094",
+      "nuts_label": "Telemark"
+    },
+    "Rogaland": {
+      "nuts_code": "NO0A1",
+      "nuts_label": "Rogaland"
+    },
+    "Vestland": {
+      "nuts_code": "NO0A2",
+      "nuts_label": "Vestland"
+    },
+    "Møre og Romsdal": {
+      "nuts_code": "NO0A3",
+      "nuts_label": "Møre og Romsdal"
+    }
+  },
+  "historic_names_included": false,
+  "historic_names_reason": "A pre-2020 kommune may have been split across two of today's counties, so its NUTS 3 assignment would be a guess; NAV ads are never active longer than ~6 months, so historic names are rare. Unknown feed names stay unmapped.",
+  "hashes": {
+    "nav_region_nuts_2024.csv": "758b9e3010be795fd4bcbcf6bc6af4278cda8f9f49d9c9ca3deae0531df1c44b"
+  }
+}

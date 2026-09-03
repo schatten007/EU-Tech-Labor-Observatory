@@ -1,0 +1,25 @@
+{
+  "source": "mpsv-codelists",
+  "nuts_version": "NUTS-2024",
+  "source_version": "2026-08-21",
+  "retrieved_at": "2026-08-21T23:01:04.174018+00:00",
+  "source_urls": {
+    "kraje": "https://data.mpsv.cz/od/soubory/ciselniky/kraje.json",
+    "okresy": "https://data.mpsv.cz/od/soubory/ciselniky/okresy.json",
+    "obce": "https://data.mpsv.cz/od/soubory/ciselniky/obce.json"
+  },
+  "row_counts": {
+    "mpsv_kraje_nuts_2024.csv": 14,
+    "mpsv_okresy_kraj_2024.csv": 78,
+    "mpsv_obce_kraj_2024.csv": 6258
+  },
+  "skipped_unresolvable": {
+    "okresy": 0,
+    "obce": 0
+  },
+  "hashes": {
+    "mpsv_kraje_nuts_2024.csv": "c5805740d1c599370148e42d80d11dee8c7b4f8728adecb76c6cfb631b93c570",
+    "mpsv_okresy_kraj_2024.csv": "c037544512caecde3c7abf67c6b6efc551faf27086b14ea7dfd2a033ff723267",
+    "mpsv_obce_kraj_2024.csv": "c8c3df81d312b37292cdc99ecebe2ad86fb60afadc78df0f1673cb65c2eacde9"
+  }
+}

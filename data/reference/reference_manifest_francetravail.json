@@ -1,0 +1,18 @@
+{
+  "source": "francetravail-referentiel-departements x eurostat-gisco-nuts-2024",
+  "nuts_version": "NUTS-2024",
+  "source_version": "2026-08-22",
+  "retrieved_at": "2026-08-22T16:24:30.023801+00:00",
+  "source_urls": {
+    "departements": "https://api.francetravail.io/partenaire/offresdemploi/v2/referentiel/departements",
+    "nuts_2024": "https://gisco-services.ec.europa.eu/distribution/v2/nuts/csv/NUTS_AT_2024.csv"
+  },
+  "join": "departement libelle -> NUTS 3 NAME_LATN (accent/case/punctuation-insensitive)",
+  "row_counts": {
+    "francetravail_departements_nuts_2024.csv": 101
+  },
+  "unmatched_departements": [],
+  "hashes": {
+    "francetravail_departements_nuts_2024.csv": "2fdef8d2907b96ce49f283497bfcf26240db229e493f43fb0717bb551eba2335"
+  }
+}
