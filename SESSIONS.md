@@ -24,6 +24,8 @@ than expanding the active increment.
 | 14 | 2026-08-22 | Complete; three dimensions published, one taxonomy code still unobserved | Publish employment type, working-hours type, and contract duration from three structured fields that are 100% present, mapped through a new hand-written reference to English labels. Every posting lands in exactly one row per dimension, so each published column sums to the sweep's 628 postings and `Not stated` is a visible row rather than a caveat; a new untagged assertion pins that on live partitions. Methodology version bumped to 1.2. | `make check && make sweep && make live-site && make release-check && make sample` passed |
 | 13b | 2026-08-23 | Complete; the tiebreak is scored, refusals counted, both readings published | Extend the review sample from 3 rows to 32 so it covers every concept the exact-match tiebreak decides in the published sweep - 13 occupation and 16 skill - each row recording whether its verdict was transcribed from 13a or re-judged here. `scripts/evaluate.py` scores a correct refusal as a true negative, keeps `precision`/`recall` textbook, and publishes strict and lenient figures for the five `narrower-or-broader` concepts side by side under a rule written down before the numbers. The collision census is reported and enforced nowhere. No sweep, no network, and no published figure moved. | `make check && make live-site && make release-check` passed |
 | 16 | 2026-08-24 | Complete; findings published, trend gate silent | State the findings instead of making the reader derive them: a pure stdlib inference layer (`scripts/insights.py`) renders a digest on Overview and one line at the top of the Occupations, Requirements, Survival, and Status sections, every sentence built from the tables beneath it with its denominator stated and every numeric token proven - by test - to appear in the source rows. Methodology bumped to 1.3 before the first insight rendered. The trend gate was pre-registered at N=14 sweeps / M=7 days and stays silent on 8 sweeps and 3 daily buckets with a gap at 08-21, exactly as pre-registered. Three 13b review carry-overs closed. | `make check && make live-site && make release-check` passed |
+| 20-25 | 2026-08-31 | Planning only; scope decision recorded, Increment 18 cancelled | Record the sister scraper lab's descope of German collection from a full census to a stratified region-bounded sample, and replan the observatory's publishing work as Increments 20-25: widen the live globs, per-scope/country sections, a German breadth line, German occupation mapping, methodology 1.3 to 1.4, and an optional live service. Four earlier planning assumptions corrected against the checkout (no map, no mapped-share ratio, suppression not regional, no exhaustiveness test). No code, no sweep, no data. | Not run — markdown planning documents only |
+| 20 | 2026-09-01 | Complete; every stored source can now reach the page, and the next failure is the intended one | Widen the source segment of all three live globs at unchanged depth, so `make live-site` reads `data/raw/collections/*/*/*/` instead of `jobtech/*/*/`: the sweep count (`Makefile:29`) and the exported `OBSERVATIONS_PATH`/`MANIFESTS_PATH` (`Makefile:101-102`). Partition shape confirmed as `source/scope_id/sweep_id` before editing, so the segment count after `data/raw/collections/` is unchanged and the count is a depth check: 8 stored sweeps before, 8 after. `LIVE_READY` (`Makefile:30`) left byte-identical, so zero sweeps still fails the build instead of publishing an empty page. Makefile only — no collector, dbt, publisher, test or data change. | `make check && make live-site && make release-check` passed |
 
 
 ## Session Notes
@@ -909,4 +911,132 @@ figures fall.
   the fixture-tagged tests excluded, and `release_check` reports 0 problems on the live page,
   including the two new rules: no empty insight paragraph, and the Overview digest present
   whenever the page renders any insight.
+
+### 2026-08-31 - Scope decision: Germany is a sample, not a census
+
+Planning session. No code, no partitions, no data, no gate: only `FUNCTIONALITY_ROADMAP.md`,
+`USER_MANUAL.md` and this file changed.
+
+- **The decision.** The sister scraper lab is descoped from a full German census to a **stratified
+  region-bounded sample with a capped within-stratum draw over a frozen panel**. The observatory's
+  job is to be ready to publish that, which is a publishing problem rather than a modelling one. The
+  design is neither a census nor a partial crawl, and the wording matters: a partial crawl is a
+  census that failed, while this is a sample that was drawn on purpose and can be described.
+- **Four earlier planning assumptions were wrong, and each was checked against this checkout before
+  being written down.** (1) *There is no map.* The regional surface is a top-25 table:
+  `_query_dimension(region=True)` (`scripts/publish.py:689-701`, called at
+  `scripts/publish.py:1653`) truncates at `DIMENSION_LIMIT = 25` (`scripts/publish.py:24`), so
+  regions below 25th are collected, stored and mapped but never rendered. (2) *There is no 85%
+  mapped-share ratio anywhere in code.* `_denominator` (`scripts/publish.py:1132-1170`) publishes
+  three counts and deliberately no percentage — its own docstring gives the reason, that a ratio
+  invites a coverage trend one sweep cannot support — so no mapped-share threshold exists to be
+  quoted as a gate. (3) *The suppression floor of 5 is not a regional rule.*
+  `transform/macros/suppress_small_counts.sql` masks non-zero groups under 5 in `posting_flows` and
+  `posting_survival` only, and neither view has a region column
+  (`scripts/publish.py:775-798`); a thinly sampled region is therefore absent from the top 25 rather
+  than `suppressed`. (4) *No test enforces country-level exhaustiveness.* Completeness is judged
+  inside the declared scope — `status = 'complete'`, pages matching, `expected_rows = row_count`
+  (`transform/models/staging/stg_collection_manifests.sql:50-53`) — and coverage turns `invalid`
+  only on a manifest/row disagreement or a wrong-country row
+  (`transform/models/publish/source_coverage.sql:68`). **Sampling needs no transform change at all**,
+  which is why this session is documentation and not a migration.
+- **The plan is Increments 20-25**, recorded in the roadmap with the brief's budgets: widen the
+  `jobtech`-only live globs (`Makefile:25-26`, `Makefile:94-96`); replace `_verify_single_scope`
+  (`scripts/publish.py:756-772`) with per-scope and per-country sections and scope
+  `_query_dimension`/`_query_skills`/`_query_mapping` (`scripts/publish.py:689-701`, `704-714`,
+  `716`) with it; add the breadth line "N of 400 DE NUTS-3 regions with mapped postings" to the NUTS
+  block of `_render_countries` (`scripts/publish.py:1117-1128`, function at
+  `scripts/publish.py:1056`) with the sampling caveat sourced from `coverage_limitations`; map German
+  occupations over stored partitions through the `scripts/enrich.py` path; bump the methodology
+  version with the sampling text; then, optionally, the live service.
+- **The order is deliberate: 20 before 21, and the build stays red in between.** Widening the globs
+  makes German partitions visible, at which point a second scope carrying postings trips
+  `_verify_single_scope` and fails the build **by design** — that guard is the only thing stopping
+  two scopes being summed into one ranking under a denominator naming a single sweep. It is removed
+  when the per-scope sections that make pooling unnecessary exist, not before.
+- **One correction to the brief itself: the methodology bump is 1.3 to 1.4, not 1.2 to 1.3.**
+  `METHODOLOGY_VERSION` is already `"1.3"` (`scripts/publish.py:74`), bumped by Increment 16 on
+  2026-08-24 and pinned by a test. The brief's "1.2 → 1.3" predates that bump, and the checkout wins.
+  The `coverage_limitations` text changes with it: the strings are constants
+  (`scripts/collect.py:55-63`) pinned by equality at `tests/test_probe.py:884` and
+  `tests/test_probe.py:1047`, so constants and pins move in one commit.
+- **Increment 18 (German access request) is cancelled, with the text kept.** It was premised on
+  census-level coverage — a BA data agreement as "the only real unlock", asking for complete
+  traversal or snapshot semantics. A sampled panel needs no agreement to publish, and the census it
+  would have authorised is now explicitly out of scope. The roadmap's stale "Do not shortcut Germany"
+  recommendation and its equally stale "next step is Increment 12" were replaced by Increment 20,
+  with the superseded wording quoted in place rather than deleted. Increments 15, 17 and 19 stay
+  recorded but unscheduled: they are outside the finish line, not wrong.
+- **Acceptance criteria recorded:** `make check` and `make release-check` green; the page rendering
+  all countries in per-country sections; German breadth at ≥390 of 400 NUTS-3 regions with mapped
+  postings; `collection_frequency.complete_sweeps` ≥ 3 for the German panel
+  (`transform/models/publish/collection_frequency.sql:28`); and the occupation section populated for
+  Germany.
+- **Stop rule, recorded verbatim in the roadmap:** "items 1-5 are the finish line. No StepStone, no
+  Kimeta, no Indeed, no census completion, no other-country re-sweeps unless the live-service budget
+  allows." Items 1-5 are Increments 20-24; item 6 is Increment 25 and optional.
+- **Two files were reviewed and deliberately left unchanged.** `README.md` states no census claim to
+  correct: it already frames itself as an aggregate record with a denominator beside every ranking,
+  and its suppression paragraph already scopes the rule to the flow and survival views. Its stale
+  "Methodology version 1.2" (`README.md:20-21`) is a version error, not a census claim, and Increment
+  24 owns it. `SOURCE_FEASIBILITY.md` states no census-level coverage target: every completeness
+  claim in its rows is scope-bounded, and its Fixed Release Scope already says a sweep means "all
+  pages for one fixed query scope, not all Swedish vacancies".
+- **One open conflict left for the operator, not resolved here.** `SOURCE_FEASIBILITY.md` still reads
+  "the project must not collect or publish German posting observations yet", which collides with
+  publishing the sister lab's German panel. Editing that governance decision was outside this
+  session's brief, and the German source's own feasibility record lives in the sister lab's
+  documents. It needs a decision recorded there and mirrored here before German rows reach a
+  published page.
+- **Carry-overs for Increment 24, both cosmetic and both version-related:** `README.md:20-21` claims
+  methodology 1.2, and the manual's CSV example (`USER_MANUAL.md:127`) still shows
+  `...-methodology-1-2.csv`. Both are wrong today at 1.3 and must land on 1.4 with the sampling text.
+
+### 2026-09-01 - Increment 20: widen the live globs
+
+Makefile-only session. Three globs changed, nothing else: no collector, no dbt model, no publisher,
+no test, no partition moved. Both gate runs bracket the edit.
+
+- **The defect.** `make live-site` resolved exactly one source directory. The sweep count globbed
+  `data/raw/collections/jobtech/*/*/manifest.json` (`Makefile:25-26` before the edit) and the recipe
+  exported `OBSERVATIONS_PATH` and `MANIFESTS_PATH` under the same `jobtech/` prefix
+  (`Makefile:94-96` before the edit), so a partition from any other collector could sit on disk,
+  pass every gate and still be invisible to dbt and to the page.
+- **Depth confirmed before editing, not assumed.** One precise glob
+  (`data/raw/collections/*/*/*/manifest.json`) resolved 8 manifests, the same 8 as
+  `data/raw/collections/jobtech/*/*/manifest.json`, and the two inner segments read as a scope id
+  (`jobtech-f5cf1d409aa51fad`) and a sweep id, so the stored shape is `source/scope_id/sweep_id` and
+  the segment count after `data/raw/collections/` is three. Only `jobtech` exists under
+  `data/raw/collections/` today. No recursive listing of `data/` was taken.
+- **The change is a widened source segment at fixed depth.** `LIVE_SWEEPS` (`Makefile:29`) and both
+  exported paths (`Makefile:101-102`) now read `data/raw/collections/*/*/*/`. Depth is the whole
+  correctness argument: one segment more or fewer would resolve a different set of manifests while
+  still looking plausible, which is why the comment at `Makefile:24-28` now says to widen the source
+  segment and never the depth.
+- **Fail-closed behaviour untouched.** `LIVE_READY` (`Makefile:30`) is byte-identical: it still
+  expands to `$(error no stored sweeps found; ...)` when the wildcard is empty, so an empty page is
+  still unpublishable. Widening the glob widens what can be found, not what counts as enough.
+- **Measured, and the count is the test.** `make live-site` printed **8 stored sweeps before the
+  change and 8 after** — identical, as required, since only `jobtech/` is on disk. A different
+  number would have meant a wrong glob depth rather than a discovery, and would have been fixed
+  rather than accepted. dbt on the live partitions ran PASS=185 WARN=0 ERROR=0 both times with
+  `tag:sample_fixture` excluded, and the page wrote `site/build/index.html` unchanged in shape.
+- **Gates.** `make check` green before and after (70 pytest, dbt PASS=190 WARN=0 ERROR=0, ruff and
+  mypy clean, fully offline); `make release-check` green with `0 problem(s)` on the built page. No
+  test and no `check` target was edited, and nothing under `data/` was written.
+- **What this deliberately does not do.** No German data is published, because none is on disk: the
+  increment makes the path reachable, not populated. No collector was added or touched, no dbt model
+  changed (staging reads whatever the globs resolve to, and completeness is judged inside the
+  declared scope), and no source-specific special case was introduced — the widened glob is
+  collector-agnostic by construction.
+- **Stated plainly, because it is the next thing an operator will hit:** widening the glob alone will
+  trip `_verify_single_scope` (`scripts/publish.py:756-772`) the moment a second scope carries
+  postings. That failure is **by design** — it is what stops two scopes being summed into one ranking
+  under a denominator naming a single sweep, since `_query_dimension`, `_query_skills` and
+  `_query_mapping` read their views with no scope filter — and removing it is Increment 21's job,
+  not this one's. Today the build is green only because `jobtech`'s second scope carries no postings.
+- **Comments kept truthful.** `Makefile:24-28` and the `live-site` block at `Makefile:90-93` both
+  described jobtech-only behaviour by implication; they now state that every collector's partitions
+  are read, why the depth is fixed, and that the per-scope guard is the next barrier.
+
 
