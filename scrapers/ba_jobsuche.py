@@ -524,6 +524,23 @@ class GermanCrosswalk:
             if any(c[0] == nuts_code for c in candidates)
         ]
 
+    def label_for_nuts(self, nuts_code: str) -> str | None:
+        """Reference label for a NUTS-3 code, or ``None`` when the code is unknown.
+
+        Tier-3 provenance resolves a code the page's city string could not; this
+        supplies the matching label so the resolution is complete, matching
+        every Tier-1/2 path.
+        """
+        for candidates in self._name_map.values():
+            for nuts, label, _kreis in candidates:
+                if nuts == nuts_code:
+                    return label
+        for candidates in self._plz_map.values():
+            for nuts, label, _kreis in candidates:
+                if nuts == nuts_code:
+                    return label
+        return None
+
     def resolve_by_city(self, city: str | None) -> RegionResolution:
         return normalize_location(self, city)
 
@@ -1184,15 +1201,21 @@ class BAJobsucheCollector(BaseCollector):
         # Non-geographic markers and Tier-1/2 ambiguous results are never
         # overridden — the source stated a multi-location/nationwide workplace.
         if region.status == "unmapped" and parsed.get("segment_nuts3"):
+            # The segment's own code resolves the region; the label comes from the
+            # same reference so the resolution is complete (Increment 20b: the two
+            # Tier-3 paths previously published the code with a null label).
+            segment_label = self._crosswalk.label_for_nuts(parsed["segment_nuts3"])
             if parsed.get("umkreis") == 0:
                 region = RegionResolution(
                     nuts_code=parsed["segment_nuts3"],
+                    nuts_label=segment_label,
                     status="mapped",
                     method="ba_segment_provenance_nuts3",
                 )
             else:
                 region = RegionResolution(
                     nuts_code=parsed["segment_nuts3"],
+                    nuts_label=segment_label,
                     status="low_confidence",
                     method="ba_segment_radius_nuts3",
                 )

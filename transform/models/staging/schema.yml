@@ -87,6 +87,15 @@ models:
       - {name: lang, data_type: varchar}
       - {name: number_of_vacancies, data_type: bigint}
 
+  - name: stg_nuts_labels
+    description: Reference NUTS labels, one row per code, backfilling postings whose collector resolved a code but no label; data/raw is never rewritten.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - {name: nuts_code, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: nuts_label, data_type: varchar, data_tests: [not_null]}
+
   - name: stg_skill_mappings
     description: Privacy-safe ESCO skill outcomes, one row per source skill outcome.
     config:

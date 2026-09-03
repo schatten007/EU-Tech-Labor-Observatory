@@ -27,6 +27,7 @@ than expanding the active increment.
 | 20-25 | 2026-08-31 | Planning only; scope decision recorded, Increment 18 cancelled | Record the sister scraper lab's descope of German collection from a full census to a stratified region-bounded sample, and replan the observatory's publishing work as Increments 20-25: widen the live globs, per-scope/country sections, a German breadth line, German occupation mapping, methodology 1.3 to 1.4, and an optional live service. Four earlier planning assumptions corrected against the checkout (no map, no mapped-share ratio, suppression not regional, no exhaustiveness test). No code, no sweep, no data. | Not run — markdown planning documents only |
 | 20 | 2026-09-01 | Complete; every stored source can now reach the page, and the next failure is the intended one | Widen the source segment of all three live globs at unchanged depth, so `make live-site` reads `data/raw/collections/*/*/*/` instead of `jobtech/*/*/`: the sweep count (`Makefile:29`) and the exported `OBSERVATIONS_PATH`/`MANIFESTS_PATH` (`Makefile:101-102`). Partition shape confirmed as `source/scope_id/sweep_id` before editing, so the segment count after `data/raw/collections/` is unchanged and the count is a depth check: 8 stored sweeps before, 8 after. `LIVE_READY` (`Makefile:30`) left byte-identical, so zero sweeps still fails the build instead of publishing an empty page. Makefile only — no collector, dbt, publisher, test or data change. | `make check && make live-site && make release-check` passed |
 | 20 (re-applied) | 2026-09-03 | Complete as code this time; the widened glob is committed, and the intended next failure turned out to be two earlier ones | Re-apply Increment 20, whose 2026-09-01 record survived a merge but whose Makefile edit did not: `git log -- Makefile` stopped at `c9ade31` and the commit claiming increment 20 (`1a2b6be`) touched only `.gitignore` and `SESSIONS.md`, so all three globs were still `jobtech/*/*/`. Widened the source segment only, at unchanged depth: `LIVE_SWEEPS` (`Makefile:30`) and the exported `OBSERVATIONS_PATH`/`MANIFESTS_PATH` (`Makefile:103-104`); `LIVE_READY` (`Makefile:31`) left byte-identical. Depth verified by count rather than by reading: the depth-3 glob resolves 9, which equals 8 `jobtech` + 1 `ba`, and the depth-4 glob resolves 0. `make` itself confirms it, printing `publishing from 9 stored sweeps`. Also resolved six committed merge-conflict markers in this file (two blocks, at the table and before the 2026-08-31 scope note); both kept HEAD and the `scrapers` side was empty, so only the marker lines were removed and no recorded line was lost. Makefile and SESSIONS.md only - no collector, dbt, publisher, test or data change. | `make check` green (ruff, mypy 62 files, **459 passed**, dbt PASS=190 WARN=0 ERROR=0). `make live-site` **red by design, but earlier than predicted**: it fails in `dbt build` (PASS=183 ERROR=2) before `scripts/publish.py` runs, so `_verify_single_scope` was never reached. `make release-check` not run - it builds on `site`, not `live-site`, and would only have re-tested the sample |
+| 20b | 2026-09-03 | Complete; dbt build is green on live partitions, and the failure has moved to the per-scope guard as planned | Admit the BA mapping vocabulary into the pinned `accepted_values` list and backfill 12 NUTS-3 labels via a new `stg_nuts_labels` model coalesced in `stg_postings`, so `make live-site` gets past `dbt build` and dies in `_verify_single_scope` (Increment 21's job). Ten BA method values registered - six observed in the `ba/de-nuts3-panel` partition plus four (`ba_segment_radius_nuts3`, `ba_plz_nuts3`, `ba_plz_ambiguous`, `not_available`) pre-registered from a source audit of `scrapers/ba_jobsuche.py` so a future PLZ/radius sweep cannot redden the build; other collectors' ~35 literals deliberately absent. `stg_nuts_labels` reads the nine reference CSVs explicitly (no glob - it would miss the two Slovak `mpsv` files), one row per code by `group by`, pinned by contract + not_null + unique; `assert_nuts_label_unambiguous` (untagged, runs under live-site) surfaces cross-file label conflicts. Coalesce is source-wins in `stg_postings` (`:18`), left-joined so `not_present` rows keep their denominator. Prevention fix applied too: `GermanCrosswalk.label_for_nuts` now feeds both Tier-3 resolutions in `ba_jobsuche.py:1186-1204`, so a re-sweep stops reproducing the null. | `make check` green (ruff, mypy 62 files, **459 passed**, dbt **PASS=195** WARN=0 ERROR=0; new model + 3 tests + 1 singular test). Live rebuild PASS=190 ERROR=0; fan-out guard: `stg_postings` 33,836 rows unchanged, BA region outcomes sum to 28,900, BA region rows still 393, all 12 codes labelled (`DE937` Rotenburg (Wümme), `DEB11` Koblenz, Kreisfreie Stadt), zero null-label rows. `make live-site` red exactly as planned: dbt green, then `ValueError: 2 scopes have postings` in `_verify_single_scope` (`publish.py:768`) |
 
 
 ## Session Notes
@@ -1110,4 +1111,75 @@ no test, no partition moved. Both gate runs bracket the edit.
   deliberately pinned vocabulary and backfilling a label join are data-model decisions with their own
   pinned tests, and folding them into a Makefile increment is how the 2026-09-01 edit got lost. No
   collector, model, publisher, test or data file was touched, and nothing under `data/` was written.
+
+### 2026-09-03 - Increment 20b
+
+- **What was measured before editing.** Both failures from the re-applied Increment 20 record,
+  reproduced against `data/dev.duckdb` under the live `OBSERVATIONS_PATH`/`MANIFESTS_PATH` exports:
+  `accepted_values_mapping_quality_latest_mapping_method` with **6** unlisted methods, and
+  `not_null_dimension_demand_latest_value_label` with **12** null-label codes over **839** postings -
+  exactly the `ba_segment_provenance_nuts3` total, so both failures were one defect seen twice.
+  `stg_postings` carried 33,836 rows (28,900 BA + 4,936 jobtech) and the BA panel mapped **393**
+  distinct NUTS-3 codes (381 labelled + 12 not), out of the 400-region frame.
+- **The vocabulary admission, deliberate and cross-collector.** Ten BA values added to the
+  `accepted_values` pin at `transform/models/publish/schema.yml` (now `:160`), the existing eight
+  kept: six observed in the partition plus four **pre-registered from a source audit**, not from
+  observed rows - `ba_segment_radius_nuts3` (`ba_jobsuche.py:1218`), `ba_plz_nuts3` (`:576`),
+  `ba_plz_ambiguous` (`:581`) and `not_available` (the `RegionResolution` default, also `:396`,
+  `:451`, `:506`, `:509`). Adding only the six observed would redden the build on any BA re-sweep
+  that takes the PLZ or radius path. The other seven collectors' ~35 method literals are
+  deliberately absent: no partition exists for them, so none may be collected. The pin's comment
+  now records why the list grew, the observed-vs-audited split, and widens "a typo in
+  `scripts/enrich.py`" to cover `scrapers/`. The pin itself was never lifted and its severity never
+  lowered.
+- **The label backfill, at the only layer that can change a stored partition's meaning.**
+  `data/raw/` is immutable, so the fix is a new `transform/models/staging/stg_nuts_labels.sql`:
+  one row per `nuts_code`, read from the **nine** reference CSVs that expose `nuts_code` +
+  `nuts_label` (enumerated explicitly - a `*_nuts_2024.csv` glob silently misses
+  `mpsv_obce_kraj_2024.csv` and `mpsv_okresy_kraj_2024.csv`; `union_by_name` because the German file
+  carries two extra columns). `group by nuts_code` + `min(nuts_label)`, **not** `select distinct`:
+  distinct over the pair would emit two rows for a code with two label spellings and fan out every
+  posting count on join. Pinned by `contract: enforced: true`, `not_null` + `unique` on `nuts_code`
+  and `not_null` on `nuts_label` in `transform/models/staging/schema.yml`. `stg_postings.sql:18`
+  becomes `coalesce(cast(postings.nuts_label as varchar), labels.nuts_label)` on a **left** join -
+  source row wins because the collected label is evidence and the reference is a backfill; left,
+  never inner, so postings whose region is `not_present` (null `nuts_code`) keep their place in the
+  denominator. The inner join to `stg_collection_manifests` is untouched. No dbt seed, no var, no
+  snapshot - `read_csv` in a model, matching the project's constraints and `stg_postings`'s own
+  inline `read_json`.
+- **Conflicts surfaced, not hidden.** `min(nuts_label)` resolves a cross-file label conflict
+  silently, which is exactly what the vocabulary pin exists to prevent, so
+  `transform/tests/assert_nuts_label_unambiguous.sql` selects any code with two distinct non-null
+  labels across the same nine files. Untagged on purpose: it runs under `make live-site` too. It
+  passed on first run - no reference file pair currently disagrees.
+- **Prevention at source (step 5, done rather than deferred).** `ba_jobsuche.py`'s two Tier-3
+  `RegionResolution`s (`:1203-1220`) now take `nuts_label` from a new
+  `GermanCrosswalk.label_for_nuts()` lookup over the same `germany_plz_nuts_2024.csv` the other
+  tiers resolve from, so a future sweep stops producing code-without-label rows. The stored
+  partition cannot change, which is why the staging backfill is required regardless. The pinned
+  scraper tests took the change without a fight: all 51 BA tests and the full 459 passed unchanged,
+  ruff and mypy clean.
+- **Fan-out guard, checked explicitly as the highest-risk regression.** After the coalesce:
+  `stg_postings` still **33,836** rows, BA region outcomes still sum to **28,900** (22,575 + 5,013 +
+  839 + 297 + 176), BA region rows still **393** (the label completed existing `group by all` grains
+  rather than splitting them), and `dimension_demand_latest` has **zero** rows with
+  `dimension = 'region' and value_label is null`. All 12 spot-checked: `DE937` -> `Rotenburg
+  (Wümme)`, `DEB11` -> `Koblenz, Kreisfreie Stadt`, `DE233` -> `Weiden i. d. Opf, Kreisfreie Stadt`,
+  `DEE0C` -> `Salzlandkreis`. The published label is the reference Kreis name, not the panel's query
+  seed, matching the 2026-09-03 Increment 20 finding.
+- **Gates, stated as run.** `make check` fully offline and green: ruff clean, mypy clean over 62
+  source files, **459 pytest passed**, dbt **PASS=195 WARN=0 ERROR=0** - PASS rose by exactly the
+  five new resources (model + three contract tests + the singular test) and no test stopped being
+  selected. The sample fixtures are unaffected: `accepted_values` rejects unexpected values, it does
+  not require every listed value to appear, and the SE sample's labels are present so the coalesce
+  is a no-op there. `make live-site` is red **exactly as planned**: dbt build completes
+  (PASS=190 ERROR=0 excluding `tag:sample_fixture`), then `scripts/publish.py` raises
+  `ValueError: 2 scopes have postings (ba/de-nuts3-panel, jobtech/jobtech-f5cf1d409aa51fad)` in
+  `_verify_single_scope` (`publish.py:768`) - the failure Increment 20 originally predicted and
+  Increment 21's actual job. `make release-check` deliberately not cited: it depends on `site`, not
+  `live-site`, and re-tests only the synthetic sample.
+- **No METHODOLOGY_VERSION bump.** The code-to-region assignment is unchanged; only presentation
+  labels were completed and a vocabulary admitted. Increment 24's 1.3 -> 1.4 bump should mention
+  this backfill. Nothing under `data/` was written, and the reference CSVs stay tracked in git
+  (`git ls-files data/reference/`), so a fresh clone still builds.
 
