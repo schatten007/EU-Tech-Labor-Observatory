@@ -5,7 +5,8 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterable, Sequence
+import re
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from html import escape
 from pathlib import Path
@@ -160,6 +161,13 @@ DimensionRow = tuple[str, str, str, int]
 # a `Not stated` row is a posting whose source field was empty and so has no code to publish.
 RequirementRow = tuple[str, str, str | None, str, int]
 MappingRow = tuple[str, str, int]
+# The scope-keyed query results: (source, scope_id) prefixed onto the published row so the
+# publisher can group per scope and insights can partition before any rule runs. The published
+# row shapes above stay unchanged, so the renderers' index maths stays put.
+ScopeKey = tuple[str, str]
+ScopedDimensionRow = tuple[str, str, str, str, str, int]
+ScopedMappingRow = tuple[str, str, str, str, int]
+ScopedRequirementRow = tuple[str, str, str, str, str | None, str, int]
 # (source, scope_id, dimension, postings_total, postings_with_source_value, postings_mapped):
 # the scope keys are carried so the single-scope guard and the denominators read the same rows.
 MappingCoverageRow = tuple[str, str, str, int, int, int]
@@ -686,53 +694,67 @@ def _query_coverage(connection: duckdb.DuckDBPyConnection) -> list[CoverageRow]:
     return rows
 
 
-def _query_dimension(connection: duckdb.DuckDBPyConnection, *, region: bool) -> list[DimensionRow]:
-    """Region rows feed Countries; everything else feeds Occupations and skills."""
+def _query_dimension(
+    connection: duckdb.DuckDBPyConnection, *, region: bool
+) -> list[ScopedDimensionRow]:
+    """Region rows feed Countries; everything else feeds Occupations and skills.
+
+    DIMENSION_LIMIT applies per scope: `qualify` ranks inside each (source, scope_id), so
+    one busy scope cannot crowd another scope's values out of its own top list.
+    """
     comparison = "=" if region else "<>"
-    rows: list[DimensionRow] = connection.execute(
+    rows: list[ScopedDimensionRow] = connection.execute(
         f"""
-        select dimension, value_label, taxonomy_version, posting_count
+        select source, scope_id, dimension, value_label, taxonomy_version, posting_count
         from dimension_demand_latest
         where dimension {comparison} 'region'
-        order by posting_count desc, dimension, value_label
-        limit {DIMENSION_LIMIT}
+        qualify row_number() over (
+            partition by source, scope_id, dimension order by posting_count desc, value_label
+        ) <= {DIMENSION_LIMIT}
+        order by source, scope_id, posting_count desc, dimension, value_label
         """
     ).fetchall()
     return rows
 
 
-def _query_skills(connection: duckdb.DuckDBPyConnection) -> list[DimensionRow]:
-    rows: list[DimensionRow] = connection.execute(
+def _query_skills(connection: duckdb.DuckDBPyConnection) -> list[ScopedDimensionRow]:
+    rows: list[ScopedDimensionRow] = connection.execute(
         f"""
-        select dimension, value_label, taxonomy_version, posting_count
+        select source, scope_id, dimension, value_label, taxonomy_version, posting_count
         from skill_demand_latest
-        order by posting_count desc, value_label
-        limit {DIMENSION_LIMIT}
+        qualify row_number() over (
+            partition by source, scope_id, dimension order by posting_count desc, value_label
+        ) <= {DIMENSION_LIMIT}
+        order by source, scope_id, posting_count desc, value_label
         """
     ).fetchall()
     return rows
 
 
-def _query_mapping(connection: duckdb.DuckDBPyConnection) -> list[MappingRow]:
-    rows: list[MappingRow] = connection.execute(
-        "select dimension, mapping_status, sum(outcome_count)::bigint "
-        "from mapping_quality_latest group by all order by dimension, mapping_status"
+def _query_mapping(connection: duckdb.DuckDBPyConnection) -> list[ScopedMappingRow]:
+    """Per-scope mapping outcomes. The sum is within one scope only: summing across scopes
+    would publish a figure belonging to no sweep at all."""
+    rows: list[ScopedMappingRow] = connection.execute(
+        "select source, scope_id, dimension, mapping_status, sum(outcome_count)::bigint "
+        "from mapping_quality_latest "
+        "group by source, scope_id, dimension, mapping_status "
+        "order by source, scope_id, dimension, mapping_status"
     ).fetchall()
     return rows
 
 
-def _query_requirements(connection: duckdb.DuckDBPyConnection) -> list[RequirementRow]:
+def _query_requirements(connection: duckdb.DuckDBPyConnection) -> list[ScopedRequirementRow]:
     """Three closed-vocabulary distributions. No limit: at most six values cannot truncate, and a
     truncated distribution would stop summing to the sweep it was drawn from.
 
     `value_code` is the final tiebreak because two unmapped codes share the label
     `Unrecognised code`, so label alone is not a total order and their published order would be
     whatever the engine happened to produce."""
-    rows: list[RequirementRow] = connection.execute(
+    rows: list[ScopedRequirementRow] = connection.execute(
         """
-        select dimension, value_label, value_code, mapping_status, posting_count
+        select source, scope_id, dimension, value_label, value_code, mapping_status, posting_count
         from requirement_demand_latest
-        order by dimension, posting_count desc, value_label, value_code
+        order by source, scope_id, dimension, posting_count desc, value_label, value_code
         """
     ).fetchall()
     return rows
@@ -753,23 +775,56 @@ def _query_mapping_coverage(
     return rows
 
 
-def _verify_single_scope(coverage: Sequence[MappingCoverageRow]) -> None:
-    """Refuse to publish pooled aggregates as soon as a second scope has postings.
+def _scope_keys(demand: Sequence[DemandRow]) -> list[ScopeKey]:
+    """Ordered (source, scope_id) subsections, in demand order so the largest scope leads.
 
-    _query_dimension, _query_skills and _query_mapping all read their views without a scope filter,
-    so two collecting scopes would be summed into one ranking while the denominator beside it named
-    a single sweep, and a posting counted by both scopes would be counted twice. Per-scope sections
-    are the fix; failing the build is how that work does not get skipped by accident. Green today
-    with one collecting scope, and a zero-row scope publishes no coverage row to collide with.
+    An empty demand still renders one fallback subsection: the ranked tables and their
+    denominators must exist even on a page with no postings, because the release check fails a
+    ranked table that disappears entirely.
     """
-    scopes = sorted({(row[0], row[1]) for row in coverage if row[3] > 0})
-    if len(scopes) > 1:
-        collided = ", ".join(f"{source}/{scope_id}" for source, scope_id in scopes)
-        raise ValueError(
-            f"{len(scopes)} scopes have postings ({collided}), and _query_dimension, "
-            "_query_skills and _query_mapping pool every scope into one figure; publish "
-            "per-scope sections before this build can be trusted"
+    keys: list[ScopeKey] = []
+    for row in demand:
+        key = (row[0], row[1])
+        if key not in keys:
+            keys.append(key)
+    return keys or [("", "")]
+
+
+def _scope_slug(source: str, scope_id: str) -> str:
+    """A stable id fragment for one scope's tables; unique per (source, scope_id) pair."""
+    text = re.sub(r"[^a-z0-9]+", "-", f"{source}-{scope_id}".lower()).strip("-")
+    return text[:60] or "scope"
+
+
+def _scope_label(source: str, scope_id: str) -> str:
+    return f"{source} / {scope_id}" if source or scope_id else "No collecting scope"
+
+
+def _group_dimensions(
+    rows: Sequence[ScopedDimensionRow],
+) -> dict[ScopeKey, list[DimensionRow]]:
+    grouped: dict[ScopeKey, list[DimensionRow]] = {}
+    for source, scope_id, dimension, label, taxonomy_version, count in rows:
+        grouped.setdefault((source, scope_id), []).append(
+            (dimension, label, taxonomy_version, count)
         )
+    return grouped
+
+
+def _group_mapping(rows: Sequence[ScopedMappingRow]) -> dict[ScopeKey, list[MappingRow]]:
+    grouped: dict[ScopeKey, list[MappingRow]] = {}
+    for source, scope_id, dimension, status, count in rows:
+        grouped.setdefault((source, scope_id), []).append((dimension, status, count))
+    return grouped
+
+
+def _group_requirements(
+    rows: Sequence[ScopedRequirementRow],
+) -> dict[ScopeKey, list[RequirementRow]]:
+    grouped: dict[ScopeKey, list[RequirementRow]] = {}
+    for source, scope_id, dimension, label, code, status, count in rows:
+        grouped.setdefault((source, scope_id), []).append((dimension, label, code, status, count))
+    return grouped
 
 
 def _query_flows(connection: duckdb.DuckDBPyConnection) -> list[FlowRow]:
@@ -862,11 +917,38 @@ def _insight_paragraph(text: str) -> str:
     return f'<p class="insight">{escape(text)}</p>'
 
 
+def _insights_by_scope(
+    section_insights: Sequence[insights.Insight],
+) -> dict[str, list[insights.Insight]]:
+    """Group one section's insights by the scope each sentence describes."""
+    grouped: dict[str, list[insights.Insight]] = {}
+    for insight in section_insights:
+        grouped.setdefault(insight.scope, []).append(insight)
+    return grouped
+
+
+def _insight_groups(
+    grouped: Mapping[str, Sequence[insights.Insight]],
+    labels: Mapping[str, str],
+) -> str:
+    """Labelled insight groups, for sections without per-scope subsections of their own.
+
+    The scope label is markup beside the sentences, never inside them: a scope id such as
+    `jobtech-f5cf1d409aa51fad` inside `Insight.text` would read as an unsourced number to
+    the traceability test, and two scopes' sentences must never be readable as one.
+    """
+    return "".join(
+        f'<p class="label">{escape(labels.get(scope, scope))}</p>'
+        + "".join(_insight_paragraph(insight.text) for insight in group)
+        for scope, group in grouped.items()
+    )
+
+
 def _render_overview(
     demand: Sequence[DemandRow],
     coverage: Sequence[CoverageRow],
     flows: Sequence[FlowRow],
-    digest: Sequence[insights.Insight],
+    digest: str,
 ) -> str:
     steps = "".join(f"<li>{escape(step)}</li>" for step in WORKFLOW)
     # ponytail: the headline trend must stay inside one scope, so pick the leading demand scope
@@ -920,7 +1002,7 @@ def _render_overview(
         f'<ol class="workflow">{steps}</ol>'
         "<h3>Where the data stands now</h3>"
         f'<dl class="stats">{stats}</dl>'
-        + "".join(_insight_paragraph(insight.text) for insight in digest)
+        + digest
         + _definition(
             "Active postings are postings observed as open in the latest complete sweep for one "
             "source and scope. Freshness compares the observation age with the source threshold; "
@@ -983,7 +1065,7 @@ def _render_status(
     coverage: Sequence[CoverageRow],
     frequency: Sequence[FrequencyRow],
     built: datetime,
-    section_insights: Sequence[insights.Insight],
+    insights_html: str,
 ) -> str:
     """Operational run summary: what the last sweep did per scope and how to read that state."""
     cadence = {(row[7], row[0]): row for row in frequency}
@@ -1020,7 +1102,7 @@ def _render_status(
             f'<td class="wrap">{escape(_run_state(row))}</td></tr>'
         )
     return (
-        "".join(_insight_paragraph(insight.text) for insight in section_insights)
+        insights_html
         + '<p class="lede">Whether the figures on this page are current, per source and scope. '
         "A stale or partially covered scope stays published and labelled rather than hidden.</p>"
         + _definition(
@@ -1053,7 +1135,13 @@ def _render_status(
     )
 
 
-def _render_countries(demand: Sequence[DemandRow], regions: Sequence[DimensionRow]) -> str:
+def _render_countries(
+    demand: Sequence[DemandRow],
+    regions_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
+    coverage: Sequence[MappingCoverageRow],
+    scopes: Sequence[ScopeKey],
+    countries: Mapping[str, str],
+) -> str:
     # ponytail: one bar baseline per source, never page-wide, so the bar cannot imply a
     # between-source or between-country magnitude comparison.
     baselines: dict[str, int] = {}
@@ -1083,12 +1171,28 @@ def _render_countries(demand: Sequence[DemandRow], regions: Sequence[DimensionRo
             coverage_status,
         ) in demand
     )
-    regions_body = "".join(
-        f"<tr{_attrs(dimension=dimension, value=label)}>"
-        f"<td>{escape(label)}</td><td>{escape(taxonomy_version)}</td>"
-        f'<td class="count">{count:,}</td></tr>'
-        for dimension, label, taxonomy_version, count in regions
-    )
+    region_blocks: list[str] = []
+    for source, scope_id in scopes:
+        rows = regions_by_scope.get((source, scope_id), [])
+        regions_body = "".join(
+            f"<tr{_attrs(dimension=dimension, value=label, source=source, country=countries.get(scope_id))}>"
+            f"<td>{escape(label)}</td><td>{escape(taxonomy_version)}</td>"
+            f'<td class="count">{count:,}</td></tr>'
+            for dimension, label, taxonomy_version, count in rows
+        )
+        region_blocks.append(
+            f"<h4>{escape(_scope_label(source, scope_id))}</h4>"
+            # A region ranking is one row per posting, so the truncation at DIMENSION_LIMIT is
+            # material (25 of 393 German regions): the unlisted-tail sentence must be stated.
+            + _denominator(coverage, (source, scope_id), "region", "region", listed=rows)
+            + _table(
+                "Latest mapped demand by NUTS region",
+                (("Region", False), ("Reference version", False), ("Postings", True)),
+                regions_body,
+                name=f"countries-regions-{_scope_slug(source, scope_id)}",
+                empty="No mapped region results",
+            )
+        )
     return (
         _definition(
             "One row per source and scope. Counts are not summed or deduplicated across sources, "
@@ -1116,21 +1220,17 @@ def _render_countries(demand: Sequence[DemandRow], regions: Sequence[DimensionRo
         )
         + "<h3>NUTS regions</h3>"
         + _definition(
-            "Mapped NUTS 2024 regions for the latest sweep. Region counts come from structured "
-            "source geography only, never from free text, and are a subset of the country total."
+            "Mapped NUTS 2024 regions for the latest sweep of each collecting scope. Region "
+            "counts come from structured source geography only, never from free text, and are "
+            "a subset of that scope's country total."
         )
-        + _table(
-            "Latest mapped demand by NUTS region",
-            (("Region", False), ("Reference version", False), ("Postings", True)),
-            regions_body,
-            name="countries-regions",
-            empty="No mapped region results",
-        )
+        + "".join(region_blocks)
     )
 
 
 def _denominator(
     coverage: Sequence[MappingCoverageRow],
+    scope: ScopeKey,
     dimension: str,
     noun: str,
     *,
@@ -1142,12 +1242,22 @@ def _denominator(
     support. The class is on the paragraph so scripts/release_check.py can insist the sentence is
     still there next to each ranked table.
 
+    The scope key names the sweep: a denominator borrowed from another scope would state a
+    total this table's rows were never drawn from.
+
     Pass `listed` for a ranking whose rows are one-per-posting, where the column is supposed to
     account for every mapped posting. It stops doing so the moment the ranking truncates at
     DIMENSION_LIMIT, and a reader who adds the column then gets a smaller number than the
     sentence above it states. The shortfall is published rather than left to be discovered.
     """
-    row = next((entry for entry in coverage if entry[2] == dimension and entry[3] > 0), None)
+    row = next(
+        (
+            entry
+            for entry in coverage
+            if (entry[0], entry[1]) == scope and entry[2] == dimension and entry[3] > 0
+        ),
+        None,
+    )
     if row is None:
         text = (
             f"No coverage row was published for the latest sweep, so this {noun} ranking has no "
@@ -1171,124 +1281,155 @@ def _denominator(
 
 
 def _render_occupations(
-    occupations: Sequence[DimensionRow],
-    skills: Sequence[DimensionRow],
-    mapping: Sequence[MappingRow],
+    occupations_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
+    skills_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
+    mapping_by_scope: Mapping[ScopeKey, Sequence[MappingRow]],
     coverage: Sequence[MappingCoverageRow],
-    section_insights: Sequence[insights.Insight],
+    scopes: Sequence[ScopeKey],
+    section_insights: Mapping[str, Sequence[insights.Insight]],
+    countries: Mapping[str, str],
 ) -> str:
-    def ranked(rows: Sequence[DimensionRow]) -> str:
+    columns = (("Rank", True), ("Value", False), ("Reference version", False), ("Postings", True))
+
+    def ranked(rows: Sequence[DimensionRow], source: str, scope_id: str) -> str:
+        # Numbers start from 1 inside each scope's own section.
         return "".join(
-            f"<tr{_attrs(dimension=dimension, value=label)}>"
+            f"<tr{_attrs(dimension=dimension, value=label, source=source, country=countries.get(scope_id))}>"
             f'<td class="count">{rank}</td><td>{escape(label)}</td>'
             f"<td>{escape(taxonomy_version)}</td>"
             f'<td class="count">{count:,}</td></tr>'
             for rank, (dimension, label, taxonomy_version, count) in enumerate(rows, start=1)
         )
 
-    mapping_body = "".join(
-        f"<tr{_attrs()}><td>{escape(dimension)}</td><td>{escape(status)}</td>"
-        f'<td class="count">{count:,}</td></tr>'
-        for dimension, status, count in mapping
-    )
-    columns = (("Rank", True), ("Value", False), ("Reference version", False), ("Postings", True))
+    blocks: list[str] = []
+    for source, scope_id in scopes:
+        key = (source, scope_id)
+        slug = _scope_slug(source, scope_id)
+        occupations = occupations_by_scope.get(key, [])
+        skills = skills_by_scope.get(key, [])
+        mapping_body = "".join(
+            f"<tr{_attrs()}><td>{escape(dimension)}</td><td>{escape(status)}</td>"
+            f'<td class="count">{count:,}</td></tr>'
+            for dimension, status, count in mapping_by_scope.get(key, [])
+        )
+        blocks.append(
+            f"<h3>{escape(_scope_label(source, scope_id))}</h3>"
+            + "".join(
+                _insight_paragraph(insight.text) for insight in section_insights.get(scope_id, [])
+            )
+            + "<h4>Occupation ranking</h4>"
+            + _denominator(coverage, key, "occupation", "occupation", listed=occupations)
+            + _table(
+                "Ranked mapped demand by ESCO occupation",
+                columns,
+                ranked(occupations, source, scope_id),
+                name=f"occupations-ranked-{slug}",
+                empty="No mapped dimension results",
+            )
+            + "<h4>Technology skills</h4>"
+            + _denominator(coverage, key, "skill", "skill")
+            + _table(
+                "Ranked mapped demand by ESCO skill",
+                columns,
+                ranked(skills, source, scope_id),
+                name=f"occupations-skills-{slug}",
+                empty="No mapped skill results",
+            )
+            + "<h4>Mapping quality</h4>"
+            + _table(
+                "Mapping quality outcomes",
+                (("Dimension", False), ("Status", False), ("Outcomes", True)),
+                mapping_body,
+                name=f"occupations-mapping-{slug}",
+                empty="No mapping quality results",
+            )
+        )
     return (
-        "".join(_insight_paragraph(insight.text) for insight in section_insights)
-        + _definition(
+        _definition(
             "Mappings use pinned reference data: NUTS 2024 regions, JobTech Taxonomy v30, and ESCO "
             "1.2.1. Only structured taxonomy fields are used; job titles and free text are never "
-            "classified. Sweden only: no German posting source has passed the approval gate. "
-            "Where the crosswalk offers several candidates for one source concept and exactly one "
-            "of them is an exact match, that one is used; two or more exact matches are left "
-            "unresolved, as is a set with none. Ambiguous, low-confidence, unmapped, and "
+            "classified. Where the crosswalk offers several candidates for one source concept and "
+            "exactly one of them is an exact match, that one is used; two or more exact matches "
+            "are left unresolved, as is a set with none. Ambiguous, low-confidence, unmapped, and "
             "not-present values are excluded from mapped demand and shown separately as mapping "
-            "quality."
+            "quality. Each ranking and its denominator below belong to exactly one collecting "
+            "scope; scopes are never summed."
         )
-        + _denominator(coverage, "occupation", "occupation", listed=occupations)
-        + _table(
-            "Ranked mapped demand by ESCO occupation",
-            columns,
-            ranked(occupations),
-            name="occupations-ranked",
-            empty="No mapped dimension results",
-        )
-        + "<h3>Technology skills</h3>"
         + _definition(
             "Skill demand counts postings whose structured fields map to an ESCO skill. Historical "
             "movement is read from the trend section within one source; a skill can rise in share "
             "while the total posting count falls. A posting asking for several mapped skills is "
             "counted in every one of their rows, so the rows below count postings per skill and do "
-            "not sum to the mapped-posting count stated under this paragraph."
+            "not sum to the mapped-posting count stated beside each table."
         )
-        + _denominator(coverage, "skill", "skill")
-        + _table(
-            "Ranked mapped demand by ESCO skill",
-            columns,
-            ranked(skills),
-            name="occupations-skills",
-            empty="No mapped skill results",
-        )
-        + "<h3>Mapping quality</h3>"
         + _definition(
-            "Mapping outcomes for the latest sweep. Unmapped, ambiguous, low-confidence, and "
-            "not-present outcomes stay distinct so that a missing value is never read as zero demand."
+            "Mapping outcomes for the latest sweep of each scope. Unmapped, ambiguous, "
+            "low-confidence, and not-present outcomes stay distinct so that a missing value is "
+            "never read as zero demand."
         )
-        + _table(
-            "Mapping quality outcomes",
-            (("Dimension", False), ("Status", False), ("Outcomes", True)),
-            mapping_body,
-            name="occupations-mapping",
-            empty="No mapping quality results",
-        )
+        + "".join(blocks)
     )
 
 
 def _render_requirements(
-    requirements: Sequence[RequirementRow],
-    section_insights: Sequence[insights.Insight],
+    requirements_by_scope: Mapping[ScopeKey, Sequence[RequirementRow]],
+    scopes: Sequence[ScopeKey],
+    section_insights: Mapping[str, Sequence[insights.Insight]],
+    countries: Mapping[str, str],
 ) -> str:
-    """Three closed-vocabulary distributions, each accounting for every posting in the sweep.
+    """Three closed-vocabulary distributions, each accounting for every posting in its sweep.
 
-    Unlike the rankings above, nothing here is filtered to mapped values and nothing is truncated,
-    so no denominator sentence is needed: a null source value is published as `Not stated` and a
-    code the reference does not carry as `Unrecognised code`, both counted, and each column
-    therefore sums to the sweep's posting count by inspection.
+    Unlike the rankings above, nothing here is filtered to mapped values and nothing is
+    truncated, so no denominator sentence is needed: a null source value is published as
+    `Not stated` and a code the reference does not carry as `Unrecognised code`, both counted,
+    and each column therefore sums to its own scope's sweep by inspection.
     """
-    tables = "".join(
-        f"<h3>{escape(heading)}</h3>"
-        + _table(
-            f"Latest postings by {noun}",
-            (("Value", False), ("Source code", False), ("Postings", True)),
-            "".join(
-                f"<tr{_attrs(dimension=dimension, value=label)}>"
-                f"<td>{escape(label)}</td><td>{escape(code or '—')}</td>"
-                f'<td class="count">{count:,}</td></tr>'
-                for dimension, label, code, _status, count in requirements
-                if dimension == slug
-            ),
-            name=f"requirements-{slug.replace('_', '-')}",
-            empty=f"No {noun} results",
+    blocks: list[str] = []
+    for source, scope_id in scopes:
+        requirements = requirements_by_scope.get((source, scope_id), [])
+        slug = _scope_slug(source, scope_id)
+        tables = "".join(
+            f"<h4>{escape(heading)}</h4>"
+            + _table(
+                f"Latest postings by {noun}",
+                (("Value", False), ("Source code", False), ("Postings", True)),
+                "".join(
+                    f"<tr{_attrs(dimension=dimension, value=label, source=source, country=countries.get(scope_id))}>"
+                    f"<td>{escape(label)}</td><td>{escape(code or '—')}</td>"
+                    f'<td class="count">{count:,}</td></tr>'
+                    for dimension, label, code, _status, count in requirements
+                    if dimension == dimension_slug
+                ),
+                name=f"requirements-{dimension_slug.replace('_', '-')}-{slug}",
+                empty=f"No {noun} results",
+            )
+            for dimension_slug, heading, noun in REQUIREMENT_SECTIONS
         )
-        for slug, heading, noun in REQUIREMENT_SECTIONS
-    )
+        blocks.append(
+            f"<h3>{escape(_scope_label(source, scope_id))}</h3>"
+            + "".join(
+                _insight_paragraph(insight.text) for insight in section_insights.get(scope_id, [])
+            )
+            + tables
+        )
     return (
-        "".join(_insight_paragraph(insight.text) for insight in section_insights)
-        + '<p class="lede">What the postings in the latest sweep actually offer: permanent or '
+        '<p class="lede">What the postings in the latest sweep actually offer: permanent or '
         "fixed-term, full or part time, and for how long.</p>"
         + _definition(
             "Read from three structured JobTech Taxonomy v30 fields on each posting — employment "
             "type, working-hours type, and duration — never from free text. The values are the "
             "source's own closed vocabularies; the labels shown are our English translations of "
             "the Swedish taxonomy labels, and the source concept id is printed beside each one so "
-            "a label can be traced back. Every posting in the sweep appears in exactly one row of "
-            "each table, so each Postings column sums to that sweep's posting count. Not stated "
-            "means the source did not state a value for that field, and is counted rather than "
-            "dropped; Unrecognised code means the source used a value this reference does not "
-            "carry yet, and it is published with its code so a vocabulary change cannot pass "
-            "unseen. Counts are per posting, not per advertised vacancy, and are published in "
-            "full without small-count suppression, as the other latest-sweep counts are."
+            "a label can be traced back. Every posting in a scope's sweep appears in exactly one "
+            "row of each of that scope's tables, so each Postings column sums to that sweep's "
+            "posting count. Not stated means the source did not state a value for that field, "
+            "and is counted rather than dropped; Unrecognised code means the source used a value "
+            "this reference does not carry yet, and it is published with its code so a vocabulary "
+            "change cannot pass unseen. Counts are per posting, not per advertised vacancy, and "
+            "are published in full without small-count suppression, as the other latest-sweep "
+            "counts are."
         )
-        + tables
+        + "".join(blocks)
     )
 
 
@@ -1296,7 +1437,7 @@ def _render_survival(
     survival: Sequence[SurvivalRow],
     flows: Sequence[FlowRow],
     countries: dict[str, str],
-    section_insights: Sequence[insights.Insight],
+    insights_html: str,
 ) -> str:
     survival_body = "".join(
         f"<tr{_attrs(source=source, country=countries.get(scope_id))}>"
@@ -1330,7 +1471,7 @@ def _render_survival(
         if series
     )
     return (
-        "".join(_insight_paragraph(insight.text) for insight in section_insights)
+        insights_html
         + _definition(
             "A posting leaving the source is reported as posting duration or inferred removal, "
             "never as time to hire: the observatory cannot see hiring outcomes. Active postings are "
@@ -1383,8 +1524,9 @@ def _render_survival(
 def _render_quality(
     coverage: Sequence[CoverageRow],
     frequency: Sequence[FrequencyRow],
-    mapping: Sequence[MappingRow],
+    mapping_by_scope: Mapping[ScopeKey, Sequence[MappingRow]],
     countries: dict[str, str],
+    scopes: Sequence[ScopeKey],
 ) -> str:
     coverage_body = "".join(
         f"<tr{_attrs(country=country, source=source)}>"
@@ -1417,12 +1559,24 @@ def _render_quality(
         f'<td class="wrap">{escape(limitations or "—")}</td></tr>'
         for scope_id, sweeps, first, last, interval, threshold, limitations, source in frequency
     )
-    missing_body = "".join(
-        f"<tr{_attrs()}><td>{escape(dimension)}</td><td>{escape(status)}</td>"
-        f'<td class="count">{count:,}</td></tr>'
-        for dimension, status, count in mapping
-        if status != "mapped"
-    )
+    missing_blocks: list[str] = []
+    for source, scope_id in scopes:
+        missing_body = "".join(
+            f"<tr{_attrs()}><td>{escape(dimension)}</td><td>{escape(status)}</td>"
+            f'<td class="count">{count:,}</td></tr>'
+            for dimension, status, count in mapping_by_scope.get((source, scope_id), [])
+            if status != "mapped"
+        )
+        missing_blocks.append(
+            f"<h4>{escape(_scope_label(source, scope_id))}</h4>"
+            + _table(
+                "Mapping outcomes that are not mapped",
+                (("Dimension", False), ("Status", False), ("Outcomes", True)),
+                missing_body,
+                name=f"quality-missing-{_scope_slug(source, scope_id)}",
+                empty="No missing mapping results",
+            )
+        )
     return (
         _definition(
             "Coverage is deterministic: expected rows come from the sweep manifest and observed rows "
@@ -1469,15 +1623,10 @@ def _render_quality(
         + "<h3>Missing and uncertain mappings</h3>"
         + _definition(
             "Outcomes that are not mapped are published so that missing reference data is visible. "
-            "These postings are excluded from mapped demand and are not redistributed."
+            "These postings are excluded from mapped demand and are not redistributed. Each table "
+            "belongs to one collecting scope; scopes are never summed."
         )
-        + _table(
-            "Mapping outcomes that are not mapped",
-            (("Dimension", False), ("Status", False), ("Outcomes", True)),
-            missing_body,
-            name="quality-missing",
-            empty="No missing mapping results",
-        )
+        + "".join(missing_blocks)
     )
 
 
@@ -1662,7 +1811,14 @@ def build_site(database: Path, target: Path) -> int:
         provenance = _query_provenance(connection)
     finally:
         connection.close()
-    _verify_single_scope(mapping_coverage)
+    # One subsection per (source, scope_id), largest first: no ranking, denominator or table is
+    # ever shared between scopes, so nothing on the page pools them.
+    scopes = _scope_keys(demand)
+    regions_by_scope = _group_dimensions(regions)
+    occupations_by_scope = _group_dimensions(occupations)
+    skills_by_scope = _group_dimensions(skills)
+    mapping_by_scope = _group_mapping(mapping)
+    requirements_by_scope = _group_requirements(requirements)
     # Scope-keyed views carry no country column, so the filter bar needs this crosswalk to make
     # the country selector apply to the survival, flow, and frequency rows too.
     countries = {row[1]: row[2] for row in demand if row[2]}
@@ -1678,28 +1834,55 @@ def build_site(database: Path, target: Path) -> int:
         flows,
         frequency,
     )
-    digest = [
-        insight for slug, _heading in SECTIONS for insight in insights_by_section.get(slug, [])
-    ]
+    scope_labels = {row[1]: _scope_label(row[0], row[1]) for row in demand}
+    digest = _insight_groups(
+        _insights_by_scope(
+            [
+                insight
+                for slug, _heading in SECTIONS
+                for insight in insights_by_section.get(slug, [])
+            ]
+        ),
+        scope_labels,
+    )
     built = datetime.now(UTC)
     rendered = {
         "overview": _render_overview(demand, coverage, flows, digest),
-        "status": _render_status(coverage, frequency, built, insights_by_section.get("status", [])),
-        "countries": _render_countries(demand, regions),
+        "status": _render_status(
+            coverage,
+            frequency,
+            built,
+            _insight_groups(
+                _insights_by_scope(insights_by_section.get("status", [])), scope_labels
+            ),
+        ),
+        "countries": _render_countries(
+            demand, regions_by_scope, mapping_coverage, scopes, countries
+        ),
         "occupations": _render_occupations(
-            occupations,
-            skills,
-            mapping,
+            occupations_by_scope,
+            skills_by_scope,
+            mapping_by_scope,
             mapping_coverage,
-            insights_by_section.get("occupations", []),
+            scopes,
+            _insights_by_scope(insights_by_section.get("occupations", [])),
+            countries,
         ),
         "requirements": _render_requirements(
-            requirements, insights_by_section.get("requirements", [])
+            requirements_by_scope,
+            scopes,
+            _insights_by_scope(insights_by_section.get("requirements", [])),
+            countries,
         ),
         "survival": _render_survival(
-            survival, flows, countries, insights_by_section.get("survival", [])
+            survival,
+            flows,
+            countries,
+            _insight_groups(
+                _insights_by_scope(insights_by_section.get("survival", [])), scope_labels
+            ),
         ),
-        "quality": _render_quality(coverage, frequency, mapping, countries),
+        "quality": _render_quality(coverage, frequency, mapping_by_scope, countries, scopes),
         "methodology": _render_methodology(provenance),
         "governance": _render_governance(provenance),
     }
@@ -1709,7 +1892,11 @@ def build_site(database: Path, target: Path) -> int:
         links.append(f'<a href="#{slug}" data-tab="{slug}"{current}>{escape(heading)}</a>')
     nav = "".join(links)
     sections = "".join(_panel(slug, heading, rendered[slug]) for slug, heading in SECTIONS)
-    filters = _render_filters(demand, occupations, skills)
+    filters = _render_filters(
+        demand,
+        [row for rows in occupations_by_scope.values() for row in rows],
+        [row for rows in skills_by_scope.values() for row in rows],
+    )
     updated = max((row[3] for row in demand), default=None)
     stamp = (
         f"Last successful update {_time(updated)}. " if updated else "No successful update yet. "

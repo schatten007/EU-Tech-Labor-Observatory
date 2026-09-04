@@ -26,6 +26,11 @@ CoverageRow = tuple[
 DimensionRow = tuple[str, str, str, int]
 RequirementRow = tuple[str, str, str | None, str, int]
 MappingCoverageRow = tuple[str, str, str, int, int, int]
+# The scope-keyed rows build() partitions on before any rule runs: (source, scope_id)
+# prefixed onto the published row, so a two-scope page never pools into one rule call.
+# The rules keep their existing signatures and receive one scope's rows, unscoped.
+ScopedDimensionRow = tuple[str, str, str, str, str, int]
+ScopedRequirementRow = tuple[str, str, str, str, str | None, str, int]
 FlowRow = tuple[str, str, datetime, int | None, int | None, int | None, int | None, str]
 SurvivalRow = tuple[
     str,
@@ -74,10 +79,18 @@ def _present(items: Sequence[Insight | None]) -> list[Insight]:
     return [item for item in items if item is not None]
 
 
-def _sole_scope(demand: Sequence[DemandRow]) -> str | None:
-    """The one scope the page describes, or None when a sentence would pool scopes."""
-    scopes = {row[1] for row in demand if row[4] > 0}
-    return next(iter(scopes)) if len(scopes) == 1 else None
+def _collecting_scopes(demand: Sequence[DemandRow]) -> list[str]:
+    """Every scope with active postings, in demand order, so the largest scope leads.
+
+    A zero-posting scope collects nothing, so no sentence may be drawn from it; a scope
+    absent from demand has no sweep to name. Deduplicated because a scope_id names a
+    (source, scope_id) pair in every row this module reads.
+    """
+    scopes: list[str] = []
+    for row in demand:
+        if row[4] > 0 and row[1] not in scopes:
+            scopes.append(row[1])
+    return scopes
 
 
 def _coverage_row(
@@ -118,37 +131,50 @@ def _most_requested(
 def build(
     demand: Sequence[DemandRow],
     coverage: Sequence[CoverageRow],
-    occupations: Sequence[DimensionRow],
-    skills: Sequence[DimensionRow],
+    occupations: Sequence[ScopedDimensionRow],
+    skills: Sequence[ScopedDimensionRow],
     mapping_coverage: Sequence[MappingCoverageRow],
-    requirements: Sequence[RequirementRow],
+    requirements: Sequence[ScopedRequirementRow],
     survival: Sequence[SurvivalRow],
     flows: Sequence[FlowRow],
     frequency: Sequence[FrequencyRow],
 ) -> dict[str, list[Insight]]:
-    """Run every rule over the rows publish.py renders, keyed by section slug."""
-    scope = _sole_scope(demand)
-    if scope is None:
-        return {}
-    return {
-        "overview": _present([rule_latest_count(demand, scope)]),
-        "status": _present([rule_freshness_warning(coverage, scope)]),
-        "occupations": _present(
-            [
-                rule_most_requested_occupation(occupations, mapping_coverage, scope),
-                rule_most_requested_skill(skills, mapping_coverage, scope),
-            ]
-        ),
-        "requirements": _present(
-            [
-                rule_employment_shares(requirements, scope),
-                rule_working_hours_shares(requirements, scope),
-            ]
-        ),
-        "survival": _present(
-            [rule_median_duration(survival, scope), rule_trend(flows, frequency, scope)]
-        ),
-    }
+    """Run every rule over the rows publish.py renders, keyed by section slug.
+
+    One pass per collecting scope: the scope-keyed rows are partitioned here, so every
+    rule receives only its own scope's rows under its existing signature. That partition
+    is what keeps `_requirement_count` and the requirement-share totals reading one
+    scope instead of the first code match across all of them.
+    """
+    results: dict[str, list[Insight]] = {}
+    for scope in _collecting_scopes(demand):
+        scope_occupations = [row[2:] for row in occupations if row[1] == scope]
+        scope_skills = [row[2:] for row in skills if row[1] == scope]
+        scope_requirements = [row[2:] for row in requirements if row[1] == scope]
+        for slug, produced in (
+            ("overview", [rule_latest_count(demand, scope)]),
+            ("status", [rule_freshness_warning(coverage, scope)]),
+            (
+                "occupations",
+                [
+                    rule_most_requested_occupation(scope_occupations, mapping_coverage, scope),
+                    rule_most_requested_skill(scope_skills, mapping_coverage, scope),
+                ],
+            ),
+            (
+                "requirements",
+                [
+                    rule_employment_shares(scope_requirements, scope),
+                    rule_working_hours_shares(scope_requirements, scope),
+                ],
+            ),
+            (
+                "survival",
+                [rule_median_duration(survival, scope), rule_trend(flows, frequency, scope)],
+            ),
+        ):
+            results.setdefault(slug, []).extend(_present(produced))
+    return results
 
 
 def rule_latest_count(demand: Sequence[DemandRow], scope: str) -> Insight | None:

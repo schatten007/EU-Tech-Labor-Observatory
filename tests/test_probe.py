@@ -1655,7 +1655,9 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
     assert "native-42" not in page
     assert "Stockholms län" in page
     assert "C#" in page
-    assert "Sweden only" in page
+    # Increment 21: the false "Sweden only" clause is gone, and each panel carries per-scope
+    # subsections even with one scope on the page.
+    assert "Sweden only" not in page
     assert "No mapped dimension results" not in page
     # Iteration 9: historical analytics, correct labelling, and suppression.
     assert "Posting survival by closure basis" in page
@@ -1721,8 +1723,9 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
     # more than that.
     assert "a true zero posting count stays visible" in page
     # Iteration 13: every ranking states the postings it was drawn from, so a top-N list cannot
-    # be read as the whole sweep. Counts, never percentages.
-    assert page.count('class="denominator"') == 2
+    # be read as the whole sweep. Counts, never percentages. Increment 21 adds the region
+    # ranking's denominator beside its own per-scope table.
+    assert page.count('class="denominator"') == 3
     # The selection rule is stated on the page, because the methodology version claims to cover
     # the mapping rules described here. Figures published under 1.0 used the stricter rule.
     assert "exactly one of them is an exact match, that one is used" in page
@@ -1733,6 +1736,10 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
     )
     assert (
         "Ranked from 1 mapped posting(s) of 3 in the latest sweep; 2 carry a structured skill."
+        in page
+    )
+    assert (
+        "Ranked from 2 mapped posting(s) of 3 in the latest sweep; 3 carry a structured region."
         in page
     )
     assert "%" not in page.split('class="denominator"')[1].split("</p>")[0]
@@ -1753,9 +1760,9 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
     assert 'class="denominator"' not in requirements
     bodies: dict[str, str] = {}
     for identifier, total in (
-        ("table-requirements-employment-type", 3),
-        ("table-requirements-working-hours-type", 3),
-        ("table-requirements-duration", 3),
+        ("table-requirements-employment-type-jobtech-jobtech-scope", 3),
+        ("table-requirements-working-hours-type-jobtech-jobtech-scope", 3),
+        ("table-requirements-duration-jobtech-jobtech-scope", 3),
     ):
         body = page.split(f'id="{identifier}"')[1].split("</tbody>")[0]
         bodies[identifier] = body
@@ -1764,12 +1771,12 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
     # definition prose names them too, so a page-wide substring check is satisfied by the text
     # alone - it would pass on a page that dropped the rows, which is the failure the row shape
     # exists to prevent.
-    employment = bodies["table-requirements-employment-type"]
+    employment = bodies["table-requirements-employment-type-jobtech-jobtech-scope"]
     assert "Permanent employment (probationary period possible)" in employment
     assert "kpPX_CNN_gDU" in employment
     assert "Unrecognised code" in employment
     assert "zzzz_zzz_zzz" in employment
-    assert "Not stated" in bodies["table-requirements-working-hours-type"]
+    assert "Not stated" in bodies["table-requirements-working-hours-type-jobtech-jobtech-scope"]
     # Iteration 16: the insights are server-rendered, escaped, and reproducible from the tables
     # beneath them. This fixture fires exactly three - the latest count, the leading occupation,
     # and the leading skill - because the fixed-term, part-time, closed-duration, and trend rules
@@ -1814,7 +1821,9 @@ def test_truncated_occupation_ranking_states_what_it_leaves_out() -> None:
     listed = [
         ("occupation", f"occ-{index}", "1.2.1", 1) for index in range(publish.DIMENSION_LIMIT)
     ]
-    truncated = publish._denominator(coverage, "occupation", "occupation", listed=listed)
+    truncated = publish._denominator(
+        coverage, ("jobtech", "scope"), "occupation", "occupation", listed=listed
+    )
     assert "Ranked from 519 mapped posting(s) of 627" in truncated
     assert f"Only the {publish.DIMENSION_LIMIT} most frequent occupations are listed" in truncated
     assert "accounting for 25 of those mapped postings" in truncated
@@ -1823,6 +1832,7 @@ def test_truncated_occupation_ranking_states_what_it_leaves_out() -> None:
     # A complete ranking must stay silent: an unnecessary caveat is its own kind of dishonesty.
     whole = publish._denominator(
         coverage,
+        ("jobtech", "scope"),
         "occupation",
         "occupation",
         listed=[("occupation", "occ", "1.2.1", 519)],
@@ -1830,8 +1840,13 @@ def test_truncated_occupation_ranking_states_what_it_leaves_out() -> None:
     assert "unlisted tail" not in whole
     # The skill ranking counts postings per skill, so its column legitimately exceeds the
     # denominator and must never gain a shortfall clause.
-    skills = publish._denominator(coverage, "skill", "skill")
+    skills = publish._denominator(coverage, ("jobtech", "scope"), "skill", "skill")
     assert "unlisted tail" not in skills
+    # A denominator never borrows another scope's coverage row, even when the dimension matches.
+    other_scope = publish._denominator(
+        coverage, ("ba", "de-panel"), "occupation", "occupation", listed=listed
+    )
+    assert "no stated denominator" in other_scope
 
 
 def test_publish_handles_zero_only_aggregate(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
@@ -1966,7 +1981,10 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path, monkeypatch: Monkey
     assert "built from stored collection partitions (data/raw/collections/jobtech" in page
     assert "built from the synthetic sample" not in page
     # No coverage row means no denominator to state, and saying so beats printing a bare zero.
-    assert page.count('class="denominator"') == 2
+    # The zero-postings scope still renders every ranked table per prefix, empty, with its
+    # own denominator sentence, so the release check's ranked-table rules still run.
+    assert page.count('class="denominator"') == 3
+    assert "so this region ranking has no stated denominator" in page
     assert "so this occupation ranking has no stated denominator" in page
     assert "so this skill ranking has no stated denominator" in page
     # A sweep collected before the requirement fields existed publishes no row for them, and the
@@ -1996,22 +2014,372 @@ def test_methodology_version_covers_the_requirement_dimensions() -> None:
     )
 
 
-def test_publish_refuses_to_pool_two_collecting_scopes() -> None:
-    """The rankings and the mapping-quality table pool scopes, so a second one stops the build."""
-    one: list[publish.MappingCoverageRow] = [("jobtech", "jobtech-scope", "occupation", 3, 2, 1)]
-    zero_row_scope = [*one, ("jobtech", "jobtech-empty-scope", "occupation", 0, 0, 0)]
-    two = [*one, ("jobtech", "jobtech-datait", "occupation", 4, 3, 2)]
+def test_publish_renders_each_scope_in_its_own_sections(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    """Two collecting scopes publish beside each other, never pooled into one figure.
 
-    publish._verify_single_scope(one)
-    publish._verify_single_scope(zero_row_scope)
-    try:
-        publish._verify_single_scope(two)
-    except ValueError as error:
-        assert "jobtech/jobtech-datait" in str(error)
-        assert "jobtech/jobtech-scope" in str(error)
-        assert "_query_dimension" in str(error)
-    else:
-        raise AssertionError("two scopes with postings must not be published as one ranking")
+    Replaces the two-scope refusal test, keeping its intent as the assertion: the guard this
+    test once exercised is gone because the rankings it protected are now per scope, so the
+    page must prove no ranking, denominator, requirement column or insight sums both scopes.
+    """
+    monkeypatch.delenv("OBSERVATIONS_PATH", raising=False)
+    database = tmp_path / "two-scope.duckdb"
+    target = tmp_path / "index.html"
+    limitation = (
+        "Stratified region-bounded sample with a capped within-stratum draw over a frozen panel"
+    )
+    # 30 occupation values for jobtech so its ranking truncates at DIMENSION_LIMIT while the
+    # ba scope, with none, is unaffected by the limit.
+    occupation_rows = " union all ".join(
+        f"select 'jobtech', 'jobtech-scope', 'sweep-one', timestamp '2026-08-06 09:00:00', "
+        f"'occupation', 'http://data.europa.eu/esco/occupation/occ-{index}', 'occ-{index}', "
+        f"'1.2.1', {6 if index == 0 else 1}::bigint"
+        for index in range(30)
+    )
+    connection = duckdb.connect(str(database))
+    connection.execute(
+        f"""
+        create table labour_demand_latest as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'sample/one'::varchar as partition_id, 'sweep-one'::varchar as sweep_id,
+               'run-one'::varchar as run_id, 'SE'::varchar as country,
+               timestamp '2026-08-06 09:00:00' as observed_at,
+               timestamp '2026-08-06 08:59:00' as started_at,
+               timestamp '2026-08-06 09:01:00' as completed_at,
+               'complete'::varchar as status, 'v1'::varchar as hmac_key_version,
+               'JobSearch current ads'::varchar as source_version,
+               'https://data.jobtechdev.se/dataservice/jobsearch/'::varchar as licence_reference,
+               'official-public-api'::varchar as access_method,
+               'approved'::varchar as approval_status,
+               'Keyword-scoped'::varchar as coverage_limitations,
+               3.0::double as freshness_age_hours, 'fresh'::varchar as freshness_status,
+               'covered'::varchar as coverage_status, 40::bigint as active_postings
+        union all
+        select 'ba', 'de-panel', 'sample/de', 'sweep-de', 'run-de', 'DE',
+               timestamp '2026-09-02 08:04:00', timestamp '2026-09-02 08:00:00',
+               timestamp '2026-09-02 08:10:00', 'complete', 'v1', 'Jobsuche',
+               cast(null as varchar), 'html-portal-scrape', 'approved',
+               '{limitation}',
+               2.0::double, 'fresh', 'covered', 20::bigint
+        """
+    )
+    connection.execute(
+        f"""
+        create table dimension_demand_latest as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'sweep-one'::varchar as sweep_id, timestamp '2026-08-06 09:00:00' as observed_at,
+               'region'::varchar as dimension, cast(null as varchar) as value_uri,
+               'Stockholms län'::varchar as value_label, 'NUTS-2024'::varchar as taxonomy_version,
+               40::bigint as posting_count
+        union all
+        select 'ba', 'de-panel', 'sweep-de', timestamp '2026-09-02 08:04:00', 'region',
+               cast(null as varchar), 'Koblenz, Kreisfreie Stadt', 'NUTS-2024', 12::bigint
+        union all
+        select 'ba', 'de-panel', 'sweep-de', timestamp '2026-09-02 08:04:00', 'region',
+               cast(null as varchar), 'Berlin, Kreisfreie Stadt', 'NUTS-2024', 8::bigint
+        union all
+        {occupation_rows}
+        """
+    )
+    connection.execute(
+        """
+        create table skill_demand_latest as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'sweep-one'::varchar as sweep_id, timestamp '2026-08-06 09:00:00' as observed_at,
+               'skill'::varchar as dimension,
+               'http://data.europa.eu/esco/skill/4c016b68'::varchar as value_uri,
+               'C#'::varchar as value_label, '1.2.1'::varchar as taxonomy_version,
+               8::bigint as posting_count
+        """
+    )
+    connection.execute(
+        """
+        create table mapping_quality_latest as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'sweep-one'::varchar as sweep_id, 'region'::varchar as dimension,
+               'mapped'::varchar as mapping_status, 'region_crosswalk'::varchar as mapping_method,
+               cast(null as varchar) as mapping_confidence,
+               'NUTS-2024'::varchar as taxonomy_version,
+               40::bigint as outcome_count, 40::hugeint as total_outcomes
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', 'occupation', 'mapped',
+               'esco_crosswalk', cast(null as varchar), '1.2.1', 35::bigint, 40::hugeint
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', 'occupation', 'not_present',
+               'no_source_value', cast(null as varchar), '1.2.1', 5::bigint, 40::hugeint
+        union all
+        select 'ba', 'de-panel', 'sweep-de', 'region', 'mapped', 'ba_city_municipality_nuts3',
+               cast(null as varchar), 'NUTS-2024', 20::bigint, 20::hugeint
+        union all
+        select 'ba', 'de-panel', 'sweep-de', 'occupation', 'not_present',
+               'not_available_ba_html', cast(null as varchar), cast(null as varchar),
+               20::bigint, 20::hugeint
+        """
+    )
+    connection.execute(
+        """
+        create table mapping_coverage_latest as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'sweep-one'::varchar as sweep_id, 'region'::varchar as dimension,
+               40::bigint as postings_total, 40::bigint as postings_with_source_value,
+               40::bigint as postings_mapped, 'NUTS-2024'::varchar as taxonomy_version
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', 'occupation', 40::bigint, 40::bigint,
+               35::bigint, '1.2.1'
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', 'skill', 40::bigint, 10::bigint,
+               8::bigint, '1.2.1'
+        union all
+        select 'ba', 'de-panel', 'sweep-de', 'region', 20::bigint, 20::bigint, 20::bigint,
+               'NUTS-2024'
+        union all
+        select 'ba', 'de-panel', 'sweep-de', 'occupation', 20::bigint, 0::bigint, 0::bigint,
+               cast(null as varchar)
+        union all
+        select 'ba', 'de-panel', 'sweep-de', 'skill', 20::bigint, 0::bigint, 0::bigint,
+               cast(null as varchar)
+        """
+    )
+    connection.execute(
+        """
+        create table requirement_demand_latest as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'sweep-one'::varchar as sweep_id, timestamp '2026-08-06 09:00:00' as observed_at,
+               'employment_type'::varchar as dimension, 'kpPX_CNN_gDU'::varchar as value_code,
+               'Permanent employment (probationary period possible)'::varchar as value_label,
+               'mapped'::varchar as mapping_status, 30::bigint as posting_count
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', timestamp '2026-08-06 09:00:00',
+               'employment_type', 'sTu5_NBQ_udq', 'Fixed-term employment', 'mapped', 10::bigint
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', timestamp '2026-08-06 09:00:00',
+               'working_hours_type', '6YE1_gAC_R2G', 'Full-time', 'mapped', 35::bigint
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', timestamp '2026-08-06 09:00:00',
+               'working_hours_type', '947z_JGS_Uk2', 'Part-time', 'mapped', 5::bigint
+        union all
+        select 'jobtech', 'jobtech-scope', 'sweep-one', timestamp '2026-08-06 09:00:00',
+               'duration', 'a7uU_j21_mkL', 'Open-ended', 'mapped', 40::bigint
+        union all
+        select 'ba', 'de-panel', 'sweep-de', timestamp '2026-09-02 08:04:00',
+               'employment_type', 'kpPX_CNN_gDU',
+               'Permanent employment (probationary period possible)', 'mapped', 12::bigint
+        union all
+        select 'ba', 'de-panel', 'sweep-de', timestamp '2026-09-02 08:04:00',
+               'employment_type', 'sTu5_NBQ_udq', 'Fixed-term employment', 'mapped', 8::bigint
+        union all
+        select 'ba', 'de-panel', 'sweep-de', timestamp '2026-09-02 08:04:00',
+               'working_hours_type', '6YE1_gAC_R2G', 'Full-time', 'mapped', 15::bigint
+        union all
+        select 'ba', 'de-panel', 'sweep-de', timestamp '2026-09-02 08:04:00',
+               'working_hours_type', '947z_JGS_Uk2', 'Part-time', 'mapped', 5::bigint
+        union all
+        select 'ba', 'de-panel', 'sweep-de', timestamp '2026-09-02 08:04:00',
+               'duration', 'a7uU_j21_mkL', 'Open-ended', 'mapped', 20::bigint
+        """
+    )
+    connection.execute(
+        """
+        create table posting_flows as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'day'::varchar as grain, timestamp '2026-08-06 00:00:00' as bucket_start,
+               false as is_suppressed, 6::bigint as openings, 0::bigint as closures,
+               40::bigint as active_postings, 52::bigint as active_vacancies
+        union all
+        select 'jobtech', 'jobtech-scope', 'day', timestamp '2026-08-07 00:00:00', false,
+               7::bigint, 6::bigint, 41::bigint, 55::bigint
+        union all
+        select 'jobtech', 'jobtech-scope', 'day', timestamp '2026-08-08 00:00:00', false,
+               5::bigint, 7::bigint, 42::bigint, 58::bigint
+        union all
+        select 'ba', 'de-panel', 'week', timestamp '2026-09-01 00:00:00', false,
+               9::bigint, 0::bigint, 20::bigint, 26::bigint
+        """
+    )
+    connection.execute(
+        """
+        create table posting_survival as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'active'::varchar as lifecycle_status, false as is_suppressed,
+               true as any_right_censored, 40::bigint as posting_count,
+               52::bigint as advertised_vacancies, 0.0::double as median_duration_days,
+               0.0::double as p25_duration_days, 1.0::double as p75_duration_days,
+               1::bigint as max_duration_days
+        union all
+        select 'jobtech', 'jobtech-scope', 'inferred_absence', false, false, 6::bigint,
+               8::bigint, 1.0::double, 0.0::double, 2.0::double, 5::bigint
+        union all
+        select 'ba', 'de-panel', 'active', false, true, 20::bigint, 26::bigint,
+               0.0::double, 0.0::double, 1.0::double, 1::bigint
+        """
+    )
+    connection.execute(
+        f"""
+        create table collection_frequency as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               3::bigint as complete_sweeps, timestamp '2026-08-05 09:00:00' as first_observed_at,
+               timestamp '2026-08-08 09:00:00' as last_observed_at,
+               36.0::double as median_interval_hours, 48::integer as freshness_threshold_hours,
+               'Keyword-scoped'::varchar as coverage_limitations
+        union all
+        select 'ba', 'de-panel', 1::bigint, timestamp '2026-09-02 08:04:00',
+               timestamp '2026-09-02 08:04:00', cast(null as double), 48,
+               '{limitation}'
+        """
+    )
+    connection.execute(
+        f"""
+        create table source_coverage as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'sweep-one'::varchar as sweep_id, 'SE'::varchar as country,
+               timestamp '2026-08-06 09:00:00' as observed_at, 40::bigint as expected_rows,
+               40::bigint as observed_rows, 'fresh'::varchar as freshness_status,
+               'covered'::varchar as coverage_status, 3.0::double as freshness_age_hours,
+               'Keyword-scoped'::varchar as coverage_limitations,
+               48::integer as freshness_threshold_hours
+        union all
+        select 'ba', 'de-panel', 'sweep-de', 'DE', timestamp '2026-09-02 08:04:00',
+               20::bigint, 20::bigint, 'fresh', 'covered', 2.0::double,
+               '{limitation}',
+               48
+        """
+    )
+    connection.execute(
+        """
+        create table latest_complete_sweeps as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               timestamp '2026-08-06 09:00:00' as observed_at,
+               'https://data.jobtechdev.se/dataservice/jobsearch/'::varchar as licence_reference,
+               'official-public-api'::varchar as access_method,
+               'JobSearch current ads'::varchar as source_version,
+               'NUTS-2024'::varchar as nuts_version, 'v30'::varchar as jobtech_taxonomy_version,
+               '1.2.1'::varchar as esco_version, 40::bigint as row_count
+        union all
+        select 'ba', 'de-panel', timestamp '2026-09-02 08:04:00', cast(null as varchar),
+               'html-portal-scrape', 'Jobsuche', 'NUTS-2024', cast(null as varchar),
+               cast(null as varchar), 20::bigint
+        """
+    )
+    connection.close()
+
+    assert publish.build_site(database, target) == 2
+    page = target.read_text(encoding="utf-8")
+
+    # Two subsections per affected panel, each named for its scope, largest first.
+    countries = page.split('id="countries"')[1].split("</section>")[0]
+    assert countries.count("<h4>jobtech / jobtech-scope</h4>") == 1
+    assert countries.count("<h4>ba / de-panel</h4>") == 1
+    occupations_panel = page.split('id="occupations"')[1].split("</section>")[0]
+    assert occupations_panel.count("<h3>jobtech / jobtech-scope</h3>") == 1
+    assert occupations_panel.count("<h3>ba / de-panel</h3>") == 1
+    requirements_panel = page.split('id="requirements"')[1].split("</section>")[0]
+    assert requirements_panel.count("<h3>jobtech / jobtech-scope</h3>") == 1
+    assert requirements_panel.count("<h3>ba / de-panel</h3>") == 1
+    assert occupations_panel.index("jobtech / jobtech-scope") < occupations_panel.index(
+        "ba / de-panel"
+    )
+
+    # No rendered count is the sum of both scopes.
+    assert "Of 60 postings in the latest sweep" not in page
+    assert "Ranked from 55 mapped posting(s) of 60" not in page
+    assert "observed 60 active posting(s)" not in page
+
+    # Each denominator names its own sweep's numbers; none is reused between subsections.
+    assert (
+        "Ranked from 35 mapped posting(s) of 40 in the latest sweep; 40 carry a structured "
+        "occupation." in occupations_panel
+    )
+    assert (
+        "Only the 25 most frequent occupations are listed below, accounting for 30 of those "
+        "mapped postings" in occupations_panel
+    )
+    assert (
+        "Ranked from 0 mapped posting(s) of 20 in the latest sweep; 0 carry a structured "
+        "occupation." in occupations_panel
+    )
+    assert (
+        "Ranked from 40 mapped posting(s) of 40 in the latest sweep; 40 carry a structured region."
+        in countries
+    )
+    assert (
+        "Ranked from 20 mapped posting(s) of 20 in the latest sweep; 20 carry a structured region."
+        in countries
+    )
+    assert (
+        "Ranked from 8 mapped posting(s) of 40 in the latest sweep; 10 carry a structured skill."
+        in occupations_panel
+    )
+    assert (
+        "Ranked from 0 mapped posting(s) of 20 in the latest sweep; 0 carry a structured skill."
+        in occupations_panel
+    )
+
+    # DIMENSION_LIMIT applies per subsection: jobtech lists 25 of its 30 values, and the ba
+    # table stays empty and honest rather than inheriting jobtech's rows.
+    jobtech_ranked = page.split('id="table-occupations-ranked-jobtech-jobtech-scope"')[1]
+    jobtech_ranked = jobtech_ranked.split("</table>")[0]
+    assert jobtech_ranked.count("data-row") == publish.DIMENSION_LIMIT
+    ba_ranked = page.split('id="table-occupations-ranked-ba-de-panel"')[1].split("</table>")[0]
+    assert ba_ranked.count("data-row") == 0
+    assert "No mapped dimension results" in ba_ranked
+    assert "occ-0" in jobtech_ranked
+
+    # Requirement tables sum to their own scope's posting total, per scope.
+    for identifier, total in (
+        ("table-requirements-employment-type-jobtech-jobtech-scope", 40),
+        ("table-requirements-working-hours-type-jobtech-jobtech-scope", 40),
+        ("table-requirements-duration-jobtech-jobtech-scope", 40),
+        ("table-requirements-employment-type-ba-de-panel", 20),
+        ("table-requirements-working-hours-type-ba-de-panel", 20),
+        ("table-requirements-duration-ba-de-panel", 20),
+    ):
+        body = page.split(f'id="{identifier}"')[1].split("</tbody>")[0]
+        assert sum(int(cell) for cell in re.findall(r'class="count">(\d+)<', body)) == total
+
+    # One sentence per scope per fired rule, with the Overview digest labelling each group so
+    # two "latest complete sweep" sentences can never be read as one.
+    overview = page.split('id="overview"')[1].split("</section>")[0]
+    assert '<p class="label">jobtech / jobtech-scope</p>' in overview
+    assert '<p class="label">ba / de-panel</p>' in overview
+    assert "The latest complete sweep observed 40 active posting(s) on 2026-08-06." in overview
+    assert "The latest complete sweep observed 20 active posting(s) on 2026-09-02." in overview
+    assert (
+        "Of 40 postings in the latest sweep, 30 are permanent employment and 10 "
+        "are fixed-term employment." in requirements_panel
+    )
+    assert (
+        "Of 20 postings in the latest sweep, 12 are permanent employment and 8 "
+        "are fixed-term employment." in requirements_panel
+    )
+    assert "The most frequently mapped occupation is occ-0, in 6 of 35 mapped posting(s)." in (
+        occupations_panel
+    )
+    assert "The most frequently mapped skill is C#, asked for in 8 of 8 posting(s)" in (
+        occupations_panel
+    )
+    for scope_id in ("jobtech-scope", "de-panel"):
+        assert scope_id not in "".join(
+            insight for insight in re.findall(r'<p class="insight">(.*?)</p>', page)
+        )
+    # The scope-keyed rows carry the filter keys, so the country filter reaches them.
+    assert 'data-source="ba" data-country="DE"' in page
+    assert 'data-source="jobtech" data-country="SE"' in page
+
+    # The quality section's missing-mappings table is per scope too: pooling it would sum
+    # across sources, which no other table is allowed to do either.
+    quality = page.split('id="quality"')[1].split("</section>")[0]
+    assert 'id="table-quality-missing-jobtech-jobtech-scope"' in quality
+    assert 'id="table-quality-missing-ba-de-panel"' in quality
+    jobtech_missing = quality.split('id="table-quality-missing-jobtech-jobtech-scope"')[1]
+    jobtech_missing = jobtech_missing.split("</table>")[0]
+    ba_missing = quality.split('id="table-quality-missing-ba-de-panel"')[1].split("</table>")[0]
+    assert jobtech_missing.count("data-row") == 1 and ">5<" in jobtech_missing
+    assert ba_missing.count("data-row") == 1 and ">20<" in ba_missing
+    assert "not_present" in jobtech_missing and "not_present" in ba_missing
+
+    # Element ids stay unique across subsections, and every release rule holds on the page.
+    assert release_check.check_page(page) == []
 
 
 def _numeric_tokens(text: str) -> set[str]:
@@ -2041,10 +2409,10 @@ def _row_tokens(rows: Iterable[tuple[object, ...]]) -> set[str]:
 RichRows = tuple[
     list[insights.DemandRow],
     list[insights.CoverageRow],
-    list[insights.DimensionRow],
-    list[insights.DimensionRow],
+    list[insights.ScopedDimensionRow],
+    list[insights.ScopedDimensionRow],
     list[insights.MappingCoverageRow],
-    list[insights.RequirementRow],
+    list[insights.ScopedRequirementRow],
     list[insights.SurvivalRow],
     list[insights.FlowRow],
     list[insights.FrequencyRow],
@@ -2082,28 +2450,80 @@ def _rich_rows() -> RichRows:
             48,
         )
     ]
-    occupations: list[insights.DimensionRow] = [
-        ("occupation", "Systemutvecklare/Programmerare", "1.2.1", 357)
+    occupations: list[insights.ScopedDimensionRow] = [
+        ("jobtech", "jobtech-scope", "occupation", "Systemutvecklare/Programmerare", "1.2.1", 357)
     ]
-    skills: list[insights.DimensionRow] = [("skill", "Programmering", "1.2.1", 30)]
+    skills: list[insights.ScopedDimensionRow] = [
+        ("jobtech", "jobtech-scope", "skill", "Programmering", "1.2.1", 30)
+    ]
     mapping_coverage: list[insights.MappingCoverageRow] = [
         ("jobtech", "jobtech-scope", "occupation", 628, 628, 520),
         ("jobtech", "jobtech-scope", "skill", 628, 61, 48),
     ]
-    requirements: list[insights.RequirementRow] = [
+    requirements: list[insights.ScopedRequirementRow] = [
         (
+            "jobtech",
+            "jobtech-scope",
             "employment_type",
             "Permanent employment (probationary period possible)",
             "kpPX_CNN_gDU",
             "mapped",
             160,
         ),
-        ("employment_type", "Fixed-term employment", "sTu5_NBQ_udq", "mapped", 27),
-        ("employment_type", "Regular employment", "PFZr_Syz_cUq", "mapped", 428),
-        ("employment_type", "On-demand employment", "1paU_aCR_nGn", "mapped", 13),
-        ("working_hours_type", "Full-time", "6YE1_gAC_R2G", "mapped", 610),
-        ("working_hours_type", "Part-time", "947z_JGS_Uk2", "mapped", 6),
-        ("working_hours_type", "Not stated", None, "not_present", 12),
+        (
+            "jobtech",
+            "jobtech-scope",
+            "employment_type",
+            "Fixed-term employment",
+            "sTu5_NBQ_udq",
+            "mapped",
+            27,
+        ),
+        (
+            "jobtech",
+            "jobtech-scope",
+            "employment_type",
+            "Regular employment",
+            "PFZr_Syz_cUq",
+            "mapped",
+            428,
+        ),
+        (
+            "jobtech",
+            "jobtech-scope",
+            "employment_type",
+            "On-demand employment",
+            "1paU_aCR_nGn",
+            "mapped",
+            13,
+        ),
+        (
+            "jobtech",
+            "jobtech-scope",
+            "working_hours_type",
+            "Full-time",
+            "6YE1_gAC_R2G",
+            "mapped",
+            610,
+        ),
+        (
+            "jobtech",
+            "jobtech-scope",
+            "working_hours_type",
+            "Part-time",
+            "947z_JGS_Uk2",
+            "mapped",
+            6,
+        ),
+        (
+            "jobtech",
+            "jobtech-scope",
+            "working_hours_type",
+            "Not stated",
+            None,
+            "not_present",
+            12,
+        ),
     ]
     survival: list[insights.SurvivalRow] = [
         ("jobtech-scope", "active", True, 628, 806, 3.0, 1.0, 7.0, 90, "jobtech"),
@@ -2499,14 +2919,19 @@ def test_insight_trend_fires_only_when_the_gate_is_met() -> None:
     assert held is not None and "were unchanged at 628" in held.text
 
 
-def test_insight_build_refuses_two_scopes() -> None:
+def test_insight_build_states_each_scope_separately() -> None:
+    """Two collecting scopes produce one sentence per scope per rule, never a pooled one.
+
+    Replaces the two-scope refusal test, keeping its intent as the assertion: no figure may
+    be the sum of both scopes, and no sentence may describe both.
+    """
     demand: list[insights.DemandRow] = [
         (
             "jobtech",
             "scope-a",
             "SE",
             datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
-            10,
+            40,
             "v1",
             "licence",
             "api",
@@ -2514,10 +2939,10 @@ def test_insight_build_refuses_two_scopes() -> None:
             "covered",
         ),
         (
-            "jobtech",
+            "ba",
             "scope-b",
-            "SE",
-            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            "DE",
+            datetime(2026, 8, 22, 12, 0, tzinfo=UTC),
             20,
             "v1",
             "licence",
@@ -2526,27 +2951,105 @@ def test_insight_build_refuses_two_scopes() -> None:
             "covered",
         ),
     ]
-    no_coverage: list[insights.CoverageRow] = []
-    no_dimension: list[insights.DimensionRow] = []
-    no_mapping: list[insights.MappingCoverageRow] = []
-    no_requirements: list[insights.RequirementRow] = []
-    no_survival: list[insights.SurvivalRow] = []
-    no_flows: list[insights.FlowRow] = []
-    no_frequency: list[insights.FrequencyRow] = []
-    assert (
-        insights.build(
-            demand,
-            no_coverage,
-            no_dimension,
-            no_dimension,
-            no_mapping,
-            no_requirements,
-            no_survival,
-            no_flows,
-            no_frequency,
-        )
-        == {}
+    occupations: list[insights.ScopedDimensionRow] = [
+        ("jobtech", "scope-a", "occupation", "A-occupation", "1.2.1", 30),
+        ("ba", "scope-b", "occupation", "B-occupation", "1.2.1", 10),
+    ]
+    mapping_coverage: list[insights.MappingCoverageRow] = [
+        ("jobtech", "scope-a", "occupation", 40, 40, 30),
+        ("ba", "scope-b", "occupation", 20, 10, 10),
+    ]
+    requirements: list[insights.ScopedRequirementRow] = [
+        (
+            "jobtech",
+            "scope-a",
+            "employment_type",
+            "Permanent employment (probationary period possible)",
+            "kpPX_CNN_gDU",
+            "mapped",
+            30,
+        ),
+        (
+            "jobtech",
+            "scope-a",
+            "employment_type",
+            "Fixed-term employment",
+            "sTu5_NBQ_udq",
+            "mapped",
+            10,
+        ),
+        (
+            "ba",
+            "scope-b",
+            "employment_type",
+            "Permanent employment (probationary period possible)",
+            "kpPX_CNN_gDU",
+            "mapped",
+            12,
+        ),
+        ("ba", "scope-b", "employment_type", "Fixed-term employment", "sTu5_NBQ_udq", "mapped", 8),
+    ]
+    results = insights.build(
+        demand,
+        [],
+        occupations,
+        [],
+        mapping_coverage,
+        requirements,
+        [],
+        [],
+        [],
     )
+    texts = [insight.text for section in results.values() for insight in section]
+    assert "The latest complete sweep observed 40 active posting(s) on 2026-08-22." in texts
+    assert "The latest complete sweep observed 20 active posting(s) on 2026-08-22." in texts
+    assert (
+        "The most frequently mapped occupation is A-occupation, in 30 of 30 mapped posting(s)."
+        in texts
+    )
+    assert (
+        "The most frequently mapped occupation is B-occupation, in 10 of 10 mapped posting(s)."
+        in texts
+    )
+    assert (
+        "Of 40 postings in the latest sweep, 30 are permanent employment and 10 "
+        "are fixed-term employment." in texts
+    )
+    assert (
+        "Of 20 postings in the latest sweep, 12 are permanent employment and 8 "
+        "are fixed-term employment." in texts
+    )
+    # No pooled figure and no cross-scope sentence: 60 is 40+20, 42 and 18 are the pooled shares.
+    assert not any("60" in text for text in texts)
+    assert not any("42" in text for text in texts)
+    assert not any("18 are" in text for text in texts)
+    # One entry per scope per fired rule, in demand order, each carrying its own scope.
+    assert [insight.scope for insight in results["overview"]] == ["scope-a", "scope-b"]
+    assert [insight.scope for insight in results["occupations"]] == ["scope-a", "scope-b"]
+    assert [insight.scope for insight in results["requirements"]] == ["scope-a", "scope-b"]
+    # A zero-posting scope collects nothing, so it publishes no sentence at all.
+    demand.append(
+        (
+            "jobtech",
+            "scope-zero",
+            "SE",
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            0,
+            "v1",
+            "licence",
+            "api",
+            "fresh",
+            "covered",
+        )
+    )
+    rerun = insights.build(demand, [], occupations, [], mapping_coverage, requirements, [], [], [])
+    assert not any(
+        insight.scope == "scope-zero" for section in rerun.values() for insight in section
+    )
+    # No scope id leaks into sentence text.
+    for text in [insight.text for section in rerun.values() for insight in section]:
+        assert "scope-a" not in text and "scope-b" not in text
+        assert "scope-zero" not in text
 
 
 def masked_views(flows_cells: str, basis_cells: str = "<td>Active</td><td>7</td><td>0</td>") -> str:
@@ -2571,13 +3074,17 @@ DENOMINATOR = (
 
 
 def ranked_views(*, denominators: bool = True) -> str:
-    """Both ranked top-N tables, because a ranking absent from the page also skips its rule."""
+    """All three ranked top-N tables, because a ranking absent from the page also skips its rule."""
     head = '<thead><tr><th scope="col">Value</th><th scope="col">Postings</th></tr></thead>'
     return "".join(
         f"{DENOMINATOR if denominators else ''}"
         f'<table id="{identifier}"><caption>Ranked</caption>{head}'
         "<tbody><tr data-row><td>value</td><td>7</td></tr></tbody></table>"
-        for identifier in ("table-occupations-ranked", "table-occupations-skills")
+        for identifier in (
+            "table-countries-regions",
+            "table-occupations-ranked",
+            "table-occupations-skills",
+        )
     )
 
 
@@ -2673,22 +3180,45 @@ def test_release_check_flags_a_ranking_published_without_its_denominator() -> No
     absent = "has no denominator sentence before it"
     problems = release_check.check_page(stub_page(ranked=ranked_views(denominators=False)))
     assert [problem for problem in problems if absent in problem] == [
+        f"table table-countries-regions {absent}, so a ranked subset can be read as the "
+        "whole sweep",
         f"table table-occupations-ranked {absent}, so a ranked subset can be read as the "
         "whole sweep",
         f"table table-occupations-skills {absent}, so a ranked subset can be read as the "
         "whole sweep",
     ]
-    # One sentence cannot cover two rankings: the first table consumes it, so the second is bare.
+    # One sentence cannot cover two rankings: the first table consumes it, so the rest are bare.
     shared = release_check.check_page(
         stub_page(ranked=DENOMINATOR + ranked_views(denominators=False))
     )
     assert [problem for problem in shared if absent in problem] == [
+        f"table table-occupations-ranked {absent}, so a ranked subset can be read as the "
+        "whole sweep",
         f"table table-occupations-skills {absent}, so a ranked subset can be read as the "
-        "whole sweep"
+        "whole sweep",
     ]
     missing = release_check.check_page(stub_page(ranked=""))
+    assert any("table-countries-regions is missing" in problem for problem in missing)
     assert any("table-occupations-ranked is missing" in problem for problem in missing)
     assert any("table-occupations-skills is missing" in problem for problem in missing)
+    # Per-scope tables match by prefix, so a second scope's ranking is governed by the same
+    # rules: its own denominator, and the shared-absence rule still fires when none exist.
+    suffixed = (
+        ranked_views()
+        .replace('id="table-occupations-ranked"', 'id="table-occupations-ranked-ba-de-panel"')
+        .replace(
+            'id="table-countries-regions"', 'id="table-countries-regions-jobtech-jobtech-scope"'
+        )
+    )
+    assert release_check.check_page(stub_page(ranked=suffixed)) == []
+    bare_suffixed = suffixed.replace(DENOMINATOR, "", 1)
+    problems = release_check.check_page(stub_page(ranked=bare_suffixed))
+    assert [
+        problem for problem in problems if problem.startswith("table table-countries-regions")
+    ] == [
+        "table table-countries-regions-jobtech-jobtech-scope has no denominator sentence "
+        "before it, so a ranked subset can be read as the whole sweep"
+    ]
 
 
 def test_release_check_flags_disclosure_and_version_drift() -> None:
