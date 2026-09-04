@@ -1340,6 +1340,35 @@ def _denominator(
     return f'<p class="denominator">{escape(text)}</p>'
 
 
+def _empty_by_construction(
+    coverage: Sequence[MappingCoverageRow], scope: ScopeKey, noun: str
+) -> str:
+    """State, from mapping_coverage_latest alone, when a ranking is empty because the source
+    publishes no structured field for it.
+
+    The condition is postings_with_source_value = 0 with postings_total > 0: a data-derived
+    statement, not a hardcoded source special case, so any future source with the same gap is
+    described correctly. Rendered above the denominator and with class="definition", because
+    release_check consumes the next class="denominator" paragraph for the ranked table.
+    """
+    row = next(
+        (
+            entry
+            for entry in coverage
+            if (entry[0], entry[1]) == scope and entry[2] == noun and entry[3] > 0
+        ),
+        None,
+    )
+    if row is None or row[4] != 0:
+        return ""
+    text = (
+        f"This source publishes no structured {noun} field for this scope, so no posting here "
+        f"can be mapped to an ESCO {noun}: the ranking is empty by construction, not by a "
+        "mapping failure."
+    )
+    return f'<p class="definition">{escape(text)}</p>'
+
+
 def _render_occupations(
     occupations_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
     skills_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
@@ -1378,6 +1407,7 @@ def _render_occupations(
                 _insight_paragraph(insight.text) for insight in section_insights.get(scope_id, [])
             )
             + "<h4>Occupation ranking</h4>"
+            + _empty_by_construction(coverage, key, "occupation")
             + _denominator(coverage, key, "occupation", "occupation", listed=occupations)
             + _table(
                 "Ranked mapped demand by ESCO occupation",
@@ -1387,6 +1417,7 @@ def _render_occupations(
                 empty="No mapped dimension results",
             )
             + "<h4>Technology skills</h4>"
+            + _empty_by_construction(coverage, key, "skill")
             + _denominator(coverage, key, "skill", "skill")
             + _table(
                 "Ranked mapped demand by ESCO skill",

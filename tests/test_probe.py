@@ -2387,6 +2387,27 @@ def test_publish_renders_each_scope_in_its_own_sections(
         in occupations_panel
     )
 
+    # The empty-by-construction sentence fires for the scope whose source publishes no
+    # structured field (postings_with_source_value = 0 with postings_total > 0) and not for the
+    # scope that carries the field. Derived from mapping_coverage_latest only, so it generalises
+    # to any source with the same gap.
+    empty_by_construction = (
+        "This source publishes no structured occupation field for this scope, so no posting "
+        "here can be mapped to an ESCO occupation: the ranking is empty by construction, not "
+        "by a mapping failure."
+    )
+    empty_skill = empty_by_construction.replace("occupation field", "skill field").replace(
+        "ESCO occupation", "ESCO skill"
+    )
+    ba_block = occupations_panel.split("<h3>ba / de-panel</h3>")[1].split("<h3>")[0]
+    jobtech_occ_block = occupations_panel.split("<h3>jobtech / jobtech-scope</h3>")[1].split(
+        "<h3>"
+    )[0]
+    assert empty_by_construction in ba_block
+    assert empty_skill in ba_block
+    assert empty_by_construction not in jobtech_occ_block
+    assert empty_skill not in jobtech_occ_block
+
     # DIMENSION_LIMIT applies per subsection: jobtech lists 25 of its 30 values, and the ba
     # table stays empty and honest rather than inheriting jobtech's rows.
     jobtech_ranked = page.split('id="table-occupations-ranked-jobtech-jobtech-scope"')[1]

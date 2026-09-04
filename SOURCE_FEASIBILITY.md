@@ -53,6 +53,12 @@ Added 2026-09-04 under the owner-relaxed gate (see the amendment above):
   panel stratum has been drawn, not when every German posting has been seen.
 - Stated limitation: the panel's own `coverage_limitations` string, read from the sweep
   manifest rather than restated here, so the page and the manifest cannot drift.
+- Occupation field (added 2026-09-04, the basis for cancelling Increment 23): the BA search
+  page carries no structured occupation field — only a free-text title — so the collector sets
+  `occupation_mapping_status=not_present` by design (`scrapers/ba_jobsuche.py:51-52`,
+  `scrapers/ba_jobsuche.py:1222-1246`) and no occupation aggregate is published for `DE`. Job
+  titles and free text are never classified, so no title-like field may be added to the
+  sanitize allowlist (`scripts/sanitize.py:31-35`) to manufacture one.
 
 ## Duplicate Policy
 
