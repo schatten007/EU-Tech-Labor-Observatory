@@ -33,6 +33,7 @@ than expanding the active increment.
 | 23 | 2026-09-04 | **Cancelled** - unimplementable from this source, evidence recorded; the gap is published as data instead of a ranking | Three confirmations in the sister lab's checkout: `scrapers/ba_jobsuche.py:51-52` (search page carries only a free-text title, no occupation code), `scrapers/ba_jobsuche.py:1222-1246` (`NormalizedRecord` built with `esco_occupation_uri=None`, `occupation_mapping_status="not_present"`, method `not_available_ba_html` - no occupation input exists in the stored partition to map), `scripts/sanitize.py:31-35` (allowlist carries only mapping outputs; no title field, and the published methodology commits to never classifying titles or free text). Acceptance criterion 5 was written when Germany was expected via HR-BA-XML, which would have carried occupation codes; it is **unachievable from this source**. In place of the ranking, `_empty_by_construction` renders one sentence in any scope whose `mapping_coverage_latest` row reports `postings_with_source_value = 0` with `postings_total > 0` - for occupation and skill alike - derived from the data alone, no source names, no German special case. `SOURCE_FEASIBILITY.md` appends the occupation-field gap to the German fixed-release-scope entry; the roadmap marks the increment Cancelled with the citations and the two revival conditions (a structured-field source, or an evaluated title-classification method the project has ruled out). | `make check` green (459 passed, dbt PASS=201); live-page release check 0 problems; the DE occupation and skill blocks carry the empty-by-construction sentence beside "Ranked from 0 mapped posting(s)" |
 | 24 | 2026-09-04 | Complete; the published methodology describes a sampled design and an occupation gap | `METHODOLOGY_VERSION` 1.3 -> 1.4 (`scripts/publish.py`, the test pin moved in the same commit). The on-page methodology text now states that `ba/de-nuts3-panel` is a stratified region-bounded sample with a capped within-stratum draw over a frozen 400-region NUTS-3 panel - not a census and not a partial crawl, with the panel's own manifest caveat beside its figures - while the Swedish keyword scope is a keyword-scoped query, not a sample; and that one published scope carries no structured occupation field, so its occupation and skill rankings are empty by construction. Together with 22's breadth count this is a definition change, not a wording tweak. `collect.py`'s limitation constants deliberately untouched: Task 0 verified nothing pins the committed sample to them (only `tests/test_probe.py:884`/`:1047` pin runtime manifests to the `collect.*` symbols) and their text is not false, so no `make sample` regeneration was forced. `README.md` corrected 1.2 -> 1.4 with the two scopes, the sampling design, the occupation gap and the `docs/index.html` artefact; `USER_MANUAL.md`'s CSV example now reads `...-methodology-1-4.csv`. Interpolations at footer, `data-methodology-version` and CSV filenames move with the constant; `release_check.py`'s version rule untouched and confirmed to follow it. | `make check` green (459 passed, dbt PASS=201); methodology 1.4 verified in the footer, the `data-methodology-version` attribute and a CSV filename on the live page |
 | 22/23/24 wrap-up | 2026-09-04 | Complete; the finish line is reached and visible | The one-increment-per-session rule (`SESSION_RUNBOOK.md:40-52`) **suspended for this session by owner decision** - it exists to stop two agents colliding in `publish.py`/`SESSIONS.md`, which is not the situation, and it was costing three more plan-and-record cycles for ~3 h of work; scope was not widened. Four commits in task order (`ef3f65a`, `12412d0`, `8db030a`, `2a4e537`), each verified with `git show --stat HEAD`. `docs/index.html` committed as the portfolio artefact: a copy of the live two-scope page (footer "built from stored collection partitions", German 28,900 headline, 393-of-400 breadth line with the manifest caveat, empty-by-construction sentences, methodology 1.4), release-checked at 0 problems; `site/build/` stays ignored and ephemeral. `SESSION_RUNBOOK.md` section 3 gains the ordering rule: finish with `make live-site`, never `make release-check`, because release-check rebuilds the synthetic page over the live one. | Gates as run: `make check` (459 pytest, mypy 62 files, dbt PASS=201 WARN=0 ERROR=0); `make release-check` on the synthetic page (0 problems); `make live-site` (9 stored sweeps, dbt PASS=196 ERROR=0, 2 demand rows); direct release check on the live page and on `docs/index.html`: 0 problems each |
+| Sweeps restart (Plan 1 Task 1) | 2026-09-04 | Complete; the first post-pause Swedish sweep is stored, published and committed, and the cadence is re-established | Restarted the Swedish collection cadence after 11 idle days, exactly as pre-flighted. One sweep (`20260904T183925Z-f5cf1d409aa5`, 623 rows, 7 pages) from the main checkout: 9 `jobtech` partitions now on disk, `ba` still 1, nothing existing rewritten (git clean after). Gates in the runbook's order. `docs/index.html` refreshed from the live build and committed (`541e47c`). Cadence rule for the coming days: never slower than every two days, design target twice daily. | `make check` green (459 pytest, dbt PASS=201); `make release-check` green on synthetic (0 problems); `make live-site` green (10 stored sweeps, dbt PASS=196, 2 rows); direct release check live page + `docs/index.html`: 0 problems each |
 
 
 ## Session Notes
@@ -1358,4 +1359,58 @@ no test, no partition moved. Both gate runs bracket the edit.
   (393 of 400), #4 still 1 of 3 sweeps - sister-lab data collection, not code, #5 unachievable
   from this source (recorded, with the page stating the gap). Recommended next step: none -
   finish line reached; Increment 25 only if the live-service budget is approved.
+
+### 2026-09-04 - Sweeps restart (Plan 1 Task 1)
+
+- **What was true before this session, measured.** The Swedish scope had been idle for 11 days
+  after eight sweeps (latest 2026-08-22T20:12Z, 308.5 h against a 48 h threshold), so both
+  published scopes carried stale badges; `ba/de-nuts3-panel` was 64.7 h against 24 h. The daily
+  flow buckets were 08-19, 08-20, 08-22 - the 08-21 bucket is missing and nothing existed after
+  08-22. Source: `posting_flows` at day grain, `source_coverage` freshness on the latest sweep
+  per scope.
+- **Preflight, no writes.** Working tree clean at `563f434` on `merge/scrapers-lab`.
+  `.env` present and carries `OBSERVATORY_HMAC_KEY` (presence checked, value never read or
+  printed) - a missing key would not fail loudly, because `Makefile:12` conditions the flag on
+  the file's existence and would run the collector keyless. The key was **not** rotated, so
+  `assert_key_rotation_does_not_close.sql` stays silent and posting pseudonyms are continuous.
+  Baseline `make check` green: 459 pytest, dbt PASS=201 WARN=0 ERROR=0.
+- **The sweep.** `make sweep` from the main checkout (never a worktree, `Makefile:66`): sweep
+  complete at `jobtech/jobtech-f5cf1d409aa51fad/20260904T183925Z-f5cf1d409aa5`, 623 rows over 7
+  pages. Verified exactly one new partition (8 -> 9 under the scope, `ba` still 1, total 10 with
+  the German panel), directory name in `YYYYMMDDTHHMMSSZ` form, and nothing existing changed -
+  `git status --porcelain` empty after, `data/raw/` append-only honoured.
+- **The 2026-08-21 hole is permanent, on the record.** Posting observations are collected only
+  in the present and `data/raw/` is immutable, so 08-21 can never be filled. The gap keeps
+  `rule_trend` silent until the rule's reading window has moved entirely past it
+  (`scripts/insights.py` gates on `TREND_MIN_SWEEPS = 14`, `TREND_MIN_SPAN_DAYS = 7`, and
+  refuses a gap adjacent to the newest bucket - so 14 sweeps is necessary, not sufficient). No
+  synthetic bucket, no widened rule: the hole is a true statement about the data. Grow past it.
+- **Gates, in the runbook's order.** `make release-check` green on the synthetic page first
+  (0 problems, dbt PASS=201); `make live-site` last: `publishing from 10 stored sweeps`, dbt
+  PASS=196 ERROR=0, `wrote site\build\index.html (2 rows)`; direct release check on the live
+  page (`uv run --offline python -m scripts.release_check site/build/index.html`): 0 problems.
+- **What the page now says.** The Swedish scope is **Fresh** again: SE jobtech observed
+  2026-09-04 18:39 UTC, 623 postings, status Fresh/Covered; the digest line reads
+  "1 fresh" of 2 source scopes. The German panel stays honestly **Stale** (67 h against its
+  24 h threshold) pending the sister lab's sweeps - that is Task 2, not this repo's to fix.
+  `docs/index.html` refreshed from the live build, re-checked directly (0 problems), committed
+  as `541e47c` (5 lines: the two scope rows' observed-at/status, the digest count, the build
+  stamp, the footer). `site/build/` stays ignored and ephemeral.
+- **Cadence, pre-registered and not relaxed.** Never slower than every two days; the design
+  target is twice daily (14 sweeps over 7 days, the trend rule's shape; the observed median
+  interval on the existing sweeps is 4.0 h). This session contributed sweep 9; future sessions
+  in the plan's cadence add the rest. Task 1's stop condition - `fresh` plus four consecutive
+  daily buckets with no gap adjacent to the newest - is not yet met after one sweep: the newest
+  buckets are 08-22 then 09-04, an 11-day hole, which only continued sweeping can grow past.
+- **Task 2, asked for and not started.** Two further complete sister-lab sweeps over the same
+  frozen 400-region NUTS-3 panel (`ba/de-nuts3-panel`), same partition shape
+  (`observations.ndjson` + `manifest.json`), unchanged HMAC key version, `YYYYMMDDTHHMMSSZ`
+  directory names, with each sweep's own `coverage_limitations` string recorded before it
+  lands. This repo only asks, verifies and publishes; it does not collect German data.
+- **Deliberately not done.** No threshold, gate constant or test edited; nothing under
+  `data/raw/` written besides the one new partition; no `make sample` regeneration; no trend
+  sentence forced (the rule stays silent, correctly); Increment 25 untouched; no German
+  survival figure stated from one sweep. `make check` was not re-run after the sweep: the sweep
+  added data only, no code changed, and `live-site`'s dbt run (PASS=196) is the gate that
+  exercises the live partitions.
 
