@@ -72,7 +72,15 @@ WORKFLOW = (
 # only sense that matters - a median, a share, a superlative, each with its own rule for when it
 # appears and which denominator it carries. 1.2 published no such sentence at all, so the bump is a
 # fact about the page, decided before the first insight rendered.
-METHODOLOGY_VERSION = "1.3"
+# 1.4: the page now states its own sampling designs and an occupation gap. The `ba/de-nuts3-panel`
+# scope is a stratified region-bounded sample with a capped within-stratum draw over a frozen
+# NUTS-3 panel - not a census and not a partial crawl - and the Swedish keyword scope is a
+# keyword-scoped query, not a sample. One published scope carries no structured occupation
+# field, which is why one occupation ranking is empty by construction. Region breadth - the
+# count of NUTS-3 regions with at least one mapped posting against the pinned frame
+# (Increment 22) - is a new published figure of the same kind: a rule deciding whether and
+# against which denominator a number is stated.
+METHODOLOGY_VERSION = "1.4"
 # Mirrors the offline default in transform/models/staging/stg_postings.sql.
 SAMPLE_OBSERVATIONS = "data/sample/postings_sample.ndjson"
 SOURCE_TERMS = {
@@ -1876,6 +1884,17 @@ def _render_governance(provenance: Sequence[ProvenanceRow]) -> str:
             "rather than presented as observations of a real market."
         )
         + "<h3>Methodology version</h3>"
+        + _definition(
+            "How each scope's data was drawn: the `ba / de-nuts3-panel` scope is a stratified "
+            "region-bounded sample with a capped within-stratum draw over a frozen 400-region "
+            "NUTS-3 panel - not a census and not a partial crawl - so its counts describe the "
+            "sample, and the caveat printed beside them is the panel's own limitation string "
+            "from the sweep manifest. The `jobtech` keyword scope is a keyword-scoped query over "
+            "all current Swedish postings matching a fixed query, not a sample. One published "
+            "scope (the German panel) carries no structured occupation field, which is why its "
+            "occupation and skill rankings are empty by construction rather than through a "
+            "mapping failure; no job title or free text is ever classified to fill them."
+        )
         + _definition(
             f"Methodology version {METHODOLOGY_VERSION}, covering the definitions, mapping rules, "
             "and suppression rule described on this page. The version and build time are printed in "

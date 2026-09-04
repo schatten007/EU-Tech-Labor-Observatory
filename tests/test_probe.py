@@ -2015,12 +2015,15 @@ def test_methodology_version_covers_the_requirement_dimensions() -> None:
 
     1.1 published no requirement dimension at all. Publishing three of them under 1.1 would make
     two files named `...-methodology-1-1.csv` carry figures from two different definition sets,
-    which is exactly the traceability hole Increment 13a found and closed. 1.3 adds the insight
+    which is exactly the traceability hole Increment 13a found and closed. 1.3 added the insight
     sentences, which are definitions in the same sense - a rule deciding whether a number is
     stated, and against which denominator - so a page carrying them must not share a version with
-    one that does not.
+    one that does not. 1.4 states the sampling designs (the German stratified region-bounded
+    sample against a pinned NUTS-3 frame, the Swedish keyword-scoped query), the occupation gap
+    that leaves one ranking empty by construction, and the region-breadth count: a definition
+    change, not a wording tweak.
     """
-    assert publish.METHODOLOGY_VERSION == "1.3"
+    assert publish.METHODOLOGY_VERSION == "1.4"
     assert [slug for slug, _heading in publish.SECTIONS if slug == "requirements"] == [
         "requirements"
     ]
