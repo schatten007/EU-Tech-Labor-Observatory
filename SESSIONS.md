@@ -34,6 +34,7 @@ than expanding the active increment.
 | 24 | 2026-09-04 | Complete; the published methodology describes a sampled design and an occupation gap | `METHODOLOGY_VERSION` 1.3 -> 1.4 (`scripts/publish.py`, the test pin moved in the same commit). The on-page methodology text now states that `ba/de-nuts3-panel` is a stratified region-bounded sample with a capped within-stratum draw over a frozen 400-region NUTS-3 panel - not a census and not a partial crawl, with the panel's own manifest caveat beside its figures - while the Swedish keyword scope is a keyword-scoped query, not a sample; and that one published scope carries no structured occupation field, so its occupation and skill rankings are empty by construction. Together with 22's breadth count this is a definition change, not a wording tweak. `collect.py`'s limitation constants deliberately untouched: Task 0 verified nothing pins the committed sample to them (only `tests/test_probe.py:884`/`:1047` pin runtime manifests to the `collect.*` symbols) and their text is not false, so no `make sample` regeneration was forced. `README.md` corrected 1.2 -> 1.4 with the two scopes, the sampling design, the occupation gap and the `docs/index.html` artefact; `USER_MANUAL.md`'s CSV example now reads `...-methodology-1-4.csv`. Interpolations at footer, `data-methodology-version` and CSV filenames move with the constant; `release_check.py`'s version rule untouched and confirmed to follow it. | `make check` green (459 passed, dbt PASS=201); methodology 1.4 verified in the footer, the `data-methodology-version` attribute and a CSV filename on the live page |
 | 22/23/24 wrap-up | 2026-09-04 | Complete; the finish line is reached and visible | The one-increment-per-session rule (`SESSION_RUNBOOK.md:40-52`) **suspended for this session by owner decision** - it exists to stop two agents colliding in `publish.py`/`SESSIONS.md`, which is not the situation, and it was costing three more plan-and-record cycles for ~3 h of work; scope was not widened. Four commits in task order (`ef3f65a`, `12412d0`, `8db030a`, `2a4e537`), each verified with `git show --stat HEAD`. `docs/index.html` committed as the portfolio artefact: a copy of the live two-scope page (footer "built from stored collection partitions", German 28,900 headline, 393-of-400 breadth line with the manifest caveat, empty-by-construction sentences, methodology 1.4), release-checked at 0 problems; `site/build/` stays ignored and ephemeral. `SESSION_RUNBOOK.md` section 3 gains the ordering rule: finish with `make live-site`, never `make release-check`, because release-check rebuilds the synthetic page over the live one. | Gates as run: `make check` (459 pytest, mypy 62 files, dbt PASS=201 WARN=0 ERROR=0); `make release-check` on the synthetic page (0 problems); `make live-site` (9 stored sweeps, dbt PASS=196 ERROR=0, 2 demand rows); direct release check on the live page and on `docs/index.html`: 0 problems each |
 | Sweeps restart (Plan 1 Task 1) | 2026-09-04 | Complete; the first post-pause Swedish sweep is stored, published and committed, and the cadence is re-established | Restarted the Swedish collection cadence after 11 idle days, exactly as pre-flighted. One sweep (`20260904T183925Z-f5cf1d409aa5`, 623 rows, 7 pages) from the main checkout: 9 `jobtech` partitions now on disk, `ba` still 1, nothing existing rewritten (git clean after). Gates in the runbook's order. `docs/index.html` refreshed from the live build and committed (`541e47c`). Cadence rule for the coming days: never slower than every two days, design target twice daily. | `make check` green (459 pytest, dbt PASS=201); `make release-check` green on synthetic (0 problems); `make live-site` green (10 stored sweeps, dbt PASS=196, 2 rows); direct release check live page + `docs/index.html`: 0 problems each |
+| German panel sweeps 2 and 3 (Plan 1 Task 2) | 2026-09-04 | Complete; `complete_sweeps = 3` for `ba/de-nuts3-panel`, criterion 4 met, both scopes Fresh on the published page | The "sister lab" turned out to be in-repo after the `merge/scrapers-lab` merge: `main.py --source ba --panel` drives the frozen-panel sweep (`scrapers/ba_jobsuche.py` `_fetch_panel`), `PANEL_HANDOVER.md` §3 is its runbook, `scripts/check_ba_panel_readiness.py` is the DoD gate, and `data/reference/ba_panel_nuts3.json` is the committed pinned panel. Sweep 2 (`20260904T201534Z`, observed 2026-09-04): 400 region queries, 398 with rows, 1321/1321 pages, 0 failed (29 absorbed 403s), 29,068 rows. Sweep 3 (`20260904T210722Z`, observed 2026-09-05): identical shape, 29,068 rows. Both verified against the plan's §3.2 cross-checks and the panel DoD (all six PASS across all 3 partitions); both committed to `docs/index.html` (`e25a94d`, `9bd4563`). | Panel DoD: 3/3 partitions reconcile, membership hash `545b162ec6e5fbdc...` identical across all 3 sweeps, 0 failed requests (77 absorbed throttles total), PII clean, cap-as-scope declared. `make live-site` green (12 stored sweeps, dbt PASS=196 ERROR=0); direct release checks on live page + `docs/index.html`: 0 problems each |
 
 
 ## Session Notes
@@ -1413,4 +1414,83 @@ no test, no partition moved. Both gate runs bracket the edit.
   survival figure stated from one sweep. `make check` was not re-run after the sweep: the sweep
   added data only, no code changed, and `live-site`'s dbt run (PASS=196) is the gate that
   exercises the live partitions.
+
+### 2026-09-04 - German panel sweeps 2 and 3 (Plan 1 Task 2)
+
+- **The co-ordination premise dissolved.** The plan asked for "two further complete passes from
+  the sister lab". After the `merge/scrapers-lab` merge the sister lab's collector, pinned panel
+  and DoD gate all live in this checkout: `main.py --source ba --panel --date <ISO>` drives
+  `BAJobsucheCollector` in panel mode (`scrapers/ba_jobsuche.py` `_fetch_panel`, which walks the
+  pinned `data/reference/ba_panel_nuts3.json`), `PANEL_HANDOVER.md` §3 is the sweep runbook
+  (gate first, sweep to a log, tail only, then the acceptance check), and
+  `scripts/check_ba_panel_readiness.py` asserts the step-2b DoD across every stored partition.
+  The request became a run, with the runbook's discipline kept: sweeps logged to
+  `logs/ba-panel-sweep*.log` (gitignored output, read as tail only), never streamed into the
+  session. The first background attempt was orphaned by a background-process lifetime bug
+  (24 lines of log, no partition, process gone - recorded here because a silent re-run could
+  have double-counted); the retry completed cleanly. No partition was written by the dead run:
+  `data/raw/collections/ba/de-nuts3-panel/` held exactly one directory before the retry
+  finished.
+- **Sweep 2, as measured.** `20260904T201534Z` (observed_at 2026-09-04): 400 region queries,
+  398 with >=1 row, 2 empty (`DE231` - its `wo=92211` anchor returns `UNGUELTIG` mode, as in
+  sweep 1; and `DEB24` - Beinhausen advertised 1 posting in sweep 1, 0 now: a genuine closure),
+  273 regions at the declared 4-page cap, 1321/1321 planned pages, 0 failed pages, 29 absorbed
+  403 throttles, 2028 HMAC duplicates dropped, **29,068 rows**. Manifest identity holds:
+  `status=complete`, `expected_rows == row_count == NDJSON lines`, `scope_hash` and
+  `hmac_key_version v1` unchanged, directory name in `YYYYMMDDTHHMMSSZ` form, partition shape
+  `ba/de-nuts3-panel/<sweep_id>/` with the third file `panel_regions.json` beside
+  `observations.ndjson` + `manifest.json`.
+- **Sweep 3, as measured.** `20260904T210722Z` (observed_at 2026-09-05, so the panel now spans
+  three distinct days): byte-for-byte the same shape - 400/398/1321/0-failed, 29,068 rows,
+  273 capped, 48 throttles. Run ~50 min after sweep 2 under the same key; the two sweeps are
+  deliberately close in wall-clock, which matters for how their closure signal reads (below).
+- **The plan's §3.2 cross-checks, all four, measured.**
+  1. Partition shape: three segments after `data/raw/collections/`, `manifest.json` present -
+     `make live-site`'s depth-pinned glob counts them (10 -> 11 -> 12 stored sweeps).
+  2. `make live-site` dbt green with no fifth unpinned BA method value (PASS=196 ERROR=0 both
+     times): sweeps 2 and 3 carry the same `ba_segment_provenance_nuts3` mapped /
+     Tier-1-ambiguous vocabulary as sweep 1, so the 20b pin held and nothing was added to
+     `schema.yml`.
+  3. Breadth: `region_breadth_latest` reads **392 of 400** for the latest sweep (sweep 1 was
+     393; `DEB24` lost its single posting - a real closure, not a panel change: the membership
+     hash and all 400 queries are unchanged). The plan's guard band was "stays in the same
+     region as 393 of 400"; 392 is one closure away, not a collapse, and the panel DoD's
+     >= 390 bar passes. Recorded as a change in the published number, not an anomaly.
+     `assert_nuts_frame_counts` green at 400 DE / 21 SE (frame unmoved, denominator safe).
+  4. Region outcomes sum to each sweep's posting count: sweep 1 28,603 mapped + 297 ambiguous
+     = 28,900; sweeps 2 and 3 28,779 + 289 = 29,068 each. `complete_sweeps` incremented by
+     exactly one per delivered sweep: 1 -> 2 -> 3 for `ba/de-nuts3-panel`
+     (`collection_frequency`), median interval 36 h over the three.
+- **The panel DoD gate, as run.** `uv run --offline python scripts/check_ba_panel_readiness.py`
+  after each sweep: all six PASS lines across ALL partitions - manifest reconciliation (3/3),
+  breadth (>= 390 of 400 per sweep, union 393), frozen-panel integrity (one membership hash
+  `545b162ec6e5fbdc...` across all 3 sweeps, equal to the pinned definition), zero failed
+  requests (77 absorbed 403 throttle events total - throttle events, not failures), PII scan
+  clean across 87,036 rows, cap-as-scope honesty (page cap 4 in `scope_json` and
+  `coverage_limitations` for every sweep).
+- **What the page now says.** Both scopes **Fresh** and covered: DE ba 29,068 postings observed
+  2026-09-05, SE jobtech 623 observed 2026-09-04; the Status digest reads "2 of 2 source
+  scope(s) covered · 2 fresh". `collection_frequency.complete_sweeps = 3` - acceptance
+  criterion 4 **met**, marked in `FUNCTIONALITY_ROADMAP.md`. `docs/index.html` refreshed from
+  live builds and committed per sweep (`e25a94d` after sweep 2, `9bd4563` after sweep 3);
+  direct release checks 0 problems each time.
+- **German survival, stated honestly per §3.3.** The page's DE survival sentence now exists
+  (median observed duration 2.0 days across 12,068 closed postings) because three sweeps
+  technically exist - but sweeps 2 and 3 are ~50 minutes apart, not spaced, so the closure
+  signal is one real epoch (09-02 -> 09-04) plus one near-instantaneous re-observation that
+  contributed 13 closures. **Do not read 2.0 days as a German posting lifetime**: with a 48 h
+  first interval and a ~1 h second, closures are inferred at wildly different resolutions and
+  the median is resolution-dominated. The plan's own warning ("closure is inferred from
+  absence at the next complete sweep") is restated here: the survival series becomes readable
+  only under a spaced cadence (weekly per `PANEL_HANDOVER.md` §3 cadence, daily at most). No
+  duration figure was fabricated, no threshold moved.
+- **What arriving sweeps did not change.** Increment 23 stays cancelled: sweeps 2 and 3 confirm
+  the occupation gap empirically - 0 postings carry a structured occupation value in any of the
+  three German sweeps, and the empty-by-construction sentences still render. No German trend
+  or duration claim beyond the caveated survival sentence; no new scope; no census.
+- **Deliberately not done.** No `data/raw/` rewrite (append-only: 3 German partitions now,
+  nothing touched from sweep 1); no `make sample` regeneration; no threshold, gate constant,
+  test or Makefile edit; `make check` not re-run between the sweeps (no code changed;
+  `live-site`'s dbt PASS=196 exercised the live partitions both times); Increment 25
+  untouched. `logs/` is gitignored run output, not committed.
 
