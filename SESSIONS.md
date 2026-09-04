@@ -28,6 +28,7 @@ than expanding the active increment.
 | 20 | 2026-09-01 | Complete; every stored source can now reach the page, and the next failure is the intended one | Widen the source segment of all three live globs at unchanged depth, so `make live-site` reads `data/raw/collections/*/*/*/` instead of `jobtech/*/*/`: the sweep count (`Makefile:29`) and the exported `OBSERVATIONS_PATH`/`MANIFESTS_PATH` (`Makefile:101-102`). Partition shape confirmed as `source/scope_id/sweep_id` before editing, so the segment count after `data/raw/collections/` is unchanged and the count is a depth check: 8 stored sweeps before, 8 after. `LIVE_READY` (`Makefile:30`) left byte-identical, so zero sweeps still fails the build instead of publishing an empty page. Makefile only — no collector, dbt, publisher, test or data change. | `make check && make live-site && make release-check` passed |
 | 20 (re-applied) | 2026-09-03 | Complete as code this time; the widened glob is committed, and the intended next failure turned out to be two earlier ones | Re-apply Increment 20, whose 2026-09-01 record survived a merge but whose Makefile edit did not: `git log -- Makefile` stopped at `c9ade31` and the commit claiming increment 20 (`1a2b6be`) touched only `.gitignore` and `SESSIONS.md`, so all three globs were still `jobtech/*/*/`. Widened the source segment only, at unchanged depth: `LIVE_SWEEPS` (`Makefile:30`) and the exported `OBSERVATIONS_PATH`/`MANIFESTS_PATH` (`Makefile:103-104`); `LIVE_READY` (`Makefile:31`) left byte-identical. Depth verified by count rather than by reading: the depth-3 glob resolves 9, which equals 8 `jobtech` + 1 `ba`, and the depth-4 glob resolves 0. `make` itself confirms it, printing `publishing from 9 stored sweeps`. Also resolved six committed merge-conflict markers in this file (two blocks, at the table and before the 2026-08-31 scope note); both kept HEAD and the `scrapers` side was empty, so only the marker lines were removed and no recorded line was lost. Makefile and SESSIONS.md only - no collector, dbt, publisher, test or data change. | `make check` green (ruff, mypy 62 files, **459 passed**, dbt PASS=190 WARN=0 ERROR=0). `make live-site` **red by design, but earlier than predicted**: it fails in `dbt build` (PASS=183 ERROR=2) before `scripts/publish.py` runs, so `_verify_single_scope` was never reached. `make release-check` not run - it builds on `site`, not `live-site`, and would only have re-tested the sample |
 | 20b | 2026-09-03 | Complete; dbt build is green on live partitions, and the failure has moved to the per-scope guard as planned | Admit the BA mapping vocabulary into the pinned `accepted_values` list and backfill 12 NUTS-3 labels via a new `stg_nuts_labels` model coalesced in `stg_postings`, so `make live-site` gets past `dbt build` and dies in `_verify_single_scope` (Increment 21's job). Ten BA method values registered - six observed in the `ba/de-nuts3-panel` partition plus four (`ba_segment_radius_nuts3`, `ba_plz_nuts3`, `ba_plz_ambiguous`, `not_available`) pre-registered from a source audit of `scrapers/ba_jobsuche.py` so a future PLZ/radius sweep cannot redden the build; other collectors' ~35 literals deliberately absent. `stg_nuts_labels` reads the nine reference CSVs explicitly (no glob - it would miss the two Slovak `mpsv` files), one row per code by `group by`, pinned by contract + not_null + unique; `assert_nuts_label_unambiguous` (untagged, runs under live-site) surfaces cross-file label conflicts. Coalesce is source-wins in `stg_postings` (`:18`), left-joined so `not_present` rows keep their denominator. Prevention fix applied too: `GermanCrosswalk.label_for_nuts` now feeds both Tier-3 resolutions in `ba_jobsuche.py:1186-1204`, so a re-sweep stops reproducing the null. | `make check` green (ruff, mypy 62 files, **459 passed**, dbt **PASS=195** WARN=0 ERROR=0; new model + 3 tests + 1 singular test). Live rebuild PASS=190 ERROR=0; fan-out guard: `stg_postings` 33,836 rows unchanged, BA region outcomes sum to 28,900, BA region rows still 393, all 12 codes labelled (`DE937` Rotenburg (Wümme), `DEB11` Koblenz, Kreisfreie Stadt), zero null-label rows. `make live-site` red exactly as planned: dbt green, then `ValueError: 2 scopes have postings` in `_verify_single_scope` (`publish.py:768`) |
+| 21 | 2026-09-04 | Complete; the two-scope page publishes, each scope in its own sections with its own denominators | Governance first, own commit: `SOURCE_FEASIBILITY.md` gains a dated amendment (owner-relaxed ToS/robots gate 2026-08-23, BA Jobsuche an active lane via `scrapers/ba_jobsuche.py`, German data a stratified region-bounded sample over a frozen 400-region NUTS-3 panel), the BA row's `Rejected` verdict superseded not rewritten, the German scope added to Fixed Release Scope, and the Approval Gate recorded as **unmet** - the relaxation is the owner's decision, not a BA approval. Publisher second: all five pooled surfaces scoped by `(source, scope_id)` - `_query_dimension`/`_query_skills` take `DIMENSION_LIMIT` **per scope** via `qualify row_number() over (partition by source, scope_id, dimension ...)`, `_query_mapping` groups within scope dropping the cross-scope sum, `_query_requirements` carries the scope key, and `_denominator` (`publish.py`) names its own sweep or says it has none. Countries/Occupations/Requirements render one subsection per scope (`h3` scope, `h4` topic blocks, table ids suffixed `-{source}-{scope}`), the quality missing-mappings table is per scope too, and the region ranking gains its denominator plus the unlisted-tail sentence - material now that truncation is 25 of 393. `insights.build` partitions per collecting scope (`_collecting_scopes`, demand order, `active_postings > 0`) so `_requirement_count` and the share totals read one scope; the scope label is markup beside the sentences (`<p class="label">`), never inside `Insight.text`, so the traceability test still passes unmodified. `release_check` matches ranked tables by **id prefix** (`table-countries-regions`, `table-occupations-ranked`, `table-occupations-skills`), at least one per prefix, each with its own consumed denominator; `https://www.arbeitsagentur.de/` registered as the BA licence host the manifests cite. The false "Sweden only: no German posting source has passed the approval gate" clause dropped; `data/sample/` deliberately not regenerated (the hand-built DuckDB test covers the two-scope shape); no METHODOLOGY_VERSION bump (Increment 24). The two refusal tests replaced by behaviour tests keeping their intent; the one cross-scope figure left standing is the Status section's pre-existing operational "row(s) stored by the latest sweep of each scope" storage stat, which was already cross-scope in the single-source fixture (20 = 11 + 9) and is not a demand count. | `make check` green (ruff, mypy 62 files, **459 passed** - two tests replaced one-for-one, dbt **PASS=195** WARN=0 ERROR=0 unchanged). **`make live-site` completes for the first time on two scopes**: `publishing from 9 stored sweeps`, dbt PASS=190 ERROR=0, `wrote site\build\index.html (2 rows)`. Live-page release check **0 problems** (`uv run --offline python -m scripts.release_check site/build/index.html`, run directly - `make release-check` would rebuild the synthetic page over it; run separately, green). Spot-check: DE region subsection lists 25 regions with the tail sentence ("Ranked from 28,603 mapped posting(s) of 28,900 ... accounting for 2,729 ... unlisted tail"), DE occupation/skill rankings empty with honest denominators ("Ranked from 0 mapped posting(s) of 28,900 ... 0 carry a structured occupation" - Increment 23's job), SE denominators name their own 628-posting sweep, digest labels each scope group, no pooled demand figure |
 
 
 ## Session Notes
@@ -1182,4 +1183,96 @@ no test, no partition moved. Both gate runs bracket the edit.
   labels were completed and a vocabulary admitted. Increment 24's 1.3 -> 1.4 bump should mention
   this backfill. Nothing under `data/` was written, and the reference CSVs stay tracked in git
   (`git ls-files data/reference/`), so a fresh clone still builds.
+
+### 2026-09-04 - Increment 21
+
+- Implemented per `.kilo/plans/1788465051865-increment-21-per-scope-per-country-sections.md`,
+  which supersedes Prompt 2's fixture-regeneration instruction: `data/sample/` was **not**
+  regenerated (a second collecting scope in the committed sample would perturb the
+  `tag:sample_fixture` dbt assertions and the exact-count pytest assertions for no gain), and the
+  two-scope shape is covered instead by a hand-built DuckDB twin of
+  `test_publish_builds_aggregate_page` (`tests/test_probe.py`, scopes `jobtech/jobtech-scope` SE
+  and `ba/de-panel` DE) that runs inside `make check`, including `release_check.check_page == []`.
+- **Governance before publisher, two commits.** `3f6f27d` amends `SOURCE_FEASIBILITY.md` by
+  append: dated amendment (owner-relaxed ToS/robots gate for private research/educational use,
+  2026-08-23), BA Jobsuche an active lane via `scrapers/ba_jobsuche.py`, the German data a
+  **stratified region-bounded sample with a capped within-stratum draw over a frozen 400-region
+  NUTS-3 panel - not a census, not a partial crawl**, the `Rejected` verdict superseded with its
+  evidence intact, the German scope in Fixed Release Scope (source `ba`, scope `de-nuts3-panel`,
+  country `DE`, sweep = one pass over the frozen panel, limitation = the manifest's own
+  `coverage_limitations` string), and the Approval Gate For Germany left standing and recorded as
+  **unmet** - no claim anywhere that BA approved anything.
+- **Five scoped query paths, not three.** The old guard's docstring named
+  `_query_dimension`/`_query_skills`/`_query_mapping`; the requirements query and the
+  `_denominator` were pooling too (silent duplicate rows under a false "each Postings column sums
+  to that sweep's posting count" claim). All now carry `(source, scope_id)`:
+  `DIMENSION_LIMIT` applies **per scope** via `qualify row_number() over (partition by source,
+  scope_id, dimension order by posting_count desc, value_label)`; `_query_mapping` groups by
+  scope and keeps only the within-scope sum; `_query_requirements` keeps its `value_code`-last
+  tiebreak; `_denominator` takes the scope key, keeps the `postings_total > 0` guard, and emits
+  the "no coverage row" sentence for a scope without one. Published row shapes (`DimensionRow`,
+  `MappingRow`, `RequirementRow`) are unchanged, preserving the renderers' index maths.
+- **Per-scope subsections.** `_scope_keys` orders unique `(source, scope_id)` by demand (largest
+  scope leads - on the live page that is `ba/de-nuts3-panel` at 28,900, then
+  `jobtech/jobtech-f5cf1d409aa51fad` at 628), with one fallback subsection when demand is empty
+  so the ranked tables and their denominators always exist (`release_check` fails a ranked table
+  that disappears). `_scope_slug` makes stable unique table ids (`table-occupations-ranked-ba-de-
+  nuts3-panel`). Countries: `h4` per scope under `h3 NUTS regions`, each with its own region
+  denominator - the truncation went from harmless (25 of ~21 Swedish regions, no tail) to
+  material (25 of 393 German regions), so the unlisted-tail sentence now matters. Occupations and
+  Requirements: `h3` per scope, `h4` blocks per topic. The quality section's missing-mappings
+  table is per scope as well - leaving it pooled would have summed across sources. New rows carry
+  `data-source`/`data-country` so the existing filter script works unmodified; **no SCRIPT
+  change**.
+- **Insights per scope.** `insights.build` loops `_collecting_scopes` (demand order,
+  `active_postings > 0`) and partitions the scoped rows before each rule call, so every rule
+  keeps its signature and receives one scope's rows - which is what stops `_requirement_count`
+  returning the first code match across scopes and the share totals summing both. The scope
+  label renders as `<p class="label">source / scope_id</p>` beside each group in the Overview
+  digest, Status and Survival - markup, never sentence text, because a scope id like
+  `jobtech-f5cf1d409aa51fad` would read as an unsourced number to
+  `test_insight_traceability_every_number_appears_in_the_source_rows`, which passes unmodified
+  along with `test_insight_sentences_never_mention_a_second_scope`.
+- **Release check by prefix.** `RANKED_TABLES` (exact ids) replaced by
+  `RANKED_TABLE_PREFIXES` over `table-countries-regions`, `table-occupations-ranked`,
+  `table-occupations-skills`: at least one table per prefix must exist, and every match needs its
+  own consumed denominator sentence. `MASKED_TABLES` untouched - flows and survival are per-scope
+  rows in one table with no region dimension. One addition the plan did not name:
+  `https://www.arbeitsagentur.de/` joined `ALLOWED_URL_PREFIXES` (`release_check.py:20`), because
+  the BA manifests cite it as `licence_reference` and the live page rendered it three times
+  (countries, provenance, governance); registering the documented licence host is the same act
+  that put `data.jobtechdev.se` there, and the page build still never requests it.
+- **Guard removed last.** `_verify_single_scope` and its call deleted only after the sections,
+  tests and release rules existed. The two refusal tests were replaced one-for-one:
+  `test_publish_renders_each_scope_in_its_own_sections` (two subsections per panel, no pooled
+  figure, per-scope denominators, per-scope `DIMENSION_LIMIT` with the unlisted tail, requirement
+  columns summing to their own scope, labelled digest, unique ids, `check_page == []`) and
+  `test_insight_build_states_each_scope_separately` (one sentence per scope per rule, correct
+  `Insight.scope`, no scope id in text, zero-posting scope silent). Test count stays **459**.
+- **Deliberately not done.** No METHODOLOGY_VERSION bump (Increment 24), no breadth line or
+  coverage percentage (Increment 22 - the denominator must come from
+  `data/reference/geography_nuts_2024.csv`, not a hardcoded 400), no German occupation mapping
+  (Increment 23), no `data/sample/` regeneration, nothing written under `data/raw/`, no new
+  dependency and no network at build time. The Status section's cross-scope "row(s) stored by
+  the latest sweep of each scope" storage stat was left standing on purpose: it was already
+  cross-scope in the single-source fixture (20 = 11 + 9), it counts stored rows rather than
+  postings, and its sentence says what it is; changing it was not in this increment's scope.
+- **Gates, stated as run.** `make check` fully offline and green: ruff clean, mypy clean over 62
+  source files, **459 pytest passed**, dbt **PASS=195 WARN=0 ERROR=0** (no dbt resource added or
+  removed). `make live-site` **green for the first time on two scopes**: `publishing from 9
+  stored sweeps`, dbt PASS=190 ERROR=0, `wrote site\build\index.html (2 rows)`. Live-page release
+  check run directly as `uv run --offline python -m scripts.release_check site/build/index.html`
+  (not `make release-check`, which rebuilds the synthetic page over the live one): **0
+  problems**. `make release-check` then run separately, green on the synthetic page (0 problems).
+  Spot-check of the live page: DE region subsection lists 25 regions with "Ranked from 28,603
+  mapped posting(s) of 28,900 in the latest sweep; 28,900 carry a structured region. Only the 25
+  most frequent regions are listed below, accounting for 2,729 of those mapped postings; the
+  rest sit in an unlisted tail."; DE occupation and skill rankings empty with "Ranked from 0
+  mapped posting(s) of 28,900 ... 0 carry a structured occupation/skill" (Increment 23's job,
+  not a defect); SE rankings and denominators name their own 628-posting sweep; the Overview
+  digest labels each scope's group; no demand figure on the page is the sum of both scopes.
+- **Acceptance criterion 2 is now met**: the page renders all countries, each in its own
+  per-country/per-scope section. Remaining against the finish line: criterion 3 (breadth line,
+  Increment 22), criterion 4 (two more sister-lab sweeps for `ba/de-nuts3-panel` - data
+  collection, not code), criterion 5 (German occupation mapping, Increment 23).
 
