@@ -35,6 +35,9 @@ than expanding the active increment.
 | 22/23/24 wrap-up | 2026-09-04 | Complete; the finish line is reached and visible | The one-increment-per-session rule (`SESSION_RUNBOOK.md:40-52`) **suspended for this session by owner decision** - it exists to stop two agents colliding in `publish.py`/`SESSIONS.md`, which is not the situation, and it was costing three more plan-and-record cycles for ~3 h of work; scope was not widened. Four commits in task order (`ef3f65a`, `12412d0`, `8db030a`, `2a4e537`), each verified with `git show --stat HEAD`. `docs/index.html` committed as the portfolio artefact: a copy of the live two-scope page (footer "built from stored collection partitions", German 28,900 headline, 393-of-400 breadth line with the manifest caveat, empty-by-construction sentences, methodology 1.4), release-checked at 0 problems; `site/build/` stays ignored and ephemeral. `SESSION_RUNBOOK.md` section 3 gains the ordering rule: finish with `make live-site`, never `make release-check`, because release-check rebuilds the synthetic page over the live one. | Gates as run: `make check` (459 pytest, mypy 62 files, dbt PASS=201 WARN=0 ERROR=0); `make release-check` on the synthetic page (0 problems); `make live-site` (9 stored sweeps, dbt PASS=196 ERROR=0, 2 demand rows); direct release check on the live page and on `docs/index.html`: 0 problems each |
 | Sweeps restart (Plan 1 Task 1) | 2026-09-04 | Complete; the first post-pause Swedish sweep is stored, published and committed, and the cadence is re-established | Restarted the Swedish collection cadence after 11 idle days, exactly as pre-flighted. One sweep (`20260904T183925Z-f5cf1d409aa5`, 623 rows, 7 pages) from the main checkout: 9 `jobtech` partitions now on disk, `ba` still 1, nothing existing rewritten (git clean after). Gates in the runbook's order. `docs/index.html` refreshed from the live build and committed (`541e47c`). Cadence rule for the coming days: never slower than every two days, design target twice daily. | `make check` green (459 pytest, dbt PASS=201); `make release-check` green on synthetic (0 problems); `make live-site` green (10 stored sweeps, dbt PASS=196, 2 rows); direct release check live page + `docs/index.html`: 0 problems each |
 | German panel sweeps 2 and 3 (Plan 1 Task 2) | 2026-09-04 | Complete; `complete_sweeps = 3` for `ba/de-nuts3-panel`, criterion 4 met, both scopes Fresh on the published page | The "sister lab" turned out to be in-repo after the `merge/scrapers-lab` merge: `main.py --source ba --panel` drives the frozen-panel sweep (`scrapers/ba_jobsuche.py` `_fetch_panel`), `PANEL_HANDOVER.md` §3 is its runbook, `scripts/check_ba_panel_readiness.py` is the DoD gate, and `data/reference/ba_panel_nuts3.json` is the committed pinned panel. Sweep 2 (`20260904T201534Z`, observed 2026-09-04): 400 region queries, 398 with rows, 1321/1321 pages, 0 failed (29 absorbed 403s), 29,068 rows. Sweep 3 (`20260904T210722Z`, observed 2026-09-05): identical shape, 29,068 rows. Both verified against the plan's §3.2 cross-checks and the panel DoD (all six PASS across all 3 partitions); both committed to `docs/index.html` (`e25a94d`, `9bd4563`). | Panel DoD: 3/3 partitions reconcile, membership hash `545b162ec6e5fbdc...` identical across all 3 sweeps, 0 failed requests (77 absorbed throttles total), PII clean, cap-as-scope declared. `make live-site` green (12 stored sweeps, dbt PASS=196 ERROR=0); direct release checks on live page + `docs/index.html`: 0 problems each |
+| Cadence guard (Plan 1 Task 3) | 2026-09-04 | Complete; abandonment is now a red dbt gate, ordinary staleness stays a page badge | One new untagged singular test `transform/tests/assert_cadence_not_abandoned.sql` (commit `f8a8425`): fires when a scope's latest complete sweep is older than 4x its own `freshness_threshold_hours`, reading reference time through the same `OBSERVATORY_REFERENCE_TIME` mechanism as `source_coverage` so it is deterministic offline. Green on the committed sample by measurement (largest sample multiple 171/48 = 3.6x) and green under `live-site`; the red side is proven on the measured 2026-09-04 morning state (jobtech 308.5 h at 48 h = 6.4x would have failed, ba 64.7 h at 24 h = 2.7x would not - exactly the abandonment-vs-staleness split the test exists for). No Makefile, gate or constant edits; scope one test only, no scheduler, no notification channel. | `make check` green (459 pytest, dbt **PASS=202** WARN=0 ERROR=0, +1 test); `make live-site` green (dbt PASS=197 including the new test untagged); release checks 0 problems |
+| Trend rule check (Plan 1 Task 4) | 2026-09-04 | Complete; `rule_trend` stays **silent** on both scopes, each unmet precondition named with its measured value | Measured after all sweeps: jobtech `complete_sweeps = 9` (< 14) and its newest daily buckets are 08-22 -> 09-04, a 13-day gap adjacent to the newest (the no-gap precondition fails); de-nuts3-panel has adjacent newest buckets (09-04 -> 09-05) but `complete_sweeps = 3` (< 14) and span 3 d (< 7). No constant, threshold or precondition touched; the silence is the pre-registered behaviour. The rule will become evaluable once the Swedish cadence holds. | Direct measurement of `collection_frequency` and `posting_flows` (day grain) per scope; `rule_trend` re-run from `scripts.insights` against the live rows: SILENT for both scopes, as expected |
+| Usability protocol (Plan 1 Task 5) | 2026-09-04 | Complete; Iteration 11's study is prepared, pre-registered and **unrun** | `docs/usability-study-protocol.md` (commit `ef2f512`, tracked): five tasks against `docs/index.html` - German breadth line, the empty occupation ranking's meaning, per-country freshness, cross-country comparability (the real test: if participants compare the absolute counts anyway, that is a design finding routed to Plan 2, not a code patch), and what a closed posting means. Tasks written before any participant exists so they cannot be reshaped around what the page answers well; recruiting, running and write-up explicitly out of scope. | No gate applies (a document, no page output change); `git show --stat` verified the file is committed |
 
 
 ## Session Notes
@@ -1493,4 +1496,66 @@ no test, no partition moved. Both gate runs bracket the edit.
   test or Makefile edit; `make check` not re-run between the sweeps (no code changed;
   `live-site`'s dbt PASS=196 exercised the live partitions both times); Increment 25
   untouched. `logs/` is gitignored run output, not committed.
+
+### 2026-09-04 - Tasks 3, 4 and 5 (Plan 1 close-out)
+
+- **Session rule, recorded not broken.** The owner's instruction "carry out the remaining
+  tasks in order, one at a time" overrides the one-increment-per-session rule for this
+  session, as the 2026-09-04 wrap-up did: the tasks are operations and one small test, none
+  of them collides in `publish.py`/`SESSIONS.md` the way two code increments would, and each
+  was still done, verified and recorded as its own unit with its own commit.
+- **Task 3 - the cadence guard, one honest test.** `transform/tests/assert_cadence_not_abandoned.sql`
+  (untagged, so it runs under `make check` AND `live-site`): a scope fails when its latest
+  complete sweep is older than **4x** its own `freshness_threshold_hours`, measured against
+  the same `OBSERVATORY_REFERENCE_TIME` the rest of the project reads (`source_coverage`'s
+  env_var with the sample's pinned 2026-08-15T12:00:00Z default), so it is deterministic
+  offline. Why 4x: on the committed sample the largest threshold multiple is the deliberately
+  stale keyword scope at 171/48 = **3.6x**, so 4x is green on the sample by measurement, not
+  by luck; on the measured 2026-09-04 pre-restart state, the abandoned Swedish scope sat at
+  308.5/48 = **6.4x** (the test would have fired - eleven days of silence would have been a
+  red gate instead of a badge only a human reader notices) while the German panel's 64.7/24 =
+  **2.7x** ordinary staleness would not have fired. That split is the whole design:
+  abandonment is a gate, staleness is a badge. Verified: `make check` dbt PASS=202 (+1),
+  `live-site` dbt PASS=197 (the untagged test runs there too), release checks 0 problems.
+  Deliberately absent: scheduler, notification channel, new dependency, any Makefile edit. If
+  the test ever reddens `make check` on the sample, the sample changed - investigate the
+  sample, never the multiple.
+- **Task 4 - the trend rule, verified not forced.** All four preconditions of `rule_trend`
+  (`scripts/insights.py:359-412`), measured per scope after all of this session's sweeps:
+  - `jobtech-f5cf1d409aa51fad`: `complete_sweeps = 9` (**< 14**, unmet); span 16 d (>= 7, met);
+    newest daily buckets 08-22 -> 09-04 (**13-day gap adjacent to the newest**, unmet - the
+    pre-registered no-gap precondition fails, and the permanent 08-21 hole is still inside the
+    rule's reading window besides); two comparable buckets exist (met).
+  - `ba/de-nuts3-panel`: `complete_sweeps = 3` (**< 14**, unmet); span 3 d (**< 7**, unmet);
+    newest buckets 09-04 -> 09-05 are adjacent (met); buckets exist (met).
+  `rule_trend` re-run directly from `scripts.insights` against the live `posting_flows` /
+  `collection_frequency` rows: **SILENT for both scopes** - the pre-registered behaviour,
+  not a bug. `TREND_MIN_SWEEPS`, `TREND_MIN_SPAN_DAYS` and the no-gap precondition untouched.
+  The rule becomes evaluable for Sweden once the restarted cadence holds (9 of 14 sweeps,
+  and the window must grow past both the 08-21 hole and the 08-22->09-04 gap). Note the
+  page's separate "Trend direction Daily rising within the source (28,900 to 29,068)" stat is
+  `publish.py`'s own scope-internal direction arrow from the flow series - not `rule_trend`,
+  which is the pre-registered N=14/M=7-day gated sentence and stays silent.
+- **Task 5 - the usability protocol, prepared only.** `docs/usability-study-protocol.md`
+  (new, git-tracked): five think-aloud tasks against `docs/index.html` for >= 5 students or
+  recent graduates - find the German breadth line (392 of 400); explain the empty occupation
+  ranking (empty by construction, not "no jobs"); find each country's data time; the
+  comparability question (the real test: comparing 623 with 29,068 anyway is a **design
+  finding routed to Plan 2**, never patched into the page now); and what a closed posting
+  means (inferred from absence). Tasks pre-registered before any participant exists; per-task
+  failure modes named so findings have somewhere to land; recruiting, running and write-up
+  explicitly out of scope; no page change from imagined findings.
+- **Gates for the session, as run.** `make check` green (ruff, mypy 62 files, 459 pytest,
+  dbt **PASS=202** WARN=0 ERROR=0, +1 test for the cadence guard); `make live-site` green
+  (12 stored sweeps, dbt PASS=197 ERROR=0, 2 rows); direct release checks on the live page
+  and on `docs/index.html`: 0 problems each. `scripts.check_ba_panel_readiness` green across
+  all 3 German partitions (six PASS lines).
+- **Commits this session, in task order:** `e25a94d` (artefact, sweep 2), `9bd4563`
+  (artefact, sweep 3), `61e816f` (SESSIONS record for Task 2), `f8a8425` (cadence guard),
+  `7db0381` (artefact re-sync), `ef2f512` (usability protocol).
+- **Deliberately not done.** No threshold, gate constant, test or Makefile edited to turn
+  anything green; no backfill of the 08-21 bucket or the 08-22->09-04 gap; no forced trend
+  sentence; no German survival figure stated as a lifetime (the 2.0-day median is
+  resolution-dominated by the unspaced second interval, recorded in the Task 2 note); no
+  recruiting; Increment 25 and any new source untouched.
 
