@@ -94,6 +94,22 @@ models:
       - {name: taxonomy_version, data_type: varchar, data_tests: [not_null]}
       - {name: posting_count, data_type: bigint, data_tests: [not_null]}
 
+  - name: region_breadth_latest
+    description: >
+      Latest count of NUTS-3 regions with at least one mapped posting per source and scope,
+      against the pinned NUTS-3 reference frame for that country. A count, never a share; the
+      frame is null when no NUTS-3 reference is pinned for the scope's country.
+    config: {contract: {enforced: true}}
+    columns:
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: country, data_type: varchar, data_tests: [not_null]}
+      - {name: regions_with_postings, data_type: bigint, data_tests: [not_null]}
+      # Nullable on purpose: a country with no pinned NUTS-3 frame must surface as a null
+      # denominator, which the publisher renders as the degraded no-frame sentence, not as a
+      # wrong number.
+      - {name: regions_in_frame, data_type: bigint}
+
   - name: skill_demand_latest
     description: Latest mapped posting counts by ESCO skill.
     config: {contract: {enforced: true}}

@@ -1540,6 +1540,14 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
     )
     connection.execute(
         """
+        create table region_breadth_latest as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'SE'::varchar as country, 1::bigint as regions_with_postings,
+               21::bigint as regions_in_frame
+        """
+    )
+    connection.execute(
+        """
         create table requirement_demand_latest as
         select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
                'sweep-one'::varchar as sweep_id, timestamp '2026-08-06 09:00:00' as observed_at,
@@ -1963,6 +1971,13 @@ def test_publish_handles_zero_only_aggregate(tmp_path: Path, monkeypatch: Monkey
             jobtech_taxonomy_version varchar, esco_version varchar, row_count bigint)
         """
     )
+    connection.execute(
+        """
+        create table region_breadth_latest(
+            source varchar, scope_id varchar, country varchar, regions_with_postings bigint,
+            regions_in_frame bigint)
+        """
+    )
     connection.close()
 
     assert publish.build_site(database, target) == 1
@@ -2029,6 +2044,16 @@ def test_publish_renders_each_scope_in_its_own_sections(
     limitation = (
         "Stratified region-bounded sample with a capped within-stratum draw over a frozen panel"
     )
+    # The no-frame scope proves the degraded sentence: a country with no pinned NUTS-3 frame
+    # must not publish "N of 0" or a wrong denominator, and needs demand rows to render at all.
+    no_frame_demand = (
+        " union all "
+        "select 'other', 'no-frame', 'sample/fi', 'sweep-fi', 'run-fi', 'FI', "
+        "timestamp '2026-09-02 08:04:00', timestamp '2026-09-02 08:00:00', "
+        "timestamp '2026-09-02 08:10:00', 'complete', 'v1', 'Portal', "
+        "'https://data.jobtechdev.se/dataservice/jobsearch/', 'api', "
+        "'approved', 'Portal sample', 2.0, 'fresh', 'covered', 3::bigint"
+    )
     # 30 occupation values for jobtech so its ranking truncates at DIMENSION_LIMIT while the
     # ba scope, with none, is unaffected by the limit.
     occupation_rows = " union all ".join(
@@ -2051,10 +2076,10 @@ def test_publish_renders_each_scope_in_its_own_sections(
                'JobSearch current ads'::varchar as source_version,
                'https://data.jobtechdev.se/dataservice/jobsearch/'::varchar as licence_reference,
                'official-public-api'::varchar as access_method,
-               'approved'::varchar as approval_status,
-               'Keyword-scoped'::varchar as coverage_limitations,
-               3.0::double as freshness_age_hours, 'fresh'::varchar as freshness_status,
-               'covered'::varchar as coverage_status, 40::bigint as active_postings
+                'approved'::varchar as approval_status,
+                'Keyword-scoped'::varchar as coverage_limitations,
+                3.0::double as freshness_age_hours, 'fresh'::varchar as freshness_status,
+                'covered'::varchar as coverage_status, 40::bigint as active_postings
         union all
         select 'ba', 'de-panel', 'sample/de', 'sweep-de', 'run-de', 'DE',
                timestamp '2026-09-02 08:04:00', timestamp '2026-09-02 08:00:00',
@@ -2062,6 +2087,7 @@ def test_publish_renders_each_scope_in_its_own_sections(
                cast(null as varchar), 'html-portal-scrape', 'approved',
                '{limitation}',
                2.0::double, 'fresh', 'covered', 20::bigint
+        {no_frame_demand}
         """
     )
     connection.execute(
@@ -2069,17 +2095,33 @@ def test_publish_renders_each_scope_in_its_own_sections(
         create table dimension_demand_latest as
         select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
                'sweep-one'::varchar as sweep_id, timestamp '2026-08-06 09:00:00' as observed_at,
-               'region'::varchar as dimension, cast(null as varchar) as value_uri,
+               'region'::varchar as dimension, 'SE110'::varchar as value_uri,
                'Stockholms län'::varchar as value_label, 'NUTS-2024'::varchar as taxonomy_version,
                40::bigint as posting_count
         union all
         select 'ba', 'de-panel', 'sweep-de', timestamp '2026-09-02 08:04:00', 'region',
-               cast(null as varchar), 'Koblenz, Kreisfreie Stadt', 'NUTS-2024', 12::bigint
+               'DEB11'::varchar, 'Koblenz, Kreisfreie Stadt', 'NUTS-2024', 12::bigint
         union all
         select 'ba', 'de-panel', 'sweep-de', timestamp '2026-09-02 08:04:00', 'region',
-               cast(null as varchar), 'Berlin, Kreisfreie Stadt', 'NUTS-2024', 8::bigint
+               'DE300'::varchar, 'Berlin, Kreisfreie Stadt', 'NUTS-2024', 8::bigint
         union all
         {occupation_rows}
+        """
+    )
+    # Two German regions mapped against a frame of four: the breadth count (2) is distinct from
+    # the rendered region rows (2 here, but truncation at DIMENSION_LIMIT is what makes the
+    # breadth count necessary on live data, where 393 regions publish 25 rows). The third scope
+    # has no pinned frame, so its line must degrade to the no-frame sentence.
+    connection.execute(
+        """
+        create table region_breadth_latest as
+        select 'jobtech'::varchar as source, 'jobtech-scope'::varchar as scope_id,
+               'SE'::varchar as country, 1::bigint as regions_with_postings,
+               2::bigint as regions_in_frame
+        union all
+        select 'ba', 'de-panel', 'DE', 2::bigint, 4::bigint
+        union all
+        select 'other', 'no-frame', 'FI', 3::bigint, cast(null as bigint)
         """
     )
     connection.execute(
@@ -2263,13 +2305,43 @@ def test_publish_renders_each_scope_in_its_own_sections(
     )
     connection.close()
 
-    assert publish.build_site(database, target) == 2
+    assert publish.build_site(database, target) == 3
     page = target.read_text(encoding="utf-8")
 
     # Two subsections per affected panel, each named for its scope, largest first.
     countries = page.split('id="countries"')[1].split("</section>")[0]
     assert countries.count("<h4>jobtech / jobtech-scope</h4>") == 1
     assert countries.count("<h4>ba / de-panel</h4>") == 1
+    # A country with no pinned NUTS-3 frame degrades to the explicit sentence, never "N of 0".
+    assert (
+        "No NUTS-3 frame is pinned for this country in the reference data, so no breadth "
+        "count is published." in countries
+    )
+    assert "of 0" not in countries
+    # Region breadth: each scope states its own count against its own frame, never a share,
+    # never a pooled figure, and the count comes from the breadth view rather than the number of
+    # rendered region rows (which is what DIMENSION_LIMIT truncates on live data).
+    assert "1 of 2 SE NUTS-3 regions have at least one mapped posting." in countries
+    assert "2 of 4 DE NUTS-3 regions have at least one mapped posting." in countries
+    breadth_paragraphs = re.findall(r'<p class="definition">(.*?)</p>', countries)
+    breadth_paragraphs = [
+        paragraph for paragraph in breadth_paragraphs if "NUTS-3 regions" in paragraph
+    ]
+    # Three counts, no ratio: no percentage in any breadth line.
+    assert breadth_paragraphs and not any("%" in paragraph for paragraph in breadth_paragraphs)
+    # The caveat beside the breadth line is the manifest's own string, verbatim.
+    assert f'<p class="definition">{limitation}</p>' in countries
+    # The breadth line and caveat sit above the denominator paragraph, so the denominator the
+    # release check captures for each region table is the real one.
+    jobtech_block = countries.split("<h4>jobtech / jobtech-scope</h4>")[1].split("<h4>")[0]
+    assert jobtech_block.index("NUTS-3 regions") < jobtech_block.index('class="denominator"')
+    # The whole point of the view: the breadth count is not the number of rendered region rows.
+    # The jobtech scope maps one region in the breadth view; its rendered table carries one row
+    # here, but on live data 393 regions render 25 rows, so the fixture instead proves the two
+    # are computed independently — the ba scope maps 2 regions while the no-frame scope maps 3.
+    de_block = countries.split("<h4>ba / de-panel</h4>")[1].split("<h4>")[0]
+    assert "2 of 4 DE NUTS-3 regions" in de_block
+    assert de_block.count("data-row") != 0
     occupations_panel = page.split('id="occupations"')[1].split("</section>")[0]
     assert occupations_panel.count("<h3>jobtech / jobtech-scope</h3>") == 1
     assert occupations_panel.count("<h3>ba / de-panel</h3>") == 1

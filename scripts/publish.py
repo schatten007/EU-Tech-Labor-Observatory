@@ -171,6 +171,10 @@ ScopedRequirementRow = tuple[str, str, str, str, str | None, str, int]
 # (source, scope_id, dimension, postings_total, postings_with_source_value, postings_mapped):
 # the scope keys are carried so the single-scope guard and the denominators read the same rows.
 MappingCoverageRow = tuple[str, str, str, int, int, int]
+# (source, scope_id, country, regions_with_postings, regions_in_frame): one row per scope from
+# region_breadth_latest. regions_in_frame is null when no NUTS-3 reference frame is pinned for
+# the scope's country, which renders as the degraded no-frame sentence, not as a wrong number.
+RegionBreadthRow = tuple[str, str, str | None, int, int | None]
 # ponytail: the scope-keyed rows carry `source` last so the existing index maths and helpers
 # stay put; only the filter attributes read it.
 FlowRow = tuple[str, str, datetime, int | None, int | None, int | None, int | None, str]
@@ -694,6 +698,23 @@ def _query_coverage(connection: duckdb.DuckDBPyConnection) -> list[CoverageRow]:
     return rows
 
 
+def _query_region_breadth(connection: duckdb.DuckDBPyConnection) -> list[RegionBreadthRow]:
+    """Region breadth per scope: distinct mapped NUTS-3 codes against the pinned frame.
+
+    This cannot come from the rendered region rows: _query_dimension truncates the ranking at
+    DIMENSION_LIMIT per scope, and the live German scope has 393 region rows of which 25 are
+    published. The view counts what the ranking would have listed, not what fits on the page.
+    """
+    rows: list[RegionBreadthRow] = connection.execute(
+        """
+        select source, scope_id, country, regions_with_postings, regions_in_frame
+        from region_breadth_latest
+        order by source, scope_id
+        """
+    ).fetchall()
+    return rows
+
+
 def _query_dimension(
     connection: duckdb.DuckDBPyConnection, *, region: bool
 ) -> list[ScopedDimensionRow]:
@@ -1141,6 +1162,8 @@ def _render_countries(
     coverage: Sequence[MappingCoverageRow],
     scopes: Sequence[ScopeKey],
     countries: Mapping[str, str],
+    breadth_by_scope: Mapping[ScopeKey, RegionBreadthRow],
+    limitations: Mapping[ScopeKey, str | None],
 ) -> str:
     # ponytail: one bar baseline per source, never page-wide, so the bar cannot imply a
     # between-source or between-country magnitude comparison.
@@ -1180,8 +1203,17 @@ def _render_countries(
             f'<td class="count">{count:,}</td></tr>'
             for dimension, label, taxonomy_version, count in rows
         )
+        breadth = _region_breadth_sentence(breadth_by_scope.get((source, scope_id)))
+        limitation = limitations.get((source, scope_id))
+        caveat = f'<p class="definition">{escape(limitation)}</p>' if limitation is not None else ""
         region_blocks.append(
             f"<h4>{escape(_scope_label(source, scope_id))}</h4>"
+            # The breadth line and the manifest caveat sit above the denominator and use
+            # class="definition" on purpose: release_check captures the next
+            # class="denominator" paragraph for each ranked table, so anything carrying that
+            # class here would be consumed in place of the actual denominator.
+            + breadth
+            + caveat
             # A region ranking is one row per posting, so the truncation at DIMENSION_LIMIT is
             # material (25 of 393 German regions): the unlisted-tail sentence must be stated.
             + _denominator(coverage, (source, scope_id), "region", "region", listed=rows)
@@ -1226,6 +1258,34 @@ def _render_countries(
         )
         + "".join(region_blocks)
     )
+
+
+def _region_breadth_sentence(row: RegionBreadthRow | None) -> str:
+    """How many NUTS-3 regions carry at least one mapped posting, against the pinned frame.
+
+    A count, never a share: a percentage invites a coverage trend a single sweep cannot
+    support. A missing frame degrades to an explicit sentence rather than a wrong denominator,
+    and "N of 0" is never rendered. The country is named by its own code (DE, SE), never a
+    scope id: digits in a scope id would read as an unsourced number.
+    """
+    if row is None:
+        return (
+            '<p class="definition">No region breadth was published for this scope, so no '
+            "breadth count is stated.</p>"
+        )
+    _source, _scope_id, country, with_postings, in_frame = row
+    text: str
+    if in_frame is None or in_frame == 0:
+        text = (
+            "No NUTS-3 frame is pinned for this country in the reference data, so no breadth "
+            "count is published."
+        )
+    else:
+        text = (
+            f"{with_postings:,} of {in_frame:,} {country} NUTS-3 regions have at least one "
+            "mapped posting."
+        )
+    return f'<p class="definition">{escape(text)}</p>'
 
 
 def _denominator(
@@ -1799,6 +1859,7 @@ def build_site(database: Path, target: Path) -> int:
     try:
         demand = _query_demand(connection)
         coverage = _query_coverage(connection)
+        region_breadth = _query_region_breadth(connection)
         regions = _query_dimension(connection, region=True)
         occupations = _query_dimension(connection, region=False)
         skills = _query_skills(connection)
@@ -1823,6 +1884,10 @@ def build_site(database: Path, target: Path) -> int:
     # the country selector apply to the survival, flow, and frequency rows too.
     countries = {row[1]: row[2] for row in demand if row[2]}
     countries.update({row[1]: row[2] for row in coverage if row[2]})
+    # The breadth line's caveat is the manifest's own string, rendered verbatim, so the page and
+    # the manifest cannot drift. Coverage index 9 is coverage_limitations.
+    limitations: dict[ScopeKey, str | None] = {(row[0], row[1]): row[9] for row in coverage}
+    breadth_by_scope = {(row[0], row[1]): row for row in region_breadth}
     insights_by_section = insights.build(
         demand,
         coverage,
@@ -1857,7 +1922,13 @@ def build_site(database: Path, target: Path) -> int:
             ),
         ),
         "countries": _render_countries(
-            demand, regions_by_scope, mapping_coverage, scopes, countries
+            demand,
+            regions_by_scope,
+            mapping_coverage,
+            scopes,
+            countries,
+            breadth_by_scope,
+            limitations,
         ),
         "occupations": _render_occupations(
             occupations_by_scope,
