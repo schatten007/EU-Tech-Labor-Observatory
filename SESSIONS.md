@@ -42,6 +42,7 @@ than expanding the active increment.
 | Usability protocol (Plan 1 Task 5) | 2026-09-04 | Complete; Iteration 11's study is prepared, pre-registered and **unrun** | `docs/usability-study-protocol.md` (commit `ef2f512`, tracked): five tasks against `docs/index.html` - German breadth line, the empty occupation ranking's meaning, per-country freshness, cross-country comparability (the real test: if participants compare the absolute counts anyway, that is a design finding routed to Plan 2, not a code patch), and what a closed posting means. Tasks written before any participant exists so they cannot be reshaped around what the page answers well; recruiting, running and write-up explicitly out of scope. | No gate applies (a document, no page output change); `git show --stat` verified the file is committed |
 | Plan A Task A2 (JSON export contract) | 2026-09-05 | Complete; `app/data.json` is the fresh app's entire world, exported from the same views and the same `insights.build` rules the page reads, schema-pinned by test and committed as the seed | `scripts/export_app_data.py` (stdlib + duckdb): reads exactly what `publish.build_site` reads by calling publish's own `_query_*` functions (no duplicated SQL to drift) and runs `insights.build` with the identical argument list, so the app's numbers and the page's numbers cannot diverge. `Insight` gained an additive `rule` field (tagged in `insights.build` via `dataclasses.replace`; page rendering unchanged) because the contract requires naming the rule that produced each sentence. `make export-app` mirrors `live-site`'s live paths, glob depth and reference time. Tests in a NEW file `tests/test_export_app.py` (the old page's tests untouched): export-vs-page equality on the two-scope fixture (demand counts parsed back out of the rendered rows, region/requirement rows as exact cell fragments, the suppressed bucket vs the page's hatched cells, every insight sentence present, evidence dicts equal to the fixture numbers) and a schema pin asserting the exact key set at every payload level, so a silent field rename fails loudly. Live export committed as the seed: 2 scopes, methodology 1.5, spot-checked against the known live figures (Rendsburg-Eckernförde 187 of 28,779; churn 13/13 one day apart; SE 623). No methodology bump: the export introduces no new figure - every number already publishes on the page. **Open items:** (1) an uncommitted `make auto` draft (`scripts/auto_sweep.py` + the Makefile `auto` target) from a parallel B1 session stopped mid-flight by the owner appeared in the tree during this session; it is deliberately left out of this commit (the Makefile was partially staged) for the real B1 session to re-apply and review. (2) The contract carries occupation/skill only through insight evidence, not as ranking keys (the plan's payload shape omits them) - A3 must confirm that suffices for the app's design. | `make check` green before (459 pytest) and after (**462 pytest**, mypy 65 files, dbt PASS=202 WARN=0 ERROR=0); `make export-app` green from live data (12 stored sweeps, dbt PASS=197, wrote `app/data.json`, 2 scopes); `make live-site` green (12 sweeps, dbt PASS=197, 2 rows); direct release check on the live page: 0 problems |
 
+| Plan A Task A3 (fresh app: stack preflight + skeleton, hero, charts) | 2026-09-05 | Complete; Vite + React + TS + Chart.js app in `app/`, rendering the A2 export only | **Preflight (before any code, per the task):** `node --version` → **v24.14.0**, so the stack is Vite + React + TypeScript with Chart.js (via `react-chartjs-2`); npm deps installed (`app/package.json`, `app/package-lock.json` committed). The app lives in `app/`, imports **nothing but `data.json`** (grep-verified), computes no statistic, and honours the export's suppression flags and absence states. Detail in the dated note below. | `make check` green before **and** after, unchanged either side (ruff clean, ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**) — the app touches no Python. `npm run build` green (tsc -b + vite, 335 modules). Screenshots verified at 1280 px and 390 px; contrast audit computed in-browser (lowest pair 4.92:1, most ≥7:1); 6/6 interactive elements are native `button`/`a`. No `live-site`/`release-check` run: no page output changed (see the note) |
 
 ## Session Notes
 
@@ -1757,3 +1758,107 @@ no test, no partition moved. Both gate runs bracket the edit.
   2 scopes); `make live-site` last (12 sweeps, dbt PASS=197, 2 rows); direct release
   check on the live page: 0 problems. `docs/index.html` untouched - the audit page is
   frozen per the Plan A v2 decision.
+
+### 2026-09-05 (A3 session) - Plan A Task A3: the fresh app (skeleton, hero, charts)
+
+- **Preflight, recorded before any code was written (the task's first requirement).**
+  `node --version` → **v24.14.0**. Node is present, so the stack is the plan's Node branch:
+  **Vite + React + TypeScript** with **Chart.js** (`chart.js` + `react-chartjs-2`, plus
+  `chartjs-adapter-date-fns` for a real calendar axis). Nothing was installed to make this
+  true - Node was already on the machine, and the no-build vanilla fallback was therefore
+  not used. PowerShell blocks `npm.ps1` under its execution policy, so npm is invoked as
+  **`npm.cmd`** (recorded because every later app session hits it).
+- **What exists now.** `app/` is the app: `index.html`, `src/main.tsx`, `src/App.tsx`,
+  `src/styles.css`, `src/data.ts` (the typed loader - the single place any data enters) and
+  `src/components/` (`ScopeCard`, `Lamp`, `FactLine`, `TrendChart`, `RegionBars`,
+  `RequirementStack`, `AbsenceCard`). Two views: an **Overview hero** (one card per scope:
+  big number, freshness/coverage lamps, sweep count, four plain-language fact lines, a CTA
+  into the story) and a **per-scope story** (hero, all fact lines, trend, region bars,
+  requirement stacks or absence cards). `app/README.md` replaces the Vite boilerplate with
+  the app's contract and the grep commands that prove it; the scaffold's demo assets
+  (`public/vite.svg`, the template's social-icon sprite, `App.css`, `index.css`) are deleted.
+- **The export contract as A2 actually built it, not as the plan sketched it.** The app
+  reads the real payload: `demand`, `coverage`, `breadth`, `frequency`, `regions_top`,
+  `requirements`, `mappings`, **`denominators`**, `flows_series`, `insights` (each with
+  `rule` + `evidence`). The plan's sketch had no `denominators`/`mappings`/`frequency`; the
+  app uses `denominators.region.postings_mapped` for the ranking denominator and
+  `denominators.*.postings_with_source_value == 0` to detect German absence, which is
+  exactly why A2's additions matter. The A2 open item "does occupation-through-evidence
+  suffice?" is answered: **yes for the hero fact line** (SE's
+  `most_requested_occupation` sentence renders as-is from the export), and it is
+  irrelevant to Germany, which has no occupation field at all.
+- **Honesty laws, as implemented and verified in the browser.**
+  - *No pooling, no comparison.* Each card and every chart is one `(source, scope_id)`.
+    There is no combined total, no ratio between scopes, no shared axis; the Overview
+    intro and the footer say so in plain language.
+  - *Gaps stay gaps.* The trend uses a **time scale**, so a 13-day hole is 13 days wide,
+    and an explicit **null point is inserted inside every hole** (`spanGaps: false`), so
+    the line physically breaks. Verified on screen: SE draws a segment only across the
+    adjacent 08-19→08-20 pair, then two unconnected dots at 08-22 and 09-04; DE draws
+    09-02 isolated and 09-04→09-05 joined. The chart note and the aria label both name
+    every gap and its length. **Three rendering attempts were needed** and are recorded
+    because each failure was instructive: a category axis (evenly spaced the 13-day hole -
+    dishonest), then `parsing: false` (Chart.js drops null gap points, so points vanished),
+    then `ticks.source: 'data'` (labelled the invisible break points). The shipped version
+    is a plain day-unit time axis.
+  - *Churn spacing always stated.* The churn fact line renders `days_apart` from evidence
+    ("13 days apart" / "1 day apart"), and the trend intro repeats it.
+  - *Denominators beside rankings.* Region bars: "out of 28,779 mapped postings" (DE),
+    "out of 584" (SE), with "Top 5 ... (NUTS-2024)" naming the truncation and a link to
+    the audit page for the full ranking. Requirement stacks: "every one of 623 postings".
+  - *Suppression respected.* A `suppressed: true` bucket is plotted as **null, never zero**,
+    and gets a diamond marker plus a sentence; no live bucket is currently suppressed, so
+    that path is code-present and unexercised (open item).
+  - *Absence is a statement.* Germany renders three honest cards - employment/hours/
+    duration, occupation ("this source publishes no occupation field - every one of its
+    29,068 postings lacks it"), skill - instead of three empty charts.
+- **No client-side statistics (the DoD's grep-able check).**
+  `Select-String` over `app/src/**` for `\.json|fetch\(|duckdb|dbt|\.parquet|\.csv|\.sql`
+  returns **exactly one hit**: `data.ts:1: import data from '../data.json'`. The complete
+  import list is react / react-dom / react-chartjs-2 / chart.js / chartjs-adapter-date-fns
+  / `./styles.css` / relative app modules - no data source, no network call. The only
+  arithmetic in the app is presentational: `toLocaleString` grouping, bar width as a
+  percentage of the largest bar, and date positions on the calendar axis. **No displayed
+  number is derived** - every figure is a field of the export. Both commands are written
+  into `app/README.md` so the check is repeatable.
+- **Accessibility.** Every chart carries `role="img"` and an `aria-label` that reads out
+  the whole series with its denominator (the charts' text twin). All six interactive
+  elements are native `<button>`/`<a>` with no `tabindex`, so tab order is DOM order;
+  focus-visible rings are amber, 3 px, offset. Contrast was **computed in-page** rather
+  than eyeballed: 14 text pairs plus both CTAs, lowest ratio **4.92:1** (white on the
+  German gold CTA), everything else ≥5.47:1 and most ≥7:1 - AA passes throughout. A
+  `prefers-reduced-motion` guard disables smooth scrolling (full motion work is A4).
+- **Screenshots verified.** 1280 px (Overview, both stories) and **390 px** (Overview and
+  the Germany story): cards stack, the switcher scrolls, charts reflow, no clipping, no
+  horizontal overflow. One artefact worth knowing: a full-page screenshot taken
+  immediately after a viewport resize can capture a **stale canvas bitmap** before
+  Chart.js re-renders; element screenshots after the resize settles show the correct
+  chart. Both `.playwright-mcp/` (screenshots) and `app/dist/` are gitignored.
+- **Deliberately not done.** No motion/illustration/loading-state polish and no deploy
+  story (that is A4). `make export-app` was **not** re-run: it would rewrite
+  `app/data.json`'s `built` stamp for no new data and create a spurious diff - the
+  committed A2 seed *is* the live export the app was checked against. No
+  `make live-site`/`make release-check`: no page output changed, the audit page stays
+  frozen, and `docs/index.html` is untouched (the runbook conditions those gates on page
+  output changing, and never running `site`/`release-check` also means the live page could
+  not be clobbered). `scripts/publish.py`, `scripts/insights.py`, `tests/test_probe.py`,
+  the Makefile and every gate are untouched. No methodology bump: the app publishes no new
+  figure or definition - it re-renders the export's existing figures (version rule
+  reasoning recorded here).
+- **Open items (noticed, recorded, not done).** (1) The app has **no automated test** -
+  nothing pins the honesty laws (a future edit could add a cross-scope chart and no gate
+  would fail); a small vitest or a Python string check over `app/src` would fix it, and
+  belongs in A4 or its own task. (2) The suppression path is unexercised by live data. (3)
+  `flows_series.day` is sparse (DE 3, SE 4 buckets), so the trend is honest but thin; it
+  fills in as cadence holds, with no code change. (4) The three German absence cards are
+  wordy back-to-back - an A4 presentation question. (5) The old page and the app now render
+  the same figures from two codepaths; only the export's own tests tie them together. (6)
+  The leftover uncommitted B1 draft (`scripts/auto_sweep.py` + the Makefile `auto` hunk) is
+  still in the tree, still unreviewed, and was again deliberately excluded from this
+  commit.
+- **Gates as run.** `make check` **before** (ruff clean, mypy 65 files, 462 pytest, dbt
+  PASS=202 WARN=0 ERROR=0) and **after** (identical: ruff clean, ruff-format clean, mypy 65
+  files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**) - the app is outside the Python
+  gate's reach, which is the point of the frozen-page architecture. `npm run build` green
+  (tsc -b + vite, 335 modules, 439 kB JS / 7 kB CSS). Working tree after the commit
+  contains only the pre-existing B1 draft.

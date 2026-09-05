@@ -58,6 +58,12 @@ site/.evidence/template/
 site/.evidence-queries/
 site/build/
 
+# ── The Plan A v2 app: source and data.json are committed, build output is not ─
+app/dist/
+
+# ── Local verification artefacts (screenshots taken while checking the app) ───
+.playwright-mcp/
+
 # ── Models / caches too large for git ────────────────────────────────────────
 .cache/
 models_cache/
