@@ -138,6 +138,7 @@ def build(
     survival: Sequence[SurvivalRow],
     flows: Sequence[FlowRow],
     frequency: Sequence[FrequencyRow],
+    regions: Sequence[ScopedDimensionRow] = (),
 ) -> dict[str, list[Insight]]:
     """Run every rule over the rows publish.py renders, keyed by section slug.
 
@@ -151,6 +152,7 @@ def build(
         scope_occupations = [row[2:] for row in occupations if row[1] == scope]
         scope_skills = [row[2:] for row in skills if row[1] == scope]
         scope_requirements = [row[2:] for row in requirements if row[1] == scope]
+        scope_regions = [row[2:] for row in regions if row[1] == scope]
         for slug, produced in (
             ("overview", [rule_latest_count(demand, scope)]),
             ("status", [rule_freshness_warning(coverage, scope)]),
@@ -170,8 +172,13 @@ def build(
             ),
             (
                 "survival",
-                [rule_median_duration(survival, scope), rule_trend(flows, frequency, scope)],
+                [
+                    rule_median_duration(survival, scope),
+                    rule_trend(flows, frequency, scope),
+                    rule_sweep_churn(flows, scope),
+                ],
             ),
+            ("countries", [rule_region_concentration(scope_regions, mapping_coverage, scope)]),
         ):
             results.setdefault(slug, []).extend(_present(produced))
     return results
@@ -353,6 +360,85 @@ def rule_freshness_warning(coverage: Sequence[CoverageRow], scope: str) -> Insig
         scope=scope,
         text="Read the figures with care: " + "; ".join(clauses) + ".",
         evidence=evidence,
+    )
+
+
+def rule_region_concentration(
+    regions: Sequence[DimensionRow],
+    mapping_coverage: Sequence[MappingCoverageRow],
+    scope: str,
+) -> Insight | None:
+    """The leading region's share of mapped postings, as counts against the mapped total.
+
+    Concentration stated as "N of M mapped posting(s)" in the leading region. The
+    mapped total comes from mapping_coverage, never from summing the rendered region
+    rows: the ranking is truncated at the publisher's DIMENSION_LIMIT, so its column
+    sums to the listed top-N, not to the sweep. A unique leader is required: two
+    regions tied at the top publish no superlative. Fires for any scope that maps
+    regions, so both published scopes are described uniformly.
+    """
+    coverage = _coverage_row(mapping_coverage, scope, "region")
+    if coverage is None or coverage[5] <= 0:
+        return None
+    mapped = coverage[5]
+    rows = [row for row in regions if row[0] == "region" and row[3] > 0]
+    if len(rows) < 2:
+        return None
+    leader, runner = rows[0], rows[1]
+    label, count = leader[1], leader[3]
+    if not label or count <= 0 or count > mapped:
+        return None
+    if runner[3] == count:
+        return None
+    return Insight(
+        scope=scope,
+        text=(
+            f"The leading region is {label}, with {count:,} of {mapped:,} mapped posting(s) "
+            "in this sweep."
+        ),
+        evidence={
+            "region_label": label,
+            "leader_postings": count,
+            "mapped_postings": mapped,
+        },
+    )
+
+
+def rule_sweep_churn(flows: Sequence[FlowRow], scope: str) -> Insight | None:
+    """Openings and closures between the two most recent buckets, as counts.
+
+    Churn is stated for the two most recent observed buckets of the finest
+    published grain, whatever their spacing: unlike rule_trend this claims no
+    direction, so no cadence gate applies. The openings and closures are the
+    flow rows' own numbers, and the active stock names the newer bucket. A gap
+    between the buckets is stated plainly rather than read as zero.
+    """
+    daily = sorted(
+        (row for row in flows if row[0] == scope and row[1] == "day"),
+        key=lambda row: row[2],
+    )
+    if len(daily) < 2:
+        return None
+    older, newer = daily[-2], daily[-1]
+    openings, closures, active = newer[3], newer[4], newer[5]
+    if openings is None or closures is None or active is None:
+        return None
+    if (newer[2] - older[2]).days > 1:
+        span = f"{(newer[2] - older[2]).days} days apart"
+    else:
+        span = "one day apart"
+    return Insight(
+        scope=scope,
+        text=(
+            f"Between the two most recent daily buckets ({span}), {openings:,} posting(s) "
+            f"opened and {closures:,} closed, leaving {active:,} active."
+        ),
+        evidence={
+            "openings": openings,
+            "closures": closures,
+            "active_postings": active,
+            "newer_bucket": newer[2].strftime("%Y-%m-%d"),
+        },
     )
 
 

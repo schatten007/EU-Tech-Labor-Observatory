@@ -1786,9 +1786,12 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
     assert "zzzz_zzz_zzz" in employment
     assert "Not stated" in bodies["table-requirements-working-hours-type-jobtech-jobtech-scope"]
     # Iteration 16: the insights are server-rendered, escaped, and reproducible from the tables
-    # beneath them. This fixture fires exactly three - the latest count, the leading occupation,
-    # and the leading skill - because the fixed-term, part-time, closed-duration, and trend rules
-    # all have unmet preconditions and must stay silent.
+    # beneath them. This fixture fires four - the latest count, the leading occupation, the
+    # leading skill, and sweep-over-sweep churn - because the fixed-term, part-time,
+    # closed-duration, and trend rules have unmet preconditions, and regional concentration
+    # needs two or more mapped regions while this fixture maps one. The digest double-renders
+    # the latest count, both ranking sentences, and the churn sentence (Overview plus their
+    # panels), so four fired sentences render seven insight paragraphs.
     latest = "The latest complete sweep observed 1 active posting(s) on 2026-08-06."
     occupation = (
         "The most frequently mapped occupation is IKT-programutvecklare, in 1 of 1 "
@@ -1798,16 +1801,24 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
         "The most frequently mapped skill is C#, asked for in 1 of 1 posting(s) with "
         "a mapped skill."
     )
-    assert page.count('class="insight"') == 5
+    churn = (
+        "Between the two most recent daily buckets (2 days apart), 2 posting(s) "
+        "opened and 1 closed, leaving 13 active."
+    )
+    assert page.count('class="insight"') == 7
     assert f'<p class="insight">{latest}</p>' in page
     assert f'<p class="insight">{occupation}</p>' in page
     assert f'<p class="insight">{skill}</p>' in page
+    assert f'<p class="insight">{churn}</p>' in page
+    assert "The leading region is" not in page
     assert "read the figures with care" not in page.lower()
     assert "are permanent employment" not in page
     assert "are full-time and" not in page
     assert "median observed duration" not in page
     overview = page.split('id="overview"')[1].split("</section>")[0]
     assert latest in overview and occupation in overview and skill in overview
+    churn_panel = page.split('id="survival"')[1].split("</section>")[0]
+    assert churn in churn_panel
     occupations_panel = page.split('id="occupations"')[1].split("</section>")[0]
     assert occupation in occupations_panel and skill in occupations_panel
     assert latest not in occupations_panel
@@ -2021,9 +2032,10 @@ def test_methodology_version_covers_the_requirement_dimensions() -> None:
     one that does not. 1.4 states the sampling designs (the German stratified region-bounded
     sample against a pinned NUTS-3 frame, the Swedish keyword-scoped query), the occupation gap
     that leaves one ranking empty by construction, and the region-breadth count: a definition
-    change, not a wording tweak.
+    change, not a wording tweak. 1.5 adds regional concentration and sweep-over-sweep churn,
+    two derived statements of the same kind, so it again cannot share a version.
     """
-    assert publish.METHODOLOGY_VERSION == "1.4"
+    assert publish.METHODOLOGY_VERSION == "1.5"
     assert [slug for slug, _heading in publish.SECTIONS if slug == "requirements"] == [
         "requirements"
     ]
@@ -2311,10 +2323,13 @@ def test_publish_renders_each_scope_in_its_own_sections(
     assert publish.build_site(database, target) == 3
     page = target.read_text(encoding="utf-8")
 
-    # Two subsections per affected panel, each named for its scope, largest first.
+    # Two subsections per affected panel, each named for its scope, largest first. The
+    # scope-plate name is a real h3 (release_check fails skipped heading levels), carrying
+    # translate="no" so a code-token scope id cannot be garbled by auto-translation.
     countries = page.split('id="countries"')[1].split("</section>")[0]
-    assert countries.count("<h4>jobtech / jobtech-scope</h4>") == 1
-    assert countries.count("<h4>ba / de-panel</h4>") == 1
+    assert countries.count(">jobtech / jobtech-scope</h3>") == 1
+    assert countries.count(">ba / de-panel</h3>") == 1
+    assert 'translate="no"' in countries
     # A country with no pinned NUTS-3 frame degrades to the explicit sentence, never "N of 0".
     assert (
         "No NUTS-3 frame is pinned for this country in the reference data, so no breadth "
@@ -2336,21 +2351,21 @@ def test_publish_renders_each_scope_in_its_own_sections(
     assert f'<p class="definition">{limitation}</p>' in countries
     # The breadth line and caveat sit above the denominator paragraph, so the denominator the
     # release check captures for each region table is the real one.
-    jobtech_block = countries.split("<h4>jobtech / jobtech-scope</h4>")[1].split("<h4>")[0]
+    jobtech_block = countries.split(">jobtech / jobtech-scope</h3>")[1].split("</article>")[0]
     assert jobtech_block.index("NUTS-3 regions") < jobtech_block.index('class="denominator"')
     # The whole point of the view: the breadth count is not the number of rendered region rows.
     # The jobtech scope maps one region in the breadth view; its rendered table carries one row
     # here, but on live data 393 regions render 25 rows, so the fixture instead proves the two
     # are computed independently — the ba scope maps 2 regions while the no-frame scope maps 3.
-    de_block = countries.split("<h4>ba / de-panel</h4>")[1].split("<h4>")[0]
+    de_block = countries.split(">ba / de-panel</h3>")[1].split("</article>")[0]
     assert "2 of 4 DE NUTS-3 regions" in de_block
     assert de_block.count("data-row") != 0
     occupations_panel = page.split('id="occupations"')[1].split("</section>")[0]
-    assert occupations_panel.count("<h3>jobtech / jobtech-scope</h3>") == 1
-    assert occupations_panel.count("<h3>ba / de-panel</h3>") == 1
+    assert occupations_panel.count(">jobtech / jobtech-scope</h3>") == 1
+    assert occupations_panel.count(">ba / de-panel</h3>") == 1
     requirements_panel = page.split('id="requirements"')[1].split("</section>")[0]
-    assert requirements_panel.count("<h3>jobtech / jobtech-scope</h3>") == 1
-    assert requirements_panel.count("<h3>ba / de-panel</h3>") == 1
+    assert requirements_panel.count(">jobtech / jobtech-scope</h3>") == 1
+    assert requirements_panel.count(">ba / de-panel</h3>") == 1
     assert occupations_panel.index("jobtech / jobtech-scope") < occupations_panel.index(
         "ba / de-panel"
     )
@@ -2402,9 +2417,9 @@ def test_publish_renders_each_scope_in_its_own_sections(
     empty_skill = empty_by_construction.replace("occupation field", "skill field").replace(
         "ESCO occupation", "ESCO skill"
     )
-    ba_block = occupations_panel.split("<h3>ba / de-panel</h3>")[1].split("<h3>")[0]
-    jobtech_occ_block = occupations_panel.split("<h3>jobtech / jobtech-scope</h3>")[1].split(
-        "<h3>"
+    ba_block = occupations_panel.split(">ba / de-panel</h3>")[1].split("</article>")[0]
+    jobtech_occ_block = occupations_panel.split(">jobtech / jobtech-scope</h3>")[1].split(
+        "</article>"
     )[0]
     assert empty_by_construction in ba_block
     assert empty_skill in ba_block
@@ -2412,14 +2427,17 @@ def test_publish_renders_each_scope_in_its_own_sections(
     assert empty_skill not in jobtech_occ_block
 
     # DIMENSION_LIMIT applies per subsection: jobtech lists 25 of its 30 values, and the ba
-    # table stays empty and honest rather than inheriting jobtech's rows.
+    # scope renders absence plates instead of empty tables, so its ranked prefix stays absent
+    # from its own plate while jobtech still renders every prefix the release check requires.
     jobtech_ranked = page.split('id="table-occupations-ranked-jobtech-jobtech-scope"')[1]
     jobtech_ranked = jobtech_ranked.split("</table>")[0]
     assert jobtech_ranked.count("data-row") == publish.DIMENSION_LIMIT
-    ba_ranked = page.split('id="table-occupations-ranked-ba-de-panel"')[1].split("</table>")[0]
-    assert ba_ranked.count("data-row") == 0
-    assert "No mapped dimension results" in ba_ranked
     assert "occ-0" in jobtech_ranked
+    assert ba_block.count('class="absence"') == 2
+    assert "Occupation ranking — structurally absent" in ba_block
+    assert "Technology skills — structurally absent" in ba_block
+    assert 'id="table-occupations-ranked-ba-de-panel"' not in page
+    assert 'id="table-occupations-skills-ba-de-panel"' not in page
 
     # Requirement tables sum to their own scope's posting total, per scope.
     for identifier, total in (
@@ -2512,6 +2530,7 @@ RichRows = tuple[
     list[insights.SurvivalRow],
     list[insights.FlowRow],
     list[insights.FrequencyRow],
+    list[insights.ScopedDimensionRow],
 ]
 
 
@@ -2552,9 +2571,15 @@ def _rich_rows() -> RichRows:
     skills: list[insights.ScopedDimensionRow] = [
         ("jobtech", "jobtech-scope", "skill", "Programmering", "1.2.1", 30)
     ]
+    regions: list[insights.ScopedDimensionRow] = [
+        ("jobtech", "jobtech-scope", "region", "Stockholms län", "NUTS-2024", 320),
+        ("jobtech", "jobtech-scope", "region", "Västra Götalands län", "NUTS-2024", 120),
+        ("jobtech", "jobtech-scope", "region", "Skåne län", "NUTS-2024", 80),
+    ]
     mapping_coverage: list[insights.MappingCoverageRow] = [
         ("jobtech", "jobtech-scope", "occupation", 628, 628, 520),
         ("jobtech", "jobtech-scope", "skill", 628, 61, 48),
+        ("jobtech", "jobtech-scope", "region", 628, 584, 584),
     ]
     requirements: list[insights.ScopedRequirementRow] = [
         (
@@ -2625,7 +2650,28 @@ def _rich_rows() -> RichRows:
         ("jobtech-scope", "active", True, 628, 806, 3.0, 1.0, 7.0, 90, "jobtech"),
         ("jobtech-scope", "inferred_absence", False, 58, 68, 1.0, 0.0, 2.0, 5, "jobtech"),
     ]
-    flows: list[insights.FlowRow] = []
+    flows: list[insights.FlowRow] = [
+        (
+            "jobtech-scope",
+            "day",
+            datetime(2026, 8, 20, tzinfo=UTC),
+            12,
+            4,
+            612,
+            800,
+            "jobtech",
+        ),
+        (
+            "jobtech-scope",
+            "day",
+            datetime(2026, 8, 22, tzinfo=UTC),
+            36,
+            20,
+            628,
+            806,
+            "jobtech",
+        ),
+    ]
     frequency: list[insights.FrequencyRow] = [
         (
             "jobtech-scope",
@@ -2648,6 +2694,7 @@ def _rich_rows() -> RichRows:
         survival,
         flows,
         frequency,
+        regions,
     )
 
 
@@ -2662,6 +2709,7 @@ def test_insight_rules_state_findings_with_their_denominators() -> None:
         survival,
         flows,
         frequency,
+        regions,
     ) = _rich_rows()
     results = insights.build(
         demand,
@@ -2673,6 +2721,7 @@ def test_insight_rules_state_findings_with_their_denominators() -> None:
         survival,
         flows,
         frequency,
+        regions,
     )
     fired = {insight.text for section in results.values() for insight in section}
     assert fired == {
@@ -2694,6 +2743,11 @@ def test_insight_rules_state_findings_with_their_denominators() -> None:
             "The median observed duration is 1.0 days across the 58 closed posting(s); "
             "postings still open are right-censored and are excluded."
         ),
+        ("The leading region is Stockholms län, with 320 of 584 mapped posting(s) in this sweep."),
+        (
+            "Between the two most recent daily buckets (2 days apart), 36 posting(s) "
+            "opened and 20 closed, leaving 628 active."
+        ),
     }
     # The gated trend rule stays silent: its gate needs sweeps this row set does not have.
     assert not any("Active postings" in text for text in fired)
@@ -2710,6 +2764,7 @@ def test_insight_traceability_every_number_appears_in_the_source_rows() -> None:
         survival,
         flows,
         frequency,
+        regions,
     ) = _rich_rows()
     results = insights.build(
         demand,
@@ -2721,6 +2776,7 @@ def test_insight_traceability_every_number_appears_in_the_source_rows() -> None:
         survival,
         flows,
         frequency,
+        regions,
     )
     tokens = _row_tokens(
         [
@@ -2733,6 +2789,7 @@ def test_insight_traceability_every_number_appears_in_the_source_rows() -> None:
             *survival,
             *flows,
             *frequency,
+            *regions,
         ]
     )
     for _section, section_insights in results.items():
@@ -2753,6 +2810,7 @@ def test_insight_sentences_never_mention_a_second_scope() -> None:
         survival,
         flows,
         frequency,
+        regions,
     ) = _rich_rows()
     coverage = [
         *coverage,
@@ -2793,6 +2851,7 @@ def test_insight_sentences_never_mention_a_second_scope() -> None:
         survival,
         flows,
         frequency,
+        regions,
     )
     assert results
     scopes = {"jobtech-scope", "jobtech-zero", "jobtech-archive"}
@@ -2843,6 +2902,41 @@ def test_insight_rules_with_unmet_preconditions_emit_nothing() -> None:
         ("jobtech-scope", "inferred_absence", False, None, None, None, None, None, None, "jobtech")
     ]
     assert insights.rule_median_duration(survival, scope) is None
+    # One mapped region is not a concentration statement, and a tie at the top is not a
+    # leader; a scope with no region coverage row publishes nothing either.
+    region_coverage = [("jobtech", scope, "region", 628, 584, 584)]
+    solo = [("region", "Solo län", "NUTS-2024", 320)]
+    assert insights.rule_region_concentration(solo, region_coverage, scope) is None
+    tied_regions = [
+        ("region", "A län", "NUTS-2024", 200),
+        ("region", "B län", "NUTS-2024", 200),
+    ]
+    assert insights.rule_region_concentration(tied_regions, region_coverage, scope) is None
+    two_rows = [
+        ("region", "A län", "NUTS-2024", 200),
+        ("region", "B län", "NUTS-2024", 100),
+    ]
+    assert insights.rule_region_concentration(two_rows, [], scope) is None
+    # Churn needs two daily buckets with all three counts publishable.
+    assert insights.rule_sweep_churn([], scope) is None
+    one_bucket = [
+        ("scope", "day", datetime(2026, 8, 22, 9, 0, tzinfo=UTC), 1, 1, 628, 950, "jobtech")
+    ]
+    assert insights.rule_sweep_churn(one_bucket, scope) is None
+    masked = [
+        ("scope", "day", datetime(2026, 8, 21, 9, 0, tzinfo=UTC), 1, 1, 615, 900, "jobtech"),
+        (
+            "scope",
+            "day",
+            datetime(2026, 8, 22, 9, 0, tzinfo=UTC),
+            None,
+            None,
+            None,
+            None,
+            "jobtech",
+        ),
+    ]
+    assert insights.rule_sweep_churn(masked, scope) is None
     # A gap next to the newest bucket silences the trend.
     gapped = [
         ("scope", "day", datetime(2026, 8, 19, 9, 0, tzinfo=UTC), 1, 1, 606, 900, "jobtech"),
