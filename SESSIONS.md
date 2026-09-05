@@ -44,6 +44,7 @@ than expanding the active increment.
 
 | Plan A Task A3 (fresh app: stack preflight + skeleton, hero, charts) | 2026-09-05 | Complete; Vite + React + TS + Chart.js app in `app/`, rendering the A2 export only | **Preflight (before any code, per the task):** `node --version` → **v24.14.0**, so the stack is Vite + React + TypeScript with Chart.js (via `react-chartjs-2`); npm deps installed (`app/package.json`, `app/package-lock.json` committed). The app lives in `app/`, imports **nothing but `data.json`** (grep-verified), computes no statistic, and honours the export's suppression flags and absence states. Detail in the dated note below. | `make check` green before **and** after, unchanged either side (ruff clean, ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**) — the app touches no Python. `npm run build` green (tsc -b + vite, 335 modules). Screenshots verified at 1280 px and 390 px; contrast audit computed in-browser (lowest pair 4.92:1, most ≥7:1); 6/6 interactive elements are native `button`/`a`. No `live-site`/`release-check` run: no page output changed (see the note) |
 | Plan A Task A4 (polish and illustration pass) | 2026-09-05 | Complete (`01c7a1b`); motion/states/branding/cross-link polish of the A3 app — no new data, statistic or chart type; audit-page link verified under the recommended publish layout; deploy recommendation recorded (nothing deployed) | Motion (entrance rise-in, card hover lift, region-bar grow, lamp breathe, Chart.js draw-in) all switch off under `prefers-reduced-motion` — one CSS media block plus the `usePrefersReducedMotion()` hook the charts read. Loading state is real (app+export lazy chunk + Suspense) with a plain-language error boundary; absence cards regrouped under one "Not available from this source" heading (A3 open item 4). Branding: "Job Market Pulse", inline SVG favicon/logo, one consistent icon set, decorative overview illustration. `AUDIT_PAGE_URL = '../index.html'` in `src/links.ts`, vite `base: './'`. Detail in the dated note below. | `make check` green before and after, identical (ruff clean, ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). `npm run build` green (340 modules; App chunk split out, 196 kB entry + 251 kB lazy app/export chunk); `npm run lint` 2 advisory warnings recorded in the note. Screenshots in `.playwright-mcp/`: desktop 1280 (overview + Germany story), 390 px (overview + Sweden story), reduced-motion emulation (page-confirmed `matchMedia` true), loading state (chunk delayed 2.5 s) and error state (chunk aborted). 390 px: zero horizontal overflow; contrast recomputed — audit CTA 5.47:1, absence group title 8.77:1, everything else ≥7:1. Dev server and `vite preview` both run against the committed live export; audit link clicked end-to-end under a simulated `docs/app/` layout. No `live-site`/`release-check`: no page output changed |
+| Plan B Task B1 (`make auto` orchestrator) | 2026-09-05 | Complete (`da9c929`); `scripts/auto_sweep.py` + `make auto`: spacing guard → sweep(s) → gates in the runbook's order → both published surfaces → one pathspec-scoped artefact commit; any failing step stops before the commit and exits 1. Proven green twice (auto commits `5deb7b9` skip-sweep, `cfeed53` real jobtech run) and safe twice (a deliberate mid-loop lint failure and a blocked spacing guard, both exit 1, nothing committed) | **Session-start incident first**: the expected uncommitted B1 draft was gone and A2's committed files (`Makefile`, `scripts/insights.py`, `scripts/export_app_data.py`) had been mechanically reverted to their pre-`b223707` content at 22:15:56 local, two seconds before the prompt; restored to HEAD with owner approval, the unrecoverable draft discarded, B1 written fresh from the plan — detail in the dated note. Stdlib-only orchestrator that subprocesses the existing entry points (`make sweep`, `main.py --source ba --panel`, `make check`, `make live-site`, `make export-app`, `release_check`, `check_ba_panel_readiness`); flags `--sources jobtech,ba`, `--skip-sweep`, `--push`, `--dry-run`, `--status`; logs to `logs/auto/<id>.log` | `make check` green before (on the restored clean tree: ruff, ruff-format, mypy 64 files, **462 pytest**, dbt **PASS=202**) and after (ruff, ruff-format, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). Page gates ran inside the auto loops: `make live-site` green, `make export-app` green (dbt PASS=197, 2 scopes), direct release check on the built page **0 problems**, copy + artefact commits `5deb7b9` (12 sweeps) and `cfeed53` (13 sweeps, jobtech sweep #10 = 599 rows) |
 
 ## Session Notes
 
@@ -1969,3 +1970,83 @@ no test, no partition moved. Both gate runs bracket the edit.
   `live-site`/`release-check`: no page output changed, `docs/index.html` untouched,
   same conditions as A3. Working tree after the commit contains only the
   pre-existing B1 draft.
+
+### 2026-09-05 (B1 session) - Plan B Task B1: the `make auto` orchestrator
+
+- **Incident first, because it changed the starting point.** The runbook's B1 prompt
+  said to re-apply and review the leftover uncommitted draft
+  (`scripts/auto_sweep.py`, 10.8 KB, plus the Makefile `auto` hunk). The draft was
+  **gone**: at 22:15:56 local — two seconds before this session's prompt — `Makefile`
+  and `scripts/insights.py` were overwritten with exactly their pre-A2 (`b223707^`)
+  content and `scripts/export_app_data.py` was deleted, i.e. a mechanical revert of
+  committed, recorded-green A2 work (verified: `git diff b223707^ -- Makefile
+  scripts/insights.py` empty; no reflog entry, consistent with a path-scoped
+  checkout/restore that never moves HEAD). The draft itself was unrecoverable — not
+  on disk, not among `git fsck --unreachable` blobs, not in any session transcript —
+  though its four `logs/auto/` runs from 18:28–18:34Z survive (the last, a real
+  `--skip-sweep` run, failed at lint on the then-uncommitted `export_app_data.py:144`
+  and stopped before commit exactly as designed). The owner approved discarding the
+  revert; all three files were restored to HEAD (`git restore`), the tree verified
+  byte-clean against HEAD, and B1 was then **written fresh from the plan**, not
+  re-applied. Cause of the revert is unknown — open item below.
+- **What exists now.** `scripts/auto_sweep.py` (stdlib only; every step is a
+  subprocess of an existing entry point, nothing re-implemented) plus the Makefile
+  target `auto` (wraps `--sources $(SOURCES)`, default `jobtech`; an addition — no
+  existing gate edited). Steps, in the plan's order: **spacing guard** (jobtech ≥ 2 h,
+  ba ≥ 20 h, computed from partition manifests' `started_at`; a blocked guard refuses
+  to sweep, exits 1) → **pre-sweep `make check`** (the recorded check-before-sweep
+  constraint: a sweep with a broken mapping bakes the error into a permanent
+  partition; it is deliberately redundant with the loop's own check below — unattended
+  redundancy on the one command that protects permanent data) → **sweep(s)**
+  (`make sweep` for jobtech; `uv run --offline python main.py --source ba --panel
+  --date <UTC today>` for ba, followed by `scripts/check_ba_panel_readiness.py` as
+  the panel DoD gate) → `make check` → `make live-site` → `make export-app`
+  (existence probed with `make -n`; if absent: skip with a logged warning — Plan A
+  A2's not-yet-landed case, now moot since A2 landed) → **direct**
+  `python -m scripts.release_check site/build/index.html` (never `make
+  release-check`, which rebuilds the synthetic page over the live one) → copy to
+  `docs/index.html` → **commit of exactly `docs/index.html` + `app/data.json`**
+  (pathspec-scoped, so unrelated staged work can never ride along; message templated
+  from what ran; "no artefact changes" after a green run is success, not failure) →
+  optional `--push`. Flags: `--sources jobtech,ba`, `--skip-sweep` (gates + publish
+  only, no guard), `--push`, `--dry-run`, and `--status` (per-scope partition ages,
+  spacing verdicts against the 2 h/20 h thresholds, freshness verdicts against each
+  manifest's own `freshness_threshold_hours`, plus the tail of the newest auto log).
+  Logs land in `logs/auto/<YYYYMMDDTHHMMSSZ>.log` (gitignored); subprocess output
+  stays in the log, and on failure the last 15 lines print to stderr for diagnosis.
+- **Proofs, in `logs/auto/`, HEAD unchanged across the two failure proofs.**
+  (1) `--status` read-only: both scopes reported (jobtech 9 sweeps / 26.0 h old /
+  allowed / fresh; ba 3 / 23.5 h / allowed / fresh) with the then-newest log's tail.
+  (2) `--dry-run`: the whole loop logged, nothing executed, exit 0.
+  (3) **Deliberate mid-loop failure**: a temp unformatted `scripts/_fail_proof.py`
+  made `make check` fail at lint inside a real `--skip-sweep` run → "FAILED step make
+  check (exit 2); stopping before commit", exit 1, HEAD still `33e121f`; temp file
+  removed afterwards. (4) **Blocked guard**: a second jobtech run four minutes after
+  the new sweep → "spacing guard jobtech: newest partition ... 0.1 h old (minimum
+  2 h); refusing to sweep", exit 1, no sweep started, nothing committed.
+  (5) **Full green `--skip-sweep` run**: gates → live-site → export-app → direct
+  release check (0 problems) → copy → auto commit `5deb7b9` (12 sweeps, 2 scopes;
+  only the two artefacts, 6 lines each). (6) **Real unattended run** (`make auto`):
+  guard allowed at 26.1 h → pre-sweep check → live jobtech sweep #10 stored
+  (`20260905T204610Z-f5cf1d409aa5`, 599 rows, 7 pages) → gates → both surfaces →
+  direct release check 0 problems → copy → auto commit `cfeed53` (13 sweeps, 2
+  scopes). After it, `--status` honestly reports jobtech "sweep blocked, 1.9 h to
+  go".
+- **Deliberately not done / open items.** No unit tests for the orchestrator — the
+  plan's DoD is operational (one green unattended run + one deliberate failure) and
+  the six proofs above are that evidence. No app build/deploy step in the loop: the
+  plan slots one in after `export-app` "when it exists", the app now exists but A4's
+  deploy recommendation (`docs/app/` beside the audit page) is still
+  recommendation-only, so the loop regenerates `app/data.json` and stops there; the
+  build step joins the loop on the day deployment is decided. B2 (Windows scheduled
+  tasks + the BA-daily cadence decision) untouched — next session. The cause of the
+  22:15:56 revert is unknown (nothing in git reflog; file writes only); flagged so a
+  recurrence is recognised. The standing app-honesty-test gap is unchanged.
+- **Gates as run.** `make check` before (on the restored clean tree: ruff clean,
+  ruff-format clean, mypy 64 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**)
+  and after (ruff clean, ruff-format clean, mypy 65 files — the new script —,
+  **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). The page gates ran inside the
+  auto loops (`make live-site` green; `make export-app` green, dbt PASS=197, 2
+  scopes; direct release check on the built page 0 problems; copy; artefact commits
+  `5deb7b9` and `cfeed53`), so the session's final page state is the live page —
+  nothing rebuilt the synthetic page over it afterwards.
