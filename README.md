@@ -52,6 +52,43 @@ configuration to edit.
 | `make sweep` | Collects one complete sweep from the live source. | Yes |
 | `make reference` | Rebuilds the pinned crosswalks from the JobTech Taxonomy API. | Yes |
 
+## Automation
+
+Two user-level Windows scheduled tasks (no elevation needed) run the whole publish loop
+unattended — sweep, gates, both published surfaces, then one pathspec-scoped artefact
+commit:
+
+| Task | Cadence (local time) | Command |
+| --- | --- | --- |
+| Observatory SE sweep | daily 07:30 and 19:30 | `make auto SOURCES=jobtech` |
+| Observatory BA sweep | daily 13:00 (owner-chosen slot; the PC is off overnight) | `make auto SOURCES=ba` |
+
+Missed slots (PC off) self-heal: start-when-available fires the run at the next logon,
+and the orchestrator's spacing guard prevents a catch-up over-sweep.
+
+```powershell
+# install (registers both tasks disabled; -Enable registers them enabled)
+powershell -ExecutionPolicy Bypass -File scripts\install_scheduled_tasks.ps1
+# uninstall (reversible)
+powershell -ExecutionPolicy Bypass -File scripts\install_scheduled_tasks.ps1 -Remove
+```
+
+A disabled task never fires on schedule; enabling is one command:
+`Get-ScheduledTask "Observatory SE sweep", "Observatory BA sweep" | Enable-ScheduledTask`.
+
+To see what automation would do right now — partition ages, spacing verdicts (JobTech at
+least 2 h, BA at least 20 h between sweeps), freshness, and the newest run's log tail:
+
+```sh
+uv run --offline python scripts/auto_sweep.py --status
+```
+
+When a scheduled run fails: **read the log** (`logs/auto/<run id>.log`; `--status` prints
+the newest tail). The orchestrator **never commits a red gate**: any failing step stops the
+run before `git commit` and exits non-zero, so a failed run leaves the repository exactly
+where it was. Stored partitions are append-only — **never delete one**; a bad sweep is
+superseded by the next sweep, not removed.
+
 ## How it works
 
 1. **Collect** — `scripts/collect.py` reads one complete sweep page by page and stores it as an

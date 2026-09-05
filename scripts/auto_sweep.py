@@ -84,7 +84,13 @@ class RunLog:
 
     def tail(self, lines: int) -> str:
         self._file.flush()
-        return "".join(self.path.read_text(encoding="utf-8").splitlines(keepends=True)[-lines:])
+        # errors="replace": sweep subprocesses write Windows-encoded bytes (German
+        # umlauts) into the log; status output must never crash on mixed encodings.
+        return "".join(
+            self.path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)[
+                -lines:
+            ]
+        )
 
 
 def _parse_utc(value: str) -> datetime:
@@ -342,7 +348,9 @@ def status_mode() -> int:
     logs = sorted(AUTO_LOG_DIR.glob("*.log"))
     if logs:
         print(f"newest auto log: {logs[-1].name}")
-        for line in logs[-1].read_text(encoding="utf-8").splitlines()[-15:]:
+        # errors="replace" as in RunLog.tail: BA sweep output contains
+        # Windows-encoded bytes; the status tail must not crash on them.
+        for line in logs[-1].read_text(encoding="utf-8", errors="replace").splitlines()[-15:]:
             print(line)
     else:
         print("no auto logs yet")
