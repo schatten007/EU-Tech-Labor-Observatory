@@ -40,6 +40,7 @@ than expanding the active increment.
 | Uniform inferences + UI redesign (owner direction: presentation and simple inferences) | 2026-09-05 | Complete; methodology **1.5**, two uniform statistical rules firing on both scopes, and the guideline-reviewed instrument-board redesign implemented from `design/UI_REDESIGN_SPEC.md` | **Owner decisions recorded:** (1) the no-new-dependency rule is **lifted** - presentation libraries and premade assets are allowed, `make check` stays offline as the API-quota firewall, vendored inline assets are the pattern (Increment 15's uPlot spec already wrote the policy). (2) Occupation-type inferences stay **out entirely** - Germany's source carries no occupation field, and the app stays uniform across scopes: no per-country special casing. Inferences added, both computed per scope from rows the page already publishes: `rule_region_concentration` (leading region's count against the **mapping_coverage** mapped total - never the truncated ranking column, which sums to the top-25 listed) and `rule_sweep_churn` (openings/closures/active between the two most recent daily buckets, spacing stated; no direction claim so no cadence gate). Redesign ported from the spec/prototype: housing-plate header, mode selector, **observation board** (one card per scope: lamps, count, frame strip, trend line - replaces the cross-scope-inviting "Largest single observation" stat), **scope plates** in Countries/Occupations/Requirements, **annunciator lamps** with age/threshold numbers in every table, **frame strips** (per-tick SVG ≤60 regions, pattern-runs otherwise, unique ids via context suffix), **mark key** (filled/hollow/hatched/dashed), **absence plates** replacing the five empty German tables (occupation, skill, employment, hours, duration - requirement condition = empty dimensions + positive posting total, spec Flag 1 option b), **mapping chips** (three-segment mapped/carries/total), hatched suppressed cells, `Not stated`/`Unrecognised code` row markers, `theme-color`, amber+ink focus ring, Data Register monospace numerals, `translate="no"` on scope ids. Commits: `3bbf640` (rules + redesign + tests), `f126600` (design spec/prototype/screenshots tracked), `69bdf1e` (artefact). | `make check` green (ruff, mypy 62 files, **459 pytest**, dbt **PASS=202**); `make release-check` green on synthetic; `make live-site` green (12 sweeps, dbt PASS=197, 2 rows); direct release checks live + `docs/index.html`: **0 problems**; live page verified: 2 board cards, 6 scope plates, 5 absence plates, 4 frame strips, 2 chips, 24 lamps; concentration "Rendsburg-Eckernförde, 187 of 28,779 mapped" (correct sweep denominator), churn "13 opened and 13 closed" (DE, one day apart) |
 | Context reset + Plans A/B + Plan A Task A1 (owner direction: dry/bland/technical is the big issue; sweeps automation undelivered; context hygiene) | 2026-09-05 | Complete; two plans written for multi-session execution, MEMORY.md rewritten as the de-poisoned handoff, and A1 (plain-language board) implemented | **Owner direction, recorded verbatim-intent:** (1) "The application looks dry, bland and technical for an average user. That is the big issue" - the quiet-instrument aesthetic is **superseded** (banner added to `design/UI_REDESIGN_SPEC.md`; its a11y chapters stay binding). (2) Local sweep automation was asked for and not delivered - Plan B exists now. (3) Fear of context poisoning / outdated guardrails - **MEMORY.md rewritten fresh** with an ACTIVE-vs-RETIRED guardrail list (§4): no-new-deps and the quiet-instrument aesthetic are RETIRED; data honesty (per-scope separation, traceable numbers, denominators, suppression, offline check, no-JS readability, methodology bumps on new figures) is ACTIVE. Plans: **A** `.kilo/plans/1788618000000-dynamic-user-friendly-presentation-plan.md` (A1 plain-language board, A2 vendored-uPlot charts, A3 `<details>` decluttering, A4 five-section IA optional), **B** `.kilo/plans/1788618000000-local-sweep-automation-plan.md` (B1 `make auto` orchestrator that never commits a red gate, B2 Windows scheduled tasks + BA-daily-vs-weekly cadence decision). **A1 implemented this session:** board cards gain friendly fact lines rendered from insight-rule **evidence** (numbers identical to the formal sentences by construction): "Most postings sit in Rendsburg-Eckernförde — 187 of 28,779 mapped." / "Since the previous sweep (1 day earlier): 13 postings opened, 13 closed." (spacing always stated - a 13-day-old previous sweep must never read as yesterday; `days_apart` added to churn evidence). Friendly copy: heading "At a glance", "open technology postings", "Last checked". No new statistics → **no methodology bump** (rendering change only). Runbook Block 0 gains the constraint-hygiene rule (check MEMORY §4 before refusing anything as "against the rules"). Commit `0650963`. | `make check` green (ruff, mypy, **459 pytest**, dbt PASS=202); `make release-check` green; `make live-site` green (12 sweeps, PASS=197); direct release checks live + `docs/index.html`: **0 problems**; friendly lines verified on the live page for both scopes with correct denominators |
 | Usability protocol (Plan 1 Task 5) | 2026-09-04 | Complete; Iteration 11's study is prepared, pre-registered and **unrun** | `docs/usability-study-protocol.md` (commit `ef2f512`, tracked): five tasks against `docs/index.html` - German breadth line, the empty occupation ranking's meaning, per-country freshness, cross-country comparability (the real test: if participants compare the absolute counts anyway, that is a design finding routed to Plan 2, not a code patch), and what a closed posting means. Tasks written before any participant exists so they cannot be reshaped around what the page answers well; recruiting, running and write-up explicitly out of scope. | No gate applies (a document, no page output change); `git show --stat` verified the file is committed |
+| Plan A Task A2 (JSON export contract) | 2026-09-05 | Complete; `app/data.json` is the fresh app's entire world, exported from the same views and the same `insights.build` rules the page reads, schema-pinned by test and committed as the seed | `scripts/export_app_data.py` (stdlib + duckdb): reads exactly what `publish.build_site` reads by calling publish's own `_query_*` functions (no duplicated SQL to drift) and runs `insights.build` with the identical argument list, so the app's numbers and the page's numbers cannot diverge. `Insight` gained an additive `rule` field (tagged in `insights.build` via `dataclasses.replace`; page rendering unchanged) because the contract requires naming the rule that produced each sentence. `make export-app` mirrors `live-site`'s live paths, glob depth and reference time. Tests in a NEW file `tests/test_export_app.py` (the old page's tests untouched): export-vs-page equality on the two-scope fixture (demand counts parsed back out of the rendered rows, region/requirement rows as exact cell fragments, the suppressed bucket vs the page's hatched cells, every insight sentence present, evidence dicts equal to the fixture numbers) and a schema pin asserting the exact key set at every payload level, so a silent field rename fails loudly. Live export committed as the seed: 2 scopes, methodology 1.5, spot-checked against the known live figures (Rendsburg-Eckernförde 187 of 28,779; churn 13/13 one day apart; SE 623). No methodology bump: the export introduces no new figure - every number already publishes on the page. **Open items:** (1) an uncommitted `make auto` draft (`scripts/auto_sweep.py` + the Makefile `auto` target) from a parallel B1 session stopped mid-flight by the owner appeared in the tree during this session; it is deliberately left out of this commit (the Makefile was partially staged) for the real B1 session to re-apply and review. (2) The contract carries occupation/skill only through insight evidence, not as ranking keys (the plan's payload shape omits them) - A3 must confirm that suffices for the app's design. | `make check` green before (459 pytest) and after (**462 pytest**, mypy 65 files, dbt PASS=202 WARN=0 ERROR=0); `make export-app` green from live data (12 stored sweeps, dbt PASS=197, wrote `app/data.json`, 2 scopes); `make live-site` green (12 sweeps, dbt PASS=197, 2 rows); direct release check on the live page: 0 problems |
 
 
 ## Session Notes
@@ -1695,3 +1696,64 @@ no test, no partition moved. Both gate runs bracket the edit.
   never-commit-a-red-gate extends to both.
 - **MEMORY.md updated** (section 1 item 6, task queue, and the new app law in section 4's
   active list). Runbook state block points at Plan A Task A2 as the next session.
+
+### 2026-09-05 (late evening) - Plan A Task A2: the JSON export contract
+
+- **What the export is.** `scripts/export_app_data.py` (stdlib + duckdb only) reads exactly
+  what `publish.build_site` reads - the same DuckDB publish views through publish's own
+  `_query_*` functions, so no SQL is duplicated and no drift is possible - and calls
+  `insights.build` with the identical argument list `build_site` uses. Every number in
+  `app/data.json` is therefore a number the page already renders; the app computes nothing.
+- **The contract, as pinned by test.** `meta` carries `methodology_version` (1.5), `built`
+  and `scope_count`. Each scope carries `demand`, `coverage`, `breadth`,
+  `frequency` (complete sweeps, first/last observed - what the status lamps state),
+  `regions_top` (already truncated at `DIMENSION_LIMIT` by the query, exactly as the page
+  renders it), `requirements` (`{dimension: [{label, code, count}]}`), `mappings`
+  (`{dimension: {status: count}}` - the German absence evidence), `denominators`
+  (`{dimension: {postings_total, postings_with_source_value, postings_mapped}}` - law 2's
+  denominators-beside-rankings and law 4's absence state when `with_source_value = 0`),
+  `flows_series` (`{grain: [{bucket, openings, closures, active, suppressed}]}` where
+  `suppressed` is true when the small-count floor nulled any measure, so a suppressed or
+  unobserved bucket can never chart as zero) and `insights` (`[{rule, text, evidence}]`).
+- **One shared-module change.** `insights.Insight` gained an additive `rule: str = ""`
+  field, tagged inside `insights.build` where the dispatch knows each rule's name
+  (`dataclasses.replace`, no constructor touched). The contract requires the rule name and
+  only `build()` knows it; page rendering is unchanged and every existing insight test
+  passed untouched. `scripts/publish.py` and `tests/test_probe.py` are untouched.
+- **Make target.** `export-app` mirrors `live-site`: the same live observation/manifest
+  globs (same three-segment depth), the same fail-closed sweep count, the same reference
+  time, dbt build excluding `tag:sample_fixture`, then the export script. The export and
+  the page can never describe different sweeps.
+- **Tests (new file `tests/test_export_app.py`, 3 tests).** The equality test builds the
+  two-scope fixture database, renders the page AND the export from it, and proves the
+  numbers equal: demand counts parsed back out of the countries table's rendered rows,
+  region and requirement rows as exact `<td>` cell fragments, the suppressed flow bucket
+  against the page's hatched "suppressed" cells, every exported insight sentence present
+  on the page, and evidence dicts equal to the fixture's own numbers. The schema test
+  asserts the exact key set at every level of the payload - any silent field rename fails
+  the gate loudly. The third test proves the written file is stamped
+  (`methodology_version`, ISO `built`, `scope_count`).
+- **Live run and seed.** `make export-app` green from 12 stored sweeps (dbt PASS=197);
+  `app/data.json` committed as the app's seed: 2 scopes, spot-checked against the known
+  live figures - DE 29,068 active, Rendsburg-Eckernförde 187 of 28,779 mapped, breadth
+  392 of 400, churn 13 opened / 13 closed one day apart; SE 623, Stockholm 247 of 584,
+  9 sweeps. **No methodology bump**: the export adds no new figure or definition, it
+  transports figures that already publish (reasoning recorded here per the version rule).
+- **Deliberately not done.** No app code (A3 next: stack preflight, skeleton, hero,
+  charts); `docs/index.html` not refreshed (page output unchanged); no occupation/skill
+  ranking keys added to the payload (the plan's shape omits them - the leading
+  occupation/skill reaches the app only through insight evidence; A3 must confirm that
+  suffices, recorded as an open item).
+- **Incident, recorded: a parallel session.** Mid-session, an uncommitted `make auto`
+  draft (`scripts/auto_sweep.py`, 10.8 KB, plus the Makefile `auto` target) appeared in
+  the working tree - a B1 session running out of queue order while this session ran A2,
+  exactly the collision the runbook's no-parallel-sessions rule exists for. The owner
+  stopped it on request. The draft is deliberately NOT in this commit: the Makefile was
+  partially staged so only the `export-app` hunks landed, and `scripts/auto_sweep.py`
+  stays untracked for the real B1 session to re-apply and review. Nothing of it was
+  reverted or deleted.
+- **Gates as run.** `make check` before (459 pytest) and after (**462 pytest**, ruff, mypy
+  65 files, dbt PASS=202 WARN=0 ERROR=0); `make export-app` (12 sweeps, dbt PASS=197,
+  2 scopes); `make live-site` last (12 sweeps, dbt PASS=197, 2 rows); direct release
+  check on the live page: 0 problems. `docs/index.html` untouched - the audit page is
+  frozen per the Plan A v2 decision.

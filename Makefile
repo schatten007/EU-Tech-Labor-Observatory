@@ -30,7 +30,7 @@ REFERENCE_TIME = $(or $(STAMP),$(error could not resolve a valid UTC OBSERVATORY
 LIVE_SWEEPS = $(wildcard data/raw/collections/*/*/*/manifest.json)
 LIVE_READY = $(if $(LIVE_SWEEPS),$(words $(LIVE_SWEEPS)),$(error no stored sweeps found; run make sweep before make live-site))
 
-.PHONY: check lint types test evaluate dbt sample site release-check probe sweep sweep-datait sweep-all reference live-site clean
+.PHONY: check lint types test evaluate dbt sample site release-check probe sweep sweep-datait sweep-all reference live-site export-app clean
 
 check: lint types test evaluate dbt
 
@@ -107,6 +107,18 @@ live-site:
 	@echo publishing from $(LIVE_READY) stored sweeps
 	$(DBT) build --project-dir transform --exclude tag:sample_fixture
 	uv run --offline python -m scripts.publish
+
+# NOT part of check. Offline: rebuilds the live views exactly as live-site does, then writes
+# app/data.json - the fresh app's entire world (Plan A v2). The app never computes a statistic:
+# whatever is not in this export is not shown. Same paths, same glob depth and same reference
+# time as live-site, so the export and the page can never describe different sweeps.
+export-app: export OBSERVATIONS_PATH := data/raw/collections/*/*/*/observations.ndjson
+export-app: export MANIFESTS_PATH := data/raw/collections/*/*/*/manifest.json
+export-app: export OBSERVATORY_REFERENCE_TIME = $(REFERENCE_TIME)
+export-app:
+	@echo exporting from $(LIVE_READY) stored sweeps
+	$(DBT) build --project-dir transform --exclude tag:sample_fixture
+	uv run --offline python -m scripts.export_app_data
 
 clean:
 	$(DBT) clean --project-dir transform

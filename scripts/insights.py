@@ -14,7 +14,7 @@ was built from.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 
 # Row shapes mirror scripts/publish.py: this module never queries, so the two
@@ -73,10 +73,18 @@ class Insight:
     scope: str
     text: str
     evidence: Evidence
+    # The rule's own name, attached in build() where the dispatch knows it, so a
+    # consumer (the app export) can cite which rule produced a sentence.
+    rule: str = ""
 
 
 def _present(items: Sequence[Insight | None]) -> list[Insight]:
     return [item for item in items if item is not None]
+
+
+def _named(rule: str, produced: Insight | None) -> Insight | None:
+    """Tag one rule's output with the rule's name; silence passes through."""
+    return None if produced is None else replace(produced, rule=rule)
 
 
 def _collecting_scopes(demand: Sequence[DemandRow]) -> list[str]:
@@ -154,31 +162,48 @@ def build(
         scope_requirements = [row[2:] for row in requirements if row[1] == scope]
         scope_regions = [row[2:] for row in regions if row[1] == scope]
         for slug, produced in (
-            ("overview", [rule_latest_count(demand, scope)]),
-            ("status", [rule_freshness_warning(coverage, scope)]),
+            ("overview", [_named("latest_count", rule_latest_count(demand, scope))]),
+            ("status", [_named("freshness_warning", rule_freshness_warning(coverage, scope))]),
             (
                 "occupations",
                 [
-                    rule_most_requested_occupation(scope_occupations, mapping_coverage, scope),
-                    rule_most_requested_skill(scope_skills, mapping_coverage, scope),
+                    _named(
+                        "most_requested_occupation",
+                        rule_most_requested_occupation(scope_occupations, mapping_coverage, scope),
+                    ),
+                    _named(
+                        "most_requested_skill",
+                        rule_most_requested_skill(scope_skills, mapping_coverage, scope),
+                    ),
                 ],
             ),
             (
                 "requirements",
                 [
-                    rule_employment_shares(scope_requirements, scope),
-                    rule_working_hours_shares(scope_requirements, scope),
+                    _named("employment_shares", rule_employment_shares(scope_requirements, scope)),
+                    _named(
+                        "working_hours_shares",
+                        rule_working_hours_shares(scope_requirements, scope),
+                    ),
                 ],
             ),
             (
                 "survival",
                 [
-                    rule_median_duration(survival, scope),
-                    rule_trend(flows, frequency, scope),
-                    rule_sweep_churn(flows, scope),
+                    _named("median_duration", rule_median_duration(survival, scope)),
+                    _named("trend", rule_trend(flows, frequency, scope)),
+                    _named("sweep_churn", rule_sweep_churn(flows, scope)),
                 ],
             ),
-            ("countries", [rule_region_concentration(scope_regions, mapping_coverage, scope)]),
+            (
+                "countries",
+                [
+                    _named(
+                        "region_concentration",
+                        rule_region_concentration(scope_regions, mapping_coverage, scope),
+                    )
+                ],
+            ),
         ):
             results.setdefault(slug, []).extend(_present(produced))
     return results
