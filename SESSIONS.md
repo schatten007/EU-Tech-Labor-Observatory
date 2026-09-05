@@ -1671,3 +1671,27 @@ no test, no partition moved. Both gate runs bracket the edit.
   and sparklines are the charts so far; the IA consolidation to five sections (proposed in
   the 2026-09-05 chat summary) is NOT done - all nine sections and slugs stand.
 
+
+### 2026-09-05 (evening) - Decision: a fresh app instead of a retrofit; plans updated
+
+- **Owner decision, recorded:** the next presentation work is a **different, fresh,
+  user-centric application** - modern, illustrative, charts-and-figures instead of raw
+  data, "dumbed down but beautiful" - and the **existing HTML page is left unchanged**,
+  frozen as the analytical/audit artefact with its gates armed. Retiring it later would be
+  a deliberate recorded decision, never a drift.
+- **Architecture fixed by the decision:** a gated JSON **export** (Plan A v2 Task A2:
+  `scripts/export_app_data.py` -> `app/data.json`) generated from the same DuckDB views
+  and the same `insights.build` rules the publisher reads, carrying methodology version,
+  denominators, suppression flags and absence states. The app **never computes a
+  statistic** - if a number is not in the export, it is not shown. This kills the
+  two-surfaces-two-truths risk by construction.
+- **Plan A rewritten to v2** (same file): v1's remaining tasks (uPlot-in-the-old-page,
+  `<details>` collapse, five-section IA) are retired; A1 (plain-language board, done
+  `0650963`) was the old page's last change. New queue: A2 export contract -> A3 app
+  skeleton (preflight: Node.js available? Vite+React if yes, no-build vanilla app if no -
+  never install Node silently) -> A4 polish/illustration.
+- **Plan B amended:** the `make auto` orchestrator now also runs `make export-app` (skips
+  with a logged warning until A2 lands), so automation serves both surfaces;
+  never-commit-a-red-gate extends to both.
+- **MEMORY.md updated** (section 1 item 6, task queue, and the new app law in section 4's
+  active list). Runbook state block points at Plan A Task A2 as the next session.
