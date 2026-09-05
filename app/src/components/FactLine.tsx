@@ -1,13 +1,14 @@
 import { formatNumber, type Insight } from '../data'
+import Icon, { type IconName } from './Icon'
 
-const RULE_ICONS: Record<string, string> = {
-  latest_count: '\u25CF',
-  region_concentration: '\u25E6',
-  most_requested_occupation: '\u25C6',
-  employment_shares: '\u25B8',
-  working_hours_shares: '\u25B8',
-  median_duration: '\u23F1',
-  sweep_churn: '\u21C4',
+const RULE_ICONS: Record<string, IconName> = {
+  latest_count: 'count',
+  region_concentration: 'pin',
+  most_requested_occupation: 'briefcase',
+  employment_shares: 'pie',
+  working_hours_shares: 'pie',
+  median_duration: 'hourglass',
+  sweep_churn: 'swap',
 }
 
 interface Props {
@@ -38,11 +39,11 @@ function friendly(insight: Insight): string {
 }
 
 function FactLine({ insight }: Props) {
-  const icon = RULE_ICONS[insight.rule] ?? '\u2022'
+  const icon = RULE_ICONS[insight.rule]
   return (
     <li className="fact">
       <span className="fact-icon" aria-hidden="true">
-        {icon}
+        {icon ? <Icon name={icon} /> : <span className="fact-icon-dot" />}
       </span>
       <span>{friendly(insight)}</span>
     </li>

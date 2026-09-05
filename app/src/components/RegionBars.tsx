@@ -1,4 +1,5 @@
 import { formatNumber, type RegionRow, type DimensionDenominator } from '../data'
+import { AUDIT_PAGE_URL } from '../links'
 
 interface Props {
   scopeLabel: string
@@ -45,7 +46,7 @@ function RegionBars({ scopeLabel, regions, denominator }: Props) {
         {taxonomy ? ` (${taxonomy})` : ''}
         {mapped !== undefined && <> &mdash; out of {formatNumber(mapped)} mapped postings in the latest sweep</>}
         . The full ranking lives on the{' '}
-        <a href="../docs/index.html">audit page</a>.
+        <a href={AUDIT_PAGE_URL}>audit page</a>.
       </p>
     </div>
   )

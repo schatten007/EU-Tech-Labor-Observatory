@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { appData, scopeName, type Scope } from './data'
+import { AUDIT_PAGE_URL } from './links'
+import { LogoMark, HeroArt } from './components/Brand'
+import Icon from './components/Icon'
 import ScopeCard from './components/ScopeCard'
 import ScopeStory from './components/ScopeStory'
 
@@ -13,12 +16,10 @@ function App() {
       <header className="masthead">
         <div className="masthead-inner">
           <span className="logo" aria-hidden="true">
-            <span className="logo-dot" />
-            <span className="logo-dot logo-dot--teal" />
-            <span className="logo-dot logo-dot--gold" />
+            <LogoMark size={34} />
           </span>
           <div className="masthead-text">
-            <h1>Open Job Market Observatory</h1>
+            <h1>Job Market Pulse</h1>
             <p className="tagline">What the job ads say, in plain language</p>
           </div>
           <nav className="switcher" aria-label="Choose a view">
@@ -45,20 +46,25 @@ function App() {
           Methodology {appData.meta.methodology_version} &middot; export built{' '}
           <time dateTime={appData.meta.built}>{appData.meta.built.slice(0, 10)}</time> &middot;{' '}
           {appData.meta.scope_count} watched job-ad sources &middot;{' '}
-          <a href="../docs/index.html">Full data &amp; audit page</a>
+          <a href={AUDIT_PAGE_URL}>See the full data</a>
         </p>
       </header>
 
       <main id="main">
         {view === 'overview' ? (
           <section className="overview" aria-labelledby="overview-h">
-            <h2 id="overview-h" className="section-h">
-              At a glance
-            </h2>
-            <p className="section-intro">
-              One card per watched source. Each observation stands on its own &mdash; the two
-              sources cover different markets and are never added together or compared.
-            </p>
+            <div className="overview-head">
+              <div>
+                <h2 id="overview-h" className="section-h">
+                  At a glance
+                </h2>
+                <p className="section-intro">
+                  One card per watched source. Each observation stands on its own &mdash; the two
+                  sources cover different markets and are never added together or compared.
+                </p>
+              </div>
+              <HeroArt className="hero-art" />
+            </div>
             <div className="scope-grid">
               {appData.scopes.map((scope) => (
                 <ScopeCard key={scope.scope_id} scope={scope} onOpen={() => setView(scope)} />
@@ -81,6 +87,12 @@ function App() {
           (methodology {appData.meta.methodology_version}). If a figure is not in the export, it
           is not shown. Sources publish different fields, so each source is presented on its own
           &mdash; never pooled, never compared.
+        </p>
+        <p className="foot-cta">
+          Want every table, denominator and check?{' '}
+          <a className="audit-link" href={AUDIT_PAGE_URL}>
+            <Icon name="chart" /> See the full data &mdash; the analytical audit page
+          </a>
         </p>
       </footer>
     </div>

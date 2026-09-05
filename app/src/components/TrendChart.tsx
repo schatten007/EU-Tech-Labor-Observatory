@@ -12,6 +12,7 @@ import {
 } from 'chart.js'
 import 'chartjs-adapter-date-fns'
 import { Line } from 'react-chartjs-2'
+import { usePrefersReducedMotion } from '../motion'
 import { formatNumber, type FlowBucket } from '../data'
 
 ChartJS.register(TimeScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
@@ -58,6 +59,7 @@ function toPoints(buckets: FlowBucket[]): { points: Point[]; gaps: { from: strin
 
 function TrendChart({ scopeLabel, buckets }: Props) {
   const { points, gaps } = useMemo(() => toPoints(buckets), [buckets])
+  const reducedMotion = usePrefersReducedMotion()
   const suppressed = buckets.filter((b) => b.suppressed)
 
   const datasets: ChartDataset<'line', Point[]>[] = [
@@ -108,6 +110,10 @@ function TrendChart({ scopeLabel, buckets }: Props) {
           options={{
             responsive: true,
             maintainAspectRatio: false,
+            // draw-in animation, off entirely when the visitor asks for reduced motion
+            animation: reducedMotion
+              ? false
+              : { duration: 750, easing: 'easeOutQuart' },
             scales: {
               x: {
                 type: 'time',

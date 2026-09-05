@@ -9,6 +9,7 @@ import {
   Legend,
 } from 'chart.js'
 import { Bar } from 'react-chartjs-2'
+import { usePrefersReducedMotion } from '../motion'
 import { formatNumber, type RequirementRow } from '../data'
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Title, Tooltip, Legend)
@@ -43,6 +44,7 @@ const INK = '#1f2937'
 
 function RequirementStack({ scopeLabel, dimension, rows, total }: Props) {
   const title = DIMENSION_TITLES[dimension] ?? dimension
+  const reducedMotion = usePrefersReducedMotion()
   const colors = rows.map((_, i) => SEGMENT_COLORS[i % SEGMENT_COLORS.length])
 
   const aria = useMemo(
@@ -77,6 +79,10 @@ function RequirementStack({ scopeLabel, dimension, rows, total }: Props) {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
+            // segments grow in from zero, off entirely under reduced motion
+            animation: reducedMotion
+              ? false
+              : { duration: 700, easing: 'easeOutQuart' },
             scales: {
               x: {
                 stacked: true,

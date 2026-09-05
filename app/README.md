@@ -37,6 +37,16 @@ The second command must return exactly one hit: `data.ts: import data from '../d
   German occupation/skill/requirement gaps, detected from
   `denominators.*.postings_with_source_value == 0`), the app renders an honest
   "not available" card.
+- **Motion is decorative and gated.** Entrance, hover and bar-grow animations live in
+  `styles.css`; chart draw-in is a Chart.js animation option. Both switch off entirely
+  under `prefers-reduced-motion` (the CSS media query plus the
+  `usePrefersReducedMotion()` hook in `src/motion.ts`, which the charts read).
+- **Loading and failure are states, not blank screens.** The app (and the export chunk
+  with it) is lazy-loaded in `src/main.tsx`: a branded loading screen shows while it
+  arrives, and an error boundary explains a failed load in plain language.
+- **The audit page is one click away.** `src/links.ts` exports `AUDIT_PAGE_URL`
+  (`../index.html`), assuming the recommended publish layout: this app's build output
+  at `docs/app/` beside the audit page at `docs/index.html`.
 
 ## Stack
 

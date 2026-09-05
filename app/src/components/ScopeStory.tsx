@@ -96,7 +96,7 @@ function ScopeStory({ scope, scopes, onBack, onOpen }: Props) {
         {flowBuckets.length > 0 ? (
           <TrendChart scopeLabel={scopeName(scope)} buckets={flowBuckets} />
         ) : (
-          <AbsenceCard title="Trend">
+          <AbsenceCard title="Trend: not available">
             This source has no published daily buckets yet.
           </AbsenceCard>
         )}
@@ -111,7 +111,7 @@ function ScopeStory({ scope, scopes, onBack, onOpen }: Props) {
             denominator={scope.denominators.region}
           />
         ) : (
-          <AbsenceCard title="Regions">
+          <AbsenceCard title="Regions: not available">
             This source publishes no region field, so no regional picture exists.
           </AbsenceCard>
         )}
@@ -131,25 +131,38 @@ function ScopeStory({ scope, scopes, onBack, onOpen }: Props) {
               />
             ))}
           </div>
-        ) : (
-          <AbsenceCard title="Employment type, hours and duration">
-            This source publishes no employment-type, working-hours or duration field on its
-            postings, so there is no breakdown to chart. All{' '}
-            {formatNumber(scope.demand.active_postings)} postings are affected, not a sample of
-            them.
-          </AbsenceCard>
-        )}
-        {!hasOccupation && (
-          <AbsenceCard title="Occupation field">
-            This source publishes no occupation field &mdash; every one of its{' '}
-            {formatNumber(scope.demand.active_postings)} postings lacks it, so no occupation
-            ranking exists for {scopeName(scope)}.
-          </AbsenceCard>
-        )}
-        {!hasSkill && (
-          <AbsenceCard title="Skill field">
-            This source publishes no skill field on its postings, so no skill demand picture exists.
-          </AbsenceCard>
+        ) : null}
+        {(!hasRequirements || !hasOccupation || !hasSkill) && (
+          <div className="absence-group">
+            <h4 className="absence-group-title">Not available from this source</h4>
+            <div className="absence-stack">
+              {!hasRequirements && (
+                <AbsenceCard title="Employment type, hours and duration" foot={false}>
+                  This source publishes no employment-type, working-hours or duration field on
+                  its postings, so there is no breakdown to chart. All{' '}
+                  {formatNumber(scope.demand.active_postings)} postings are affected, not a
+                  sample of them.
+                </AbsenceCard>
+              )}
+              {!hasOccupation && (
+                <AbsenceCard title="Occupation field" foot={false}>
+                  This source publishes no occupation field &mdash; every one of its{' '}
+                  {formatNumber(scope.demand.active_postings)} postings lacks it, so no
+                  occupation ranking exists for {scopeName(scope)}.
+                </AbsenceCard>
+              )}
+              {!hasSkill && (
+                <AbsenceCard title="Skill field" foot={false}>
+                  This source publishes no skill field on its postings, so no skill demand
+                  picture exists.
+                </AbsenceCard>
+              )}
+            </div>
+            <p className="absence-foot absence-group-foot">
+              These are facts about the source, not missing work: the observatory does not guess
+              fields a source never publishes.
+            </p>
+          </div>
         )}
       </section>
     </article>
