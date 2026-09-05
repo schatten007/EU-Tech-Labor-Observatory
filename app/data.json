@@ -1,7 +1,7 @@
 {
   "meta": {
     "methodology_version": "1.5",
-    "built": "2026-09-05T20:50:01.131574+00:00",
+    "built": "2026-09-05T22:26:56.947628+00:00",
     "scope_count": 2
   },
   "scopes": [
@@ -12,7 +12,7 @@
       "label": "ba / de-nuts3-panel",
       "demand": {
         "observed_at": "2026-09-05T00:00:00",
-        "active_postings": 29068,
+        "active_postings": 28904,
         "source_version": "jobsuche-ssr-2026-08",
         "licence_reference": "https://www.arbeitsagentur.de/",
         "access_method": "robots-permitted-html",
@@ -21,12 +21,12 @@
       },
       "coverage": {
         "observed_at": "2026-09-05T00:00:00",
-        "expected_rows": 29068,
-        "observed_rows": 29068,
+        "expected_rows": 28904,
+        "observed_rows": 28904,
         "freshness_status": "fresh",
         "coverage_status": "covered",
-        "freshness_age_hours": 20.81833333333333,
-        "coverage_limitations": "Stratified region-bounded sample, not a census: the frozen NUTS-3 panel queries 400 regions (frame = destatis Kreise AGS->NUTS 2024 key, membership hash 545b162ec6e5fbdc...), one place query per region with umkreis=0, capped at 4 pages x 25 items = 100 rows per region. Regions whose advertised stock exceeds that cap are sampled, not enumerated; the per-region advertised totals (suchergebnis.maxErgebnisse) are recorded in panel_regions.json so every region carries its own denominator. BA has no Kreis-level location filter, so a region is addressed by its largest unique-name town, or by its unambiguous anchor postcode where no unique name exists. The query set is frozen and unseeded: it is a pure function of the pinned reference, identical across sweeps. Panel sweep: 400 frozen region queries, 398 with >=1 row, 2 with none; 273 region(s) hit the declared page cap (their stock is sampled, not enumerated); 0 region(s) paginated out before the plan (stale advertised total); 1 locality mismatch(es) against the source's own woOutput echo; 0 page(s) without an ng-state envelope. 1321 of 1321 planned pages fetched, 0 non-200, 26 absorbed 403 throttle event(s) (cooled down and retried, not failures). 31096 items parsed, 2028 duplicate(s) dropped on HMAC source_id; 29068 rows written. Sum of the per-region advertised totals (maxErgebnisse): 380982 postings \u2014 the panel's per-sweep regional denominator, recorded per region in panel_regions.json; the rows are the capped sample of it. Region mapping: mapped 28779, unmapped 0, ambiguous 289, low_confidence 0.",
+        "freshness_age_hours": 22.432777777777776,
+        "coverage_limitations": "Stratified region-bounded sample, not a census: the frozen NUTS-3 panel queries 400 regions (frame = destatis Kreise AGS->NUTS 2024 key, membership hash 545b162ec6e5fbdc...), one place query per region with umkreis=0, capped at 4 pages x 25 items = 100 rows per region. Regions whose advertised stock exceeds that cap are sampled, not enumerated; the per-region advertised totals (suchergebnis.maxErgebnisse) are recorded in panel_regions.json so every region carries its own denominator. BA has no Kreis-level location filter, so a region is addressed by its largest unique-name town, or by its unambiguous anchor postcode where no unique name exists. The query set is frozen and unseeded: it is a pure function of the pinned reference, identical across sweeps. Panel sweep: 400 frozen region queries, 398 with >=1 row, 2 with none; 273 region(s) hit the declared page cap (their stock is sampled, not enumerated); 0 region(s) paginated out before the plan (stale advertised total); 1 locality mismatch(es) against the source's own woOutput echo; 0 page(s) without an ng-state envelope. 1320 of 1320 planned pages fetched, 0 non-200, 5 absorbed 403 throttle event(s) (cooled down and retried, not failures). 31083 items parsed, 2179 duplicate(s) dropped on HMAC source_id; 28904 rows written. Sum of the per-region advertised totals (maxErgebnisse): 378963 postings \u2014 the panel's per-sweep regional denominator, recorded per region in panel_regions.json; the rows are the capped sample of it. Region mapping: mapped 28621, unmapped 0, ambiguous 283, low_confidence 0.",
         "freshness_threshold_hours": 24
       },
       "breadth": {
@@ -34,25 +34,25 @@
         "regions_in_frame": 400
       },
       "frequency": {
-        "complete_sweeps": 3,
+        "complete_sweeps": 4,
         "first_observed_at": "2026-09-02T00:00:00",
         "last_observed_at": "2026-09-05T00:00:00",
-        "median_interval_hours": 36.0
+        "median_interval_hours": 24.0
       },
       "regions_top": [
         {
           "label": "Rendsburg-Eckernf\u00f6rde",
-          "postings": 187,
+          "postings": 186,
           "taxonomy_version": "NUTS-2024"
         },
         {
           "label": "Bautzen",
-          "postings": 183,
+          "postings": 174,
           "taxonomy_version": "NUTS-2024"
         },
         {
           "label": "Kusel",
-          "postings": 157,
+          "postings": 159,
           "taxonomy_version": "NUTS-2024"
         },
         {
@@ -81,7 +81,7 @@
           "taxonomy_version": "NUTS-2024"
         },
         {
-          "label": "Darmstadt, Kreisfreie Stadt",
+          "label": "B\u00f6blingen",
           "postings": 100,
           "taxonomy_version": "NUTS-2024"
         },
@@ -169,26 +169,26 @@
       "requirements": {},
       "mappings": {
         "occupation": {
-          "not_present": 29068
+          "not_present": 28904
         },
         "region": {
-          "ambiguous": 289,
-          "mapped": 28779
+          "ambiguous": 283,
+          "mapped": 28621
         }
       },
       "denominators": {
         "occupation": {
-          "postings_total": 29068,
+          "postings_total": 28904,
           "postings_with_source_value": 0,
           "postings_mapped": 0
         },
         "region": {
-          "postings_total": 29068,
-          "postings_with_source_value": 29068,
-          "postings_mapped": 28779
+          "postings_total": 28904,
+          "postings_with_source_value": 28904,
+          "postings_mapped": 28621
         },
         "skill": {
-          "postings_total": 29068,
+          "postings_total": 28904,
           "postings_with_source_value": 0,
           "postings_mapped": 0
         }
@@ -205,33 +205,33 @@
           {
             "bucket": "2026-09-04",
             "openings": 12223,
-            "closures": 12055,
+            "closures": 12003,
             "active": 29068,
             "suppressed": false
           },
           {
             "bucket": "2026-09-05",
-            "openings": 13,
-            "closures": 13,
-            "active": 29068,
+            "openings": 1138,
+            "closures": 12,
+            "active": 57972,
             "suppressed": false
           }
         ],
         "week": [
           {
             "bucket": "2026-08-31",
-            "openings": 41136,
-            "closures": 12068,
-            "active": 29068,
+            "openings": 42261,
+            "closures": 12015,
+            "active": 57972,
             "suppressed": false
           }
         ],
         "month": [
           {
             "bucket": "2026-09-01",
-            "openings": 41136,
-            "closures": 12068,
-            "active": 29068,
+            "openings": 42261,
+            "closures": 12015,
+            "active": 57972,
             "suppressed": false
           }
         ]
@@ -239,37 +239,37 @@
       "insights": [
         {
           "rule": "latest_count",
-          "text": "The latest complete sweep observed 29,068 active posting(s) on 2026-09-05.",
+          "text": "The latest complete sweep observed 28,904 active posting(s) on 2026-09-05.",
           "evidence": {
-            "active_postings": 29068,
+            "active_postings": 28904,
             "observed_at": "2026-09-05"
           }
         },
         {
           "rule": "region_concentration",
-          "text": "The leading region is Rendsburg-Eckernf\u00f6rde, with 187 of 28,779 mapped posting(s) in this sweep.",
+          "text": "The leading region is Rendsburg-Eckernf\u00f6rde, with 186 of 28,621 mapped posting(s) in this sweep.",
           "evidence": {
             "region_label": "Rendsburg-Eckernf\u00f6rde",
-            "leader_postings": 187,
-            "mapped_postings": 28779
+            "leader_postings": 186,
+            "mapped_postings": 28621
           }
         },
         {
           "rule": "median_duration",
-          "text": "The median observed duration is 2.0 days across the 12,068 closed posting(s); postings still open are right-censored and are excluded.",
+          "text": "The median observed duration is 2.0 days across the 12,015 closed posting(s); postings still open are right-censored and are excluded.",
           "evidence": {
             "lifecycle_status": "inferred_absence",
-            "posting_count": 12068,
+            "posting_count": 12015,
             "median_duration_days": 2.0
           }
         },
         {
           "rule": "sweep_churn",
-          "text": "Between the two most recent daily buckets (one day apart), 13 posting(s) opened and 13 closed, leaving 29,068 active.",
+          "text": "Between the two most recent daily buckets (one day apart), 1,138 posting(s) opened and 12 closed, leaving 57,972 active.",
           "evidence": {
-            "openings": 13,
-            "closures": 13,
-            "active_postings": 29068,
+            "openings": 1138,
+            "closures": 12,
+            "active_postings": 57972,
             "newer_bucket": "2026-09-05",
             "days_apart": 1
           }
@@ -296,7 +296,7 @@
         "observed_rows": 599,
         "freshness_status": "fresh",
         "coverage_status": "covered",
-        "freshness_age_hours": 0.04888888888888889,
+        "freshness_age_hours": 1.6633333333333333,
         "coverage_limitations": "Keyword-scoped Platsbanken postings filtered to Sweden; provider-default ordering is not a transactional snapshot.",
         "freshness_threshold_hours": 48
       },
