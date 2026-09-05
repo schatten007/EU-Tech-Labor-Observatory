@@ -1,7 +1,7 @@
 {
   "meta": {
     "methodology_version": "1.5",
-    "built": "2026-09-05T16:53:19.209946+00:00",
+    "built": "2026-09-05T20:43:44.367907+00:00",
     "scope_count": 2
   },
   "scopes": [
@@ -25,7 +25,7 @@
         "observed_rows": 29068,
         "freshness_status": "fresh",
         "coverage_status": "covered",
-        "freshness_age_hours": 16.874444444444446,
+        "freshness_age_hours": 20.71361111111111,
         "coverage_limitations": "Stratified region-bounded sample, not a census: the frozen NUTS-3 panel queries 400 regions (frame = destatis Kreise AGS->NUTS 2024 key, membership hash 545b162ec6e5fbdc...), one place query per region with umkreis=0, capped at 4 pages x 25 items = 100 rows per region. Regions whose advertised stock exceeds that cap are sampled, not enumerated; the per-region advertised totals (suchergebnis.maxErgebnisse) are recorded in panel_regions.json so every region carries its own denominator. BA has no Kreis-level location filter, so a region is addressed by its largest unique-name town, or by its unambiguous anchor postcode where no unique name exists. The query set is frozen and unseeded: it is a pure function of the pinned reference, identical across sweeps. Panel sweep: 400 frozen region queries, 398 with >=1 row, 2 with none; 273 region(s) hit the declared page cap (their stock is sampled, not enumerated); 0 region(s) paginated out before the plan (stale advertised total); 1 locality mismatch(es) against the source's own woOutput echo; 0 page(s) without an ng-state envelope. 1321 of 1321 planned pages fetched, 0 non-200, 26 absorbed 403 throttle event(s) (cooled down and retried, not failures). 31096 items parsed, 2028 duplicate(s) dropped on HMAC source_id; 29068 rows written. Sum of the per-region advertised totals (maxErgebnisse): 380982 postings \u2014 the panel's per-sweep regional denominator, recorded per region in panel_regions.json; the rows are the capped sample of it. Region mapping: mapped 28779, unmapped 0, ambiguous 289, low_confidence 0.",
         "freshness_threshold_hours": 24
       },
@@ -296,7 +296,7 @@
         "observed_rows": 623,
         "freshness_status": "fresh",
         "coverage_status": "covered",
-        "freshness_age_hours": 22.2175,
+        "freshness_age_hours": 26.05666666666667,
         "coverage_limitations": "Keyword-scoped Platsbanken postings filtered to Sweden; provider-default ordering is not a transactional snapshot.",
         "freshness_threshold_hours": 48
       },
