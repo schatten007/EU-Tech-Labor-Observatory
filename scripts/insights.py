@@ -423,10 +423,8 @@ def rule_sweep_churn(flows: Sequence[FlowRow], scope: str) -> Insight | None:
     openings, closures, active = newer[3], newer[4], newer[5]
     if openings is None or closures is None or active is None:
         return None
-    if (newer[2] - older[2]).days > 1:
-        span = f"{(newer[2] - older[2]).days} days apart"
-    else:
-        span = "one day apart"
+    days_apart = (newer[2] - older[2]).days
+    span = f"{days_apart} days apart" if days_apart > 1 else "one day apart"
     return Insight(
         scope=scope,
         text=(
@@ -438,6 +436,7 @@ def rule_sweep_churn(flows: Sequence[FlowRow], scope: str) -> Insight | None:
             "closures": closures,
             "active_postings": active,
             "newer_bucket": newer[2].strftime("%Y-%m-%d"),
+            "days_apart": days_apart,
         },
     )
 

@@ -1819,6 +1819,14 @@ def test_publish_builds_aggregate_page(tmp_path: Path, monkeypatch: MonkeyPatch)
     assert latest in overview and occupation in overview and skill in overview
     churn_panel = page.split('id="survival"')[1].split("</section>")[0]
     assert churn in churn_panel
+    # Plan A A1: the board's friendly fact lines re-render the same rule evidence in a
+    # plain-language voice — same numbers, friendlier phrasing, silence when the rule is
+    # silent (one mapped region here, so no concentration line).
+    assert "<h3>At a glance</h3>" in page
+    assert "open technology postings · this scope only" in page
+    assert "Last checked " in page
+    assert "Since the previous sweep (2 days earlier): 2 postings opened, 1 closed." in page
+    assert "Most postings sit in" not in page
     occupations_panel = page.split('id="occupations"')[1].split("</section>")[0]
     assert occupation in occupations_panel and skill in occupations_panel
     assert latest not in occupations_panel
@@ -2479,6 +2487,13 @@ def test_publish_renders_each_scope_in_its_own_sections(
     # The scope-keyed rows carry the filter keys, so the country filter reaches them.
     assert 'data-source="ba" data-country="DE"' in page
     assert 'data-source="jobtech" data-country="SE"' in page
+
+    # Plan A A1: friendly board facts, per scope. The ba scope maps two regions with a
+    # unique leader (Koblenz 12 > Berlin 8) so its concentration line fires; the jobtech
+    # scope maps one region so its does not. Churn needs daily buckets: jobtech has three
+    # (last two adjacent), ba publishes only a weekly bucket so its churn line is absent.
+    assert "Most postings sit in Koblenz, Kreisfreie Stadt — 12 of 20 mapped." in page
+    assert "Since the previous sweep (1 day earlier): 5 postings opened, 7 closed." in page
 
     # The quality section's missing-mappings table is per scope too: pooling it would sum
     # across sources, which no other table is allowed to do either.

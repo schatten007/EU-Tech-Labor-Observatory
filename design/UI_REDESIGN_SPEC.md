@@ -7,6 +7,15 @@ methodology 1.4), `scripts/publish.py`, `scripts/release_check.py`, `scripts/ins
 **Prototype:** `design/prototype/index.html` (static, no JavaScript, non-build path; illustrative
 subset with real published figures).
 
+> **SUPERSEDED IN PART, 2026-09-05 (owner decision).** The owner judged the implemented
+> "quiet instrument" direction "dry, bland and technical for an average user". The
+> **aesthetic chapters of this spec (§1.1–§1.3, §1.8) are superseded** by
+> `.kilo/plans/1788618000000-dynamic-user-friendly-presentation-plan.md`: dynamic charts,
+> plain language, tables demoted. The **accessibility chapters (§5) and the release-rule
+> mapping (§5.4) REMAIN BINDING**, as do every data-honesty law the spec obeys (per-scope
+> separation, counts-not-ratios, denominators, suppression). Read this spec for its
+> structure and a11y, not for its taste.
+
 > **Measurement drift, stated up front.** The plan's §0 figures were measured against an earlier
 > build. A Swedish sweep ran after the plan was written: the committed artefact now shows
 > **623 postings, Fresh, 9 complete sweeps** for `jobtech / jobtech-f5cf1d409aa51fad` and still

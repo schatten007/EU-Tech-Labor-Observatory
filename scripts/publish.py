@@ -1273,12 +1273,17 @@ def _observation_board(
     flows: Sequence[FlowRow],
     frequency: Sequence[FrequencyRow],
     breadth_by_scope: Mapping[ScopeKey, RegionBreadthRow],
+    regions_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
+    mapping_coverage: Sequence[MappingCoverageRow],
 ) -> str:
-    """One instrument card per (source, scope_id); nothing pools across cards (spec §2.3).
+    """One card per (source, scope_id); nothing pools across cards.
 
     The board replaces the old "Largest single observation" hero stat, which invited
     exactly the cross-scope comparison the page forbids. Every card reads its own
-    scope's demand row, coverage lamps, breadth strip, and trend state.
+    scope's demand row, coverage lamps, breadth strip, and trend state. The friendly
+    fact lines (leading region, churn) are rendered from the evidence dicts of the
+    existing insight rules, so their numbers are identical to the formal sentences by
+    construction — presentation voice, not new statistics.
     """
     coverage_by_scope: dict[str, Sequence[object]] = {}
     for row in coverage:
@@ -1290,6 +1295,7 @@ def _observation_board(
         lamps = _lamps_for(coverage_by_scope.get(scope_id, ()))
         strip = _frame_strip(breadth_by_scope.get((source, scope_id)), context="card")
         note = _breadth_note(breadth_by_scope.get((source, scope_id)))
+        facts = _friendly_facts(source, scope_id, regions_by_scope, mapping_coverage, flows)
         if scope_id in published:
             grain, series = _finest_series([row for row in flows if row[0] == scope_id])
             direction = _direction([row[5] for row in series])
@@ -1306,13 +1312,49 @@ def _observation_board(
             f"{escape(_scope_label(source, scope_id))}</h3>"
             f'<span class="country-chip" translate="no">{escape(country or "")}</span></div>'
             f"{lamps}"
-            f'<p class="count">{active:,}<small>active postings · this scope only</small></p>'
-            f'<p class="observed">Observed {_time(observed_at)}</p>'
+            f'<p class="count">{active:,}<small>open technology postings · this scope only</small></p>'
+            f'<p class="observed">Last checked {_time(observed_at)}</p>'
+            f"{facts}"
             f"{strip}{note}"
             f'<p class="trend-line">{escape(trend)}</p>'
             "</article>"
         )
-    return f'<h3>The observation board</h3><div class="board">{"".join(cards)}</div>'
+    return f'<h3>At a glance</h3><div class="board">{"".join(cards)}</div>'
+
+
+def _friendly_facts(
+    source: str,
+    scope_id: str,
+    regions_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
+    mapping_coverage: Sequence[MappingCoverageRow],
+    flows: Sequence[FlowRow],
+) -> str:
+    """Plain-language fact lines for one board card, from insight-rule evidence only.
+
+    Each line re-renders an existing rule's numbers in a friendlier voice. If the rule
+    is silent (unmet preconditions), the line is absent — no friendly phrasing may
+    invent a figure the formal layer refused to state.
+    """
+    lines: list[str] = []
+    concentration = insights.rule_region_concentration(
+        regions_by_scope.get((source, scope_id), []), mapping_coverage, scope_id
+    )
+    if concentration is not None:
+        evidence = concentration.evidence
+        lines.append(
+            f"Most postings sit in {evidence['region_label']} — "
+            f"{evidence['leader_postings']:,} of {evidence['mapped_postings']:,} mapped."
+        )
+    churn = insights.rule_sweep_churn([row for row in flows if row[0] == scope_id], scope_id)
+    if churn is not None:
+        evidence = churn.evidence
+        days = evidence.get("days_apart")
+        spacing = f"{days} day earlier" if days == 1 else f"{days} days earlier"
+        lines.append(
+            f"Since the previous sweep ({spacing}): {evidence['openings']:,} postings "
+            f"opened, {evidence['closures']:,} closed."
+        )
+    return "".join(f'<p class="trend-line">{escape(line)}</p>' for line in lines)
 
 
 def _breadth_note(row: RegionBreadthRow | None) -> str:
@@ -1336,6 +1378,8 @@ def _render_overview(
     flows: Sequence[FlowRow],
     frequency: Sequence[FrequencyRow],
     breadth_by_scope: Mapping[ScopeKey, RegionBreadthRow],
+    regions_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
+    mapping_coverage: Sequence[MappingCoverageRow],
     digest: str,
 ) -> str:
     steps = "".join(f"<li>{escape(step)}</li>" for step in WORKFLOW)
@@ -1373,7 +1417,15 @@ def _render_overview(
         '<p class="lede">A quiet, aggregate record of public technology job-posting demand. '
         "Counts are not summed or deduplicated across sources, and nothing here is real time: "
         "every figure comes from the latest approved complete sweep.</p>"
-        + _observation_board(demand, coverage, flows, frequency, breadth_by_scope)
+        + _observation_board(
+            demand,
+            coverage,
+            flows,
+            frequency,
+            breadth_by_scope,
+            regions_by_scope,
+            mapping_coverage,
+        )
         + "<h3>How to read this page</h3>"
         + MARK_KEY
         + f'<ol class="workflow">{steps}</ol>'
@@ -2452,7 +2504,16 @@ def build_site(database: Path, target: Path) -> int:
     )
     built = datetime.now(UTC)
     rendered = {
-        "overview": _render_overview(demand, coverage, flows, frequency, breadth_by_scope, digest),
+        "overview": _render_overview(
+            demand,
+            coverage,
+            flows,
+            frequency,
+            breadth_by_scope,
+            regions_by_scope,
+            mapping_coverage,
+            digest,
+        ),
         "status": _render_status(
             coverage,
             frequency,
