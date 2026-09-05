@@ -37,6 +37,7 @@ than expanding the active increment.
 | German panel sweeps 2 and 3 (Plan 1 Task 2) | 2026-09-04 | Complete; `complete_sweeps = 3` for `ba/de-nuts3-panel`, criterion 4 met, both scopes Fresh on the published page | The "sister lab" turned out to be in-repo after the `merge/scrapers-lab` merge: `main.py --source ba --panel` drives the frozen-panel sweep (`scrapers/ba_jobsuche.py` `_fetch_panel`), `PANEL_HANDOVER.md` §3 is its runbook, `scripts/check_ba_panel_readiness.py` is the DoD gate, and `data/reference/ba_panel_nuts3.json` is the committed pinned panel. Sweep 2 (`20260904T201534Z`, observed 2026-09-04): 400 region queries, 398 with rows, 1321/1321 pages, 0 failed (29 absorbed 403s), 29,068 rows. Sweep 3 (`20260904T210722Z`, observed 2026-09-05): identical shape, 29,068 rows. Both verified against the plan's §3.2 cross-checks and the panel DoD (all six PASS across all 3 partitions); both committed to `docs/index.html` (`e25a94d`, `9bd4563`). | Panel DoD: 3/3 partitions reconcile, membership hash `545b162ec6e5fbdc...` identical across all 3 sweeps, 0 failed requests (77 absorbed throttles total), PII clean, cap-as-scope declared. `make live-site` green (12 stored sweeps, dbt PASS=196 ERROR=0); direct release checks on live page + `docs/index.html`: 0 problems each |
 | Cadence guard (Plan 1 Task 3) | 2026-09-04 | Complete; abandonment is now a red dbt gate, ordinary staleness stays a page badge | One new untagged singular test `transform/tests/assert_cadence_not_abandoned.sql` (commit `f8a8425`): fires when a scope's latest complete sweep is older than 4x its own `freshness_threshold_hours`, reading reference time through the same `OBSERVATORY_REFERENCE_TIME` mechanism as `source_coverage` so it is deterministic offline. Green on the committed sample by measurement (largest sample multiple 171/48 = 3.6x) and green under `live-site`; the red side is proven on the measured 2026-09-04 morning state (jobtech 308.5 h at 48 h = 6.4x would have failed, ba 64.7 h at 24 h = 2.7x would not - exactly the abandonment-vs-staleness split the test exists for). No Makefile, gate or constant edits; scope one test only, no scheduler, no notification channel. | `make check` green (459 pytest, dbt **PASS=202** WARN=0 ERROR=0, +1 test); `make live-site` green (dbt PASS=197 including the new test untagged); release checks 0 problems |
 | Trend rule check (Plan 1 Task 4) | 2026-09-04 | Complete; `rule_trend` stays **silent** on both scopes, each unmet precondition named with its measured value | Measured after all sweeps: jobtech `complete_sweeps = 9` (< 14) and its newest daily buckets are 08-22 -> 09-04, a 13-day gap adjacent to the newest (the no-gap precondition fails); de-nuts3-panel has adjacent newest buckets (09-04 -> 09-05) but `complete_sweeps = 3` (< 14) and span 3 d (< 7). No constant, threshold or precondition touched; the silence is the pre-registered behaviour. The rule will become evaluable once the Swedish cadence holds. | Direct measurement of `collection_frequency` and `posting_flows` (day grain) per scope; `rule_trend` re-run from `scripts.insights` against the live rows: SILENT for both scopes, as expected |
+| Uniform inferences + UI redesign (owner direction: presentation and simple inferences) | 2026-09-05 | Complete; methodology **1.5**, two uniform statistical rules firing on both scopes, and the guideline-reviewed instrument-board redesign implemented from `design/UI_REDESIGN_SPEC.md` | **Owner decisions recorded:** (1) the no-new-dependency rule is **lifted** - presentation libraries and premade assets are allowed, `make check` stays offline as the API-quota firewall, vendored inline assets are the pattern (Increment 15's uPlot spec already wrote the policy). (2) Occupation-type inferences stay **out entirely** - Germany's source carries no occupation field, and the app stays uniform across scopes: no per-country special casing. Inferences added, both computed per scope from rows the page already publishes: `rule_region_concentration` (leading region's count against the **mapping_coverage** mapped total - never the truncated ranking column, which sums to the top-25 listed) and `rule_sweep_churn` (openings/closures/active between the two most recent daily buckets, spacing stated; no direction claim so no cadence gate). Redesign ported from the spec/prototype: housing-plate header, mode selector, **observation board** (one card per scope: lamps, count, frame strip, trend line - replaces the cross-scope-inviting "Largest single observation" stat), **scope plates** in Countries/Occupations/Requirements, **annunciator lamps** with age/threshold numbers in every table, **frame strips** (per-tick SVG ≤60 regions, pattern-runs otherwise, unique ids via context suffix), **mark key** (filled/hollow/hatched/dashed), **absence plates** replacing the five empty German tables (occupation, skill, employment, hours, duration - requirement condition = empty dimensions + positive posting total, spec Flag 1 option b), **mapping chips** (three-segment mapped/carries/total), hatched suppressed cells, `Not stated`/`Unrecognised code` row markers, `theme-color`, amber+ink focus ring, Data Register monospace numerals, `translate="no"` on scope ids. Commits: `3bbf640` (rules + redesign + tests), `f126600` (design spec/prototype/screenshots tracked), `69bdf1e` (artefact). | `make check` green (ruff, mypy 62 files, **459 pytest**, dbt **PASS=202**); `make release-check` green on synthetic; `make live-site` green (12 sweeps, dbt PASS=197, 2 rows); direct release checks live + `docs/index.html`: **0 problems**; live page verified: 2 board cards, 6 scope plates, 5 absence plates, 4 frame strips, 2 chips, 24 lamps; concentration "Rendsburg-Eckernförde, 187 of 28,779 mapped" (correct sweep denominator), churn "13 opened and 13 closed" (DE, one day apart) |
 | Usability protocol (Plan 1 Task 5) | 2026-09-04 | Complete; Iteration 11's study is prepared, pre-registered and **unrun** | `docs/usability-study-protocol.md` (commit `ef2f512`, tracked): five tasks against `docs/index.html` - German breadth line, the empty occupation ranking's meaning, per-country freshness, cross-country comparability (the real test: if participants compare the absolute counts anyway, that is a design finding routed to Plan 2, not a code patch), and what a closed posting means. Tasks written before any participant exists so they cannot be reshaped around what the page answers well; recruiting, running and write-up explicitly out of scope. | No gate applies (a document, no page output change); `git show --stat` verified the file is committed |
 
 
@@ -1558,4 +1559,114 @@ no test, no partition moved. Both gate runs bracket the edit.
   sentence; no German survival figure stated as a lifetime (the 2.0-day median is
   resolution-dominated by the unspaced second interval, recorded in the Task 2 note); no
   recruiting; Increment 25 and any new source untouched.
+
+### 2026-09-05 - Uniform inferences and the instrument-board redesign
+
+- **Owner decisions, recorded before work started.**
+  1. **The no-new-dependency rule is lifted** (MEMORY.md §5, SESSION_RUNBOOK Block 0,
+     amended this session): presentation libraries and premade assets are allowed for speed
+     and beauty. What stays: `make check` fully offline (that is the API-quota firewall,
+     not a dependency rule) and the release check's no-external-asset scan - the sanctioned
+     path for a JS chart library is Increment 15's existing spec: vendor it **inline**,
+     pinned, licence-attributed, with the server-rendered SVG staying as the accessible
+     representation. Nothing was vendored in this session because the redesign needed none:
+     every new figure is server-rendered inline SVG from Python string templates.
+  2. **No occupation-type inferences at all.** The owner asked whether roles/skills/education
+     guidance could be inferred; answer: SE yes, DE never (no occupation field), education
+     never (no field, and title classification is the cancelled increment). The owner chose
+     uniformity over a Swedish-only feature: "we don't have the types of roles for germany?
+     then i don't want to add that for sweden either, app should stay uniform. Just stick to
+     what is being done currently."
+- **The two uniform rules, both statistical and both per-scope.** Added to
+  `scripts/insights.py` under the existing traceability law (every numeric token must appear
+  in the source rows; silence beats hedging; no cross-scope sentence):
+  - `rule_region_concentration(regions, mapping_coverage, scope)` - "The leading region is
+    X, with N of M mapped posting(s) in this sweep." M comes from `mapping_coverage_latest`
+    (region dimension), **never** from summing the rendered ranking: the ranking truncates at
+    DIMENSION_LIMIT=25, so its column sums to the listed top-N (2,729 for DE), not the sweep
+    (28,779). The first implementation made exactly that mistake and was caught by reading
+    the built page: "187 of 2,729" -> corrected to "187 of 28,779". Preconditions: a region
+    coverage row with mapped > 0, >= 2 mapped region rows, a unique leader (no tie).
+  - `rule_sweep_churn(flows, scope)` - "Between the two most recent daily buckets (N days
+    apart), X posting(s) opened and Y closed, leaving Z active." Reads `posting_flows`' own
+    numbers; the bucket spacing is stated because the DE buckets are 09-04 -> 09-05 (one
+    day) while SE's newest pair spans a 13-day hole - churn claims no direction, so no
+    cadence gate applies (unlike `rule_trend`, which stays silent and untouched). Masked
+    buckets (null counts) silence the rule.
+  - Both wired through `insights.build(..., regions=())` (new optional parameter,
+    backward-compatible) into the `countries` and `survival` sections and the Overview
+    digest; `_render_countries` gained section-insight rendering for the concentration
+    sentence beside its scope's plate.
+- **Methodology 1.5.** Both new sentences are definitions in the 1.3 sense (rules deciding
+  when a number is stated and against which denominator), so the version bumped with the
+  change, the test pin moved in the same commit (`tests/test_probe.py`
+  `test_methodology_version_covers_the_requirement_dimensions`), README 1.4 -> 1.5,
+  USER_MANUAL's CSV example `...-methodology-1-5.csv`. The 1.5 comment block in
+  `scripts/publish.py` states what changed and why it cannot share a version with 1.4 pages.
+- **The redesign, implemented from the reviewed spec.** `design/UI_REDESIGN_SPEC.md` (811
+  lines, guideline-reviewed 2026-09-04 with findings resolved) + `design/prototype/index.html`
+  were already in the checkout untracked; this session ported them into `scripts/publish.py`
+  and committed both (spec `f126600`, implementation `3bbf640`):
+  - **STYLE replaced wholesale**: spec §1.2 palette (housing/signal/caution/ink/ground + state
+    tones + hatch + unknown), §1.3 type voices (Data Register monospace for all numerals and
+    the h1, Panel Label for headers/eyebrows, body at 16/1.5), plate borders 1.5px, amber
+    focus with ink ring, `theme-color` meta, `touch-action: manipulation`, mobile ladder.
+  - **Observation board** (§3.3): one card per scope - h3 scope name with `translate="no"`,
+    country chip, both lamps, mono count readout ("active postings · this scope only"),
+    observed time, frame strip, trend line (per-scope `_finest_series` + `_direction` +
+    complete-sweep count, replacing the single leading-scope pick). The **"Largest single
+    observation" stat is removed** (spec §1.8 item 1: it invited the forbidden cross-scope
+    comparison); stats are now Last update + Source coverage.
+  - **Annunciator lamps** (§3.2): `_lamp`/`_lamp_freshness`/`_lamp_coverage` - bulb + Panel
+    Label text + both numbers ("Fresh · 13 h old · threshold 24 h", "Covered · 29,068 of
+    29,068 rows"); `_badge` now emits the same lamps in every status cell (24 on the live
+    page). Unknown states render the unknown pair rather than crashing on a missing row.
+  - **Frame strips** (§1.5/§3.4): `_frame_strip` - <= 60 regions: one `<rect>` per tick; the
+    DE 400-frame: two pattern-filled runs at 4px/region with graduations every 100;
+    `aria-label` + `<title>` + `<desc>` carry the breadth sentence. Pattern ids carry a
+    context suffix (`-card`/`-regions`) because the live release check caught duplicate ids
+    when one scope's strip rendered in two places - fixed and re-gated, not suppressed.
+  - **Scope plates** (§3.1): `_scope_plate` wraps Countries' region blocks, Occupations'
+    rankings, and Requirements' distributions - name as a real h3 (heading ladder intact),
+    country chip, lamps. Countries' old h4 subsection headers are gone.
+  - **Absence plates** (§3.9): the five empty German surfaces (occupation ranking, skill
+    ranking, employment type, working hours, contract duration) now render dashed plates with
+    a typed eyebrow + sentence + the drawn-from denominator line (rankings) instead of empty
+    tables. Occupation/skill condition stays `mapping_coverage_latest`
+    (`postings_with_source_value = 0`, `postings_total > 0`); the three requirement
+    dimensions use spec Flag 1 option (b): no rows for the dimension + a positive sweep
+    total. The release check's ranked-prefix rule still holds because the Swedish scope
+    renders every prefix (and its absence is the point: a scope that cannot feed a ranking
+    shows a typed state, not a dead table).
+  - **Mapping chips** (§3.7): `_mapping_chip` beside each Swedish ranking - three segments
+    (mapped filled / carries-but-unmapped hatched / no-field hollow) scaled within
+    `postings_total`, printed counts, aria-label repeating the denominator's numbers.
+  - **Mark key** (§3.5) in Overview: filled/hollow/hatched/dashed with one sentence each.
+  - **Suppressed cells** (§3.10): `td.suppressed` hatched ground on the word; survival and
+    flow cells carry `_suppressed_class`. **Requirement markers** (§3.11): hollow dot before
+    `Not stated`, hatched swatch before `Unrecognised code`.
+- **Tests.** `_rich_rows` gained region rows + a region coverage row + two daily flow rows;
+  the main publish test now pins the churn sentence (7 insight paragraphs: the digest
+  double-renders latest + both rankings + churn), concentration silence with one mapped
+  region, and the new absence-plate/markup assertions; the two-scope test pins the plate h3s,
+  `translate="no"`, the two occupation/skill absence plates with their ranked tables absent
+  for the German scope, and the requirement-table sums unchanged; unmet-precondition cases
+  cover solo/tied/no-coverage-region and churn's one-bucket/masked cases. One corruption
+  during editing (`reqs` fixture) was caught by the suite and fixed. Full gate: ruff clean,
+  mypy clean 62 files, **459 pytest**, dbt **PASS=202**; `make release-check` green on the
+  synthetic page; `make live-site` green (12 sweeps, PASS=197); direct release checks on the
+  live page and `docs/index.html`: **0 problems**. Live verification: 2 board cards, 6
+  scope plates, 5 absence plates, 4 frame strips, 2 mapping chips, 24 lamps; both new
+  sentences firing with correct denominators.
+- **What was deliberately NOT inferred.** No occupation or skill ranking was added for
+  Germany (impossible) or kept for Sweden as a special case (owner chose uniformity); no
+  education statement (no field anywhere); no trend claim (the pre-registered 14-sweep gate
+  stands, 9 of 14); no German lifetime reading (the 2.0-day median stays caveated); no DE-vs-SE
+  comparison; no new ratio or percentage anywhere (counts only, as ever).
+- **Commits:** `3bbf640` (rules + redesign + tests, one atomic change because the tests pin
+  both), `f126600` (design spec/prototype/screenshots), `69bdf1e` (published artefact).
+- **Open follow-ups from this session:** tile-grid map and vendored-uPlot interactivity
+  (Increment 15's spec, now unblocked by the lifted rule) are NOT done - the board's strips
+  and sparklines are the charts so far; the IA consolidation to five sections (proposed in
+  the 2026-09-05 chat summary) is NOT done - all nine sections and slugs stand.
 
