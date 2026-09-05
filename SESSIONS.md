@@ -45,6 +45,7 @@ than expanding the active increment.
 | Plan A Task A3 (fresh app: stack preflight + skeleton, hero, charts) | 2026-09-05 | Complete; Vite + React + TS + Chart.js app in `app/`, rendering the A2 export only | **Preflight (before any code, per the task):** `node --version` → **v24.14.0**, so the stack is Vite + React + TypeScript with Chart.js (via `react-chartjs-2`); npm deps installed (`app/package.json`, `app/package-lock.json` committed). The app lives in `app/`, imports **nothing but `data.json`** (grep-verified), computes no statistic, and honours the export's suppression flags and absence states. Detail in the dated note below. | `make check` green before **and** after, unchanged either side (ruff clean, ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**) — the app touches no Python. `npm run build` green (tsc -b + vite, 335 modules). Screenshots verified at 1280 px and 390 px; contrast audit computed in-browser (lowest pair 4.92:1, most ≥7:1); 6/6 interactive elements are native `button`/`a`. No `live-site`/`release-check` run: no page output changed (see the note) |
 | Plan A Task A4 (polish and illustration pass) | 2026-09-05 | Complete (`01c7a1b`); motion/states/branding/cross-link polish of the A3 app — no new data, statistic or chart type; audit-page link verified under the recommended publish layout; deploy recommendation recorded (nothing deployed) | Motion (entrance rise-in, card hover lift, region-bar grow, lamp breathe, Chart.js draw-in) all switch off under `prefers-reduced-motion` — one CSS media block plus the `usePrefersReducedMotion()` hook the charts read. Loading state is real (app+export lazy chunk + Suspense) with a plain-language error boundary; absence cards regrouped under one "Not available from this source" heading (A3 open item 4). Branding: "Job Market Pulse", inline SVG favicon/logo, one consistent icon set, decorative overview illustration. `AUDIT_PAGE_URL = '../index.html'` in `src/links.ts`, vite `base: './'`. Detail in the dated note below. | `make check` green before and after, identical (ruff clean, ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). `npm run build` green (340 modules; App chunk split out, 196 kB entry + 251 kB lazy app/export chunk); `npm run lint` 2 advisory warnings recorded in the note. Screenshots in `.playwright-mcp/`: desktop 1280 (overview + Germany story), 390 px (overview + Sweden story), reduced-motion emulation (page-confirmed `matchMedia` true), loading state (chunk delayed 2.5 s) and error state (chunk aborted). 390 px: zero horizontal overflow; contrast recomputed — audit CTA 5.47:1, absence group title 8.77:1, everything else ≥7:1. Dev server and `vite preview` both run against the committed live export; audit link clicked end-to-end under a simulated `docs/app/` layout. No `live-site`/`release-check`: no page output changed |
 | Plan B Task B1 (`make auto` orchestrator) | 2026-09-05 | Complete (`da9c929`); `scripts/auto_sweep.py` + `make auto`: spacing guard → sweep(s) → gates in the runbook's order → both published surfaces → one pathspec-scoped artefact commit; any failing step stops before the commit and exits 1. Proven green twice (auto commits `5deb7b9` skip-sweep, `cfeed53` real jobtech run) and safe twice (a deliberate mid-loop lint failure and a blocked spacing guard, both exit 1, nothing committed) | **Session-start incident first**: the expected uncommitted B1 draft was gone and A2's committed files (`Makefile`, `scripts/insights.py`, `scripts/export_app_data.py`) had been mechanically reverted to their pre-`b223707` content at 22:15:56 local, two seconds before the prompt; restored to HEAD with owner approval, the unrecoverable draft discarded, B1 written fresh from the plan — detail in the dated note. Stdlib-only orchestrator that subprocesses the existing entry points (`make sweep`, `main.py --source ba --panel`, `make check`, `make live-site`, `make export-app`, `release_check`, `check_ba_panel_readiness`); flags `--sources jobtech,ba`, `--skip-sweep`, `--push`, `--dry-run`, `--status`; logs to `logs/auto/<id>.log` | `make check` green before (on the restored clean tree: ruff, ruff-format, mypy 64 files, **462 pytest**, dbt **PASS=202**) and after (ruff, ruff-format, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). Page gates ran inside the auto loops: `make live-site` green, `make export-app` green (dbt PASS=197, 2 scopes), direct release check on the built page **0 problems**, copy + artefact commits `5deb7b9` (12 sweeps) and `cfeed53` (13 sweeps, jobtech sweep #10 = 599 rows) |
+| Plan B Task B2 (Windows scheduled tasks + cadence decision) | 2026-09-05 | Complete (`94f3267`); two user-level scheduled tasks registered and verified firing from the scheduler, both left **ENABLED** per owner choice, BA slot moved to **13:00** (PC off at midnight); the BA fire ran the full loop green (partition #4, auto commit `75e4e22`), the SE fires hit a JobTech source outage and proved the failure path (each stopped before commit). **Cadence decision recorded: BA daily** (keeps the 24 h freshness threshold honest; weekly rejected — it would need `freshness_threshold_hours` → 168, a scope-definition change needing a methodology note, deliberately NOT made); SE twice daily 07:30/19:30 per the pre-registered cadence. Also fixed a DoD-blocking bug: `--status` crashed on the BA run's cp1252 log bytes (UnicodeDecodeError) — log tails now read with `errors="replace"` (`94f3267`) | `scripts/install_scheduled_tasks.ps1`: registers "Observatory SE sweep" (07:30/19:30, `make auto SOURCES=jobtech`) and "Observatory BA sweep" (13:00, `make auto SOURCES=ba`), no elevation, repo as working directory, start-when-available + wake-to-run, 4 h limit, ignore-new on overlap, battery settings off; registers DISABLED by default (`-Enable` to register enabled), `-Remove` to uninstall. S4U principal refused unelevated → Interactive fallback (runs when logged on, including locked); elevated S4U re-registration is the one-command upgrade — detail in the dated note | `make check` green before and after (ruff, ruff-format, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). The BA task's own loop ran all page gates green inside `logs/auto/20260905T213703Z.log` (live-site, export-app, direct release check 0 problems) and auto-committed `75e4e22` (14 sweeps, 2 scopes); SE failure runs left HEAD at `75e4e22` throughout; `--status` verified reflecting both tasks' outcomes |
 
 ## Session Notes
 
@@ -2050,3 +2051,79 @@ no test, no partition moved. Both gate runs bracket the edit.
   scopes; direct release check on the built page 0 problems; copy; artefact commits
   `5deb7b9` and `cfeed53`), so the session's final page state is the live page —
   nothing rebuilt the synthetic page over it afterwards.
+
+### 2026-09-05 (B2 session) - Plan B Task B2: Windows scheduled tasks + cadence decision
+
+- **Cadence decision, made and recorded first.** BA **daily** — it keeps the existing
+  24 h `freshness_threshold_hours` honest (the DE badge reads fresh every day). The
+  weekly alternative (PANEL_HANDOVER §3's minimum cadence) was rejected: it would leave
+  the DE badge stale most of the week and requires raising the threshold to 168 — a
+  scope-definition change needing a methodology note, **deliberately not made** in this
+  session. SE twice daily (07:30 / 19:30) per the pre-registered cadence. **Owner
+  override on the BA clock:** the plan's 02:00 slot would never fire (the PC is off at
+  midnight), so BA runs daily at **13:00** local — the daily cadence and the freshness
+  threshold are unchanged, only the wall clock moved.
+- **What was built.** `scripts/install_scheduled_tasks.ps1` (`94f3267`): registers two
+  user-level tasks, no elevation — "Observatory SE sweep" (daily 07:30 + 19:30,
+  `make auto SOURCES=jobtech`) and "Observatory BA sweep" (daily 13:00,
+  `make auto SOURCES=ba`), wired to B1's orchestrator exactly as built (the `auto`
+  Makefile target with `SOURCES=`, absolute `make.exe` path resolved at install time,
+  repo root as working directory). Settings: start-when-available, wake-to-run, 4 h
+  execution limit (the BA loop takes ~50 min), `IgnoreNew` on overlap, battery settings
+  off (desktop workload). The script registers tasks **disabled** by default (`-Enable`
+  to register enabled) and `-Remove` uninstalls both — the setup is reversible. make
+  and uv were verified persistent on the user PATH (registry), so the task environment
+  resolves them; the HMAC key needs no environment (`.env` on disk).
+- **Principal trade-off, recorded.** An S4U principal (runs when logged off) was
+  refused at registration from a non-elevated shell ("Access is denied") on both
+  tasks; the installer falls back to **Interactive** (runs when logged on, including
+  locked). An elevated `Register-ScheduledTask -LogonType S4U` is the one-command
+  upgrade if logoff-proof scheduling is ever needed. Missed slots self-heal anyway:
+  start-when-available fires at next logon and the orchestrator's spacing guard
+  prevents a catch-up over-sweep.
+- **Verification, by firing from the scheduler (not dry logic).** SE fire 1
+  (21:35Z): legitimate **spacing skip** — guard refused (jobtech 0.8 h < 2 h), exit
+  propagated to LastTaskResult, nothing committed; wiring proven end-to-end in the
+  task context. **BA fire** (21:37Z, guard agreed first via `--status`: 24.5 h ≥
+  20 h): the full loop ran green unattended — pre-sweep check → panel sweep
+  **1,320/1,320 pages, 28,904 rows**, partition #4 `20260905T213846Z` (log
+  `logs/auto/20260905T213703Z.log`) → panel DoD gate → `make check` → `live-site` →
+  `export-app` → direct release check 0 problems → copy → **auto commit `75e4e22`**
+  (14 sweeps, 2 scopes). SE fires 2-4 (22:53-23:11Z): the JobTech API is in an
+  outage (`IncompleteRead` once, "request exceeded retry deadline" twice); every run
+  stopped at the sweep step before the commit and HEAD stayed at `75e4e22` — the
+  never-commit-a-red-gate guarantee proven from the scheduler three times, no partial
+  partition left (jobtech still 10). **Final state per owner choice: both tasks
+  ENABLED**, BA at 13:00 (next runs: SE 07:30, BA 13:00 the following day); the
+  re-registration reset the tasks' LastRunTime display, the fire evidence lives in
+  `logs/auto/`.
+- **Bug found and fixed (DoD-driven, in `94f3267`).** After the BA run, `--status`
+  crashed with `UnicodeDecodeError` at `status_mode` (`auto_sweep.py:345`): BA
+  subprocess output writes cp1252 bytes (German umlauts, 0xfc) into the auto log that
+  the orchestrator opens as UTF-8, and the status tail read the file strictly. With BA
+  running daily, `--status` — the DoD's required view — would have crashed every day.
+  Fix: read log tails with `errors="replace"` in both `status_mode` and `RunLog.tail`
+  (diagnostics only; nothing downstream parses the tail). Verified: `--status` now
+  prints both scopes' verdicts plus the newest log tail, outage included.
+- **Docs.** README.md gains an "Automation" section (install/uninstall/enable,
+  `--status`, what to do when a run fails: read the log, never delete a partition,
+  the never-commit-a-red-gate guarantee); SESSION_RUNBOOK.md §7 records the same plus
+  the cadence decision and the Interactive/S4U trade-off.
+- **Deliberately not done / open items.** (1) The JobTech outage (22:53-23:11Z,
+  three consecutive collection failures) means no SE partition was produced from the
+  scheduler tonight; the enabled 07:30 trigger will produce it when the source
+  recovers — the full loop from the scheduler is proven by the BA task's green run
+  (identical wiring, different `SOURCES`). (2) README's Status section still carries
+  stale sweep counts ("9 stored sweeps"; reality: 14) — noticed, not fixed (scope).
+  (3) The auto logs' mixed encodings are now tolerated by the reader; forcing child
+  processes to UTF-8 (`PYTHONIOENCODING` in the subprocess env) is the cleaner
+  upstream fix, not made. (4) S4U registration needs elevation — see the principal
+  trade-off above. The standing app-honesty-test gap is unchanged.
+- **Gates as run.** `make check` green before and after, identical (ruff clean,
+  ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**).
+  One mid-session red, caused and fixed inside the session: the first `errors="replace"`
+  edit was not ruff-format-clean and the SE task's own pre-sweep check caught it
+  (exit 2 at lint, nothing committed) — the orchestrator gating its maintainer's
+  work-in-progress is the design working. Session commits: `94f3267` (installer +
+  status fix + README) and the BA auto run's `75e4e22`; page state at close is the
+  live page (nothing rebuilt the synthetic page over it).
