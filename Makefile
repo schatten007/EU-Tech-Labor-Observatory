@@ -30,7 +30,7 @@ REFERENCE_TIME = $(or $(STAMP),$(error could not resolve a valid UTC OBSERVATORY
 LIVE_SWEEPS = $(wildcard data/raw/collections/*/*/*/manifest.json)
 LIVE_READY = $(if $(LIVE_SWEEPS),$(words $(LIVE_SWEEPS)),$(error no stored sweeps found; run make sweep before make live-site))
 
-.PHONY: check lint types test evaluate dbt sample site release-check probe sweep sweep-datait sweep-all reference live-site export-app clean
+.PHONY: check lint types test evaluate dbt sample site release-check probe sweep sweep-datait sweep-all reference live-site export-app auto clean
 
 check: lint types test evaluate dbt
 
@@ -119,6 +119,15 @@ export-app:
 	@echo exporting from $(LIVE_READY) stored sweeps
 	$(DBT) build --project-dir transform --exclude tag:sample_fixture
 	uv run --offline python -m scripts.export_app_data
+
+# NOT part of check. Plan B Task B1: the unattended publish loop - spacing guard, sweep(s),
+# gates in the runbook's order, both published surfaces, then one pathspec-scoped commit of
+# the refreshed artefacts. Any failing step stops before the commit and exits non-zero; the
+# run log lands in logs/auto/. More flags live on the script: --skip-sweep, --push,
+# --dry-run, and --status (uv run --offline python scripts/auto_sweep.py --status).
+SOURCES ?= jobtech
+auto:
+	uv run --offline python scripts/auto_sweep.py --sources $(SOURCES)
 
 clean:
 	$(DBT) clean --project-dir transform
