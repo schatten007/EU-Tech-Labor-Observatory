@@ -43,6 +43,7 @@ than expanding the active increment.
 | Plan A Task A2 (JSON export contract) | 2026-09-05 | Complete; `app/data.json` is the fresh app's entire world, exported from the same views and the same `insights.build` rules the page reads, schema-pinned by test and committed as the seed | `scripts/export_app_data.py` (stdlib + duckdb): reads exactly what `publish.build_site` reads by calling publish's own `_query_*` functions (no duplicated SQL to drift) and runs `insights.build` with the identical argument list, so the app's numbers and the page's numbers cannot diverge. `Insight` gained an additive `rule` field (tagged in `insights.build` via `dataclasses.replace`; page rendering unchanged) because the contract requires naming the rule that produced each sentence. `make export-app` mirrors `live-site`'s live paths, glob depth and reference time. Tests in a NEW file `tests/test_export_app.py` (the old page's tests untouched): export-vs-page equality on the two-scope fixture (demand counts parsed back out of the rendered rows, region/requirement rows as exact cell fragments, the suppressed bucket vs the page's hatched cells, every insight sentence present, evidence dicts equal to the fixture numbers) and a schema pin asserting the exact key set at every payload level, so a silent field rename fails loudly. Live export committed as the seed: 2 scopes, methodology 1.5, spot-checked against the known live figures (Rendsburg-Eckernförde 187 of 28,779; churn 13/13 one day apart; SE 623). No methodology bump: the export introduces no new figure - every number already publishes on the page. **Open items:** (1) an uncommitted `make auto` draft (`scripts/auto_sweep.py` + the Makefile `auto` target) from a parallel B1 session stopped mid-flight by the owner appeared in the tree during this session; it is deliberately left out of this commit (the Makefile was partially staged) for the real B1 session to re-apply and review. (2) The contract carries occupation/skill only through insight evidence, not as ranking keys (the plan's payload shape omits them) - A3 must confirm that suffices for the app's design. | `make check` green before (459 pytest) and after (**462 pytest**, mypy 65 files, dbt PASS=202 WARN=0 ERROR=0); `make export-app` green from live data (12 stored sweeps, dbt PASS=197, wrote `app/data.json`, 2 scopes); `make live-site` green (12 sweeps, dbt PASS=197, 2 rows); direct release check on the live page: 0 problems |
 
 | Plan A Task A3 (fresh app: stack preflight + skeleton, hero, charts) | 2026-09-05 | Complete; Vite + React + TS + Chart.js app in `app/`, rendering the A2 export only | **Preflight (before any code, per the task):** `node --version` → **v24.14.0**, so the stack is Vite + React + TypeScript with Chart.js (via `react-chartjs-2`); npm deps installed (`app/package.json`, `app/package-lock.json` committed). The app lives in `app/`, imports **nothing but `data.json`** (grep-verified), computes no statistic, and honours the export's suppression flags and absence states. Detail in the dated note below. | `make check` green before **and** after, unchanged either side (ruff clean, ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**) — the app touches no Python. `npm run build` green (tsc -b + vite, 335 modules). Screenshots verified at 1280 px and 390 px; contrast audit computed in-browser (lowest pair 4.92:1, most ≥7:1); 6/6 interactive elements are native `button`/`a`. No `live-site`/`release-check` run: no page output changed (see the note) |
+| Plan A Task A4 (polish and illustration pass) | 2026-09-05 | Complete (`01c7a1b`); motion/states/branding/cross-link polish of the A3 app — no new data, statistic or chart type; audit-page link verified under the recommended publish layout; deploy recommendation recorded (nothing deployed) | Motion (entrance rise-in, card hover lift, region-bar grow, lamp breathe, Chart.js draw-in) all switch off under `prefers-reduced-motion` — one CSS media block plus the `usePrefersReducedMotion()` hook the charts read. Loading state is real (app+export lazy chunk + Suspense) with a plain-language error boundary; absence cards regrouped under one "Not available from this source" heading (A3 open item 4). Branding: "Job Market Pulse", inline SVG favicon/logo, one consistent icon set, decorative overview illustration. `AUDIT_PAGE_URL = '../index.html'` in `src/links.ts`, vite `base: './'`. Detail in the dated note below. | `make check` green before and after, identical (ruff clean, ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). `npm run build` green (340 modules; App chunk split out, 196 kB entry + 251 kB lazy app/export chunk); `npm run lint` 2 advisory warnings recorded in the note. Screenshots in `.playwright-mcp/`: desktop 1280 (overview + Germany story), 390 px (overview + Sweden story), reduced-motion emulation (page-confirmed `matchMedia` true), loading state (chunk delayed 2.5 s) and error state (chunk aborted). 390 px: zero horizontal overflow; contrast recomputed — audit CTA 5.47:1, absence group title 8.77:1, everything else ≥7:1. Dev server and `vite preview` both run against the committed live export; audit link clicked end-to-end under a simulated `docs/app/` layout. No `live-site`/`release-check`: no page output changed |
 
 ## Session Notes
 
@@ -1857,8 +1858,114 @@ no test, no partition moved. Both gate runs bracket the edit.
   still in the tree, still unreviewed, and was again deliberately excluded from this
   commit.
 - **Gates as run.** `make check` **before** (ruff clean, mypy 65 files, 462 pytest, dbt
-  PASS=202 WARN=0 ERROR=0) and **after** (identical: ruff clean, ruff-format clean, mypy 65
-  files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**) - the app is outside the Python
+  PASS=202 WARN=0 ERROR=0) and **after** (identical: ruff clean, ruff-format clean, mypy
+  65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**) - the app is outside the Python
   gate's reach, which is the point of the frozen-page architecture. `npm run build` green
   (tsc -b + vite, 335 modules, 439 kB JS / 7 kB CSS). Working tree after the commit
   contains only the pre-existing B1 draft.
+
+### 2026-09-05 (A4 session) - Plan A Task A4: polish and illustration pass
+
+- **What this session was.** Polish of what A3 actually built (Vite + React + TS +
+  Chart.js, Overview hero + per-scope stories, calendar-axis trend, region bars,
+  requirement stacks, absence cards) - no new data, no new statistic, no new chart
+  type. The old page, its tests, `app/data.json` and its contract are untouched;
+  `make export-app` was again **not** re-run (the A2 seed *is* the live export; a re-run
+  would only churn the `built` stamp).
+- **Motion, all gated by `prefers-reduced-motion` (an active constraint, treated as
+  one).** Two halves: (1) CSS - entrance `rise-in` on cards/stories/absence cards/req
+  figures/hero art (staggered), card hover lift, region-bar `scaleX` grow-in
+  (staggered), a 3 s lamp "breathe", loading dots - all switched off by one
+  `@media (prefers-reduced-motion: reduce)` block that kills every animation and
+  transition (`styles.css`, end of file); entrance animations use fill `backwards`
+  so the finished state returns to the cascade and hover transforms still work.
+  (2) Charts - Chart.js cannot read a CSS media query, so a new
+  `usePrefersReducedMotion()` hook (`app/src/motion.ts`, standard matchMedia +
+  change-listener pattern) feeds `animation: reduced ? false : {duration, easing}`
+  in `TrendChart` and `RequirementStack`. Verified under emulation (below), not by
+  code inspection alone.
+- **States.** The app (and with it the export) now loads as one **lazy chunk**
+  (`React.lazy` in `main.tsx`), so the loading screen is a real state, not theatre:
+  a branded card ("Opening the observatory's latest published numbers...") with the
+  honest caveat "nothing is counted on the fly". A `LoadErrorBoundary`
+  (`components/States.tsx`) catches a failed chunk load with a plain-language
+  explanation and a reload button. Verified by routing: the app chunk delayed 2.5 s
+  (loading screen on screen, then the app renders) and aborted (boundary fires).
+  **Absence polish (A3 open item 4, the wordy back-to-back cards):** the three German
+  absence cards now sit in one `absence-group` under a single "Not available from
+  this source" heading with the "fact about the source, not missing work" footnote
+  stated once; each card is compact with a dashed-box icon. The honesty is unchanged
+  - same sentences, same numbers, still statements never empty charts. Standalone
+  absence uses (trend/regions) keep their own "not available" titles.
+- **Branding and illustration.** The app is named **Job Market Pulse** (a pulse is a
+  reading of current state - deliberately not "weather", which would imply forecast,
+  and `rule_trend` stays silent). Favicon is an inline SVG data-URI (vendored by
+  definition, no external asset; the masthead logo, `components/Brand.tsx`, is the
+  same mark). `FactLine`'s unicode glyphs are replaced by one consistent inline SVG
+  icon set (`components/Icon.tsx`, 24x24/2px stroke/currentColor, aria-hidden). A
+  decorative two-job-ad-cards illustration (`HeroArt`) sits beside the Overview
+  heading and scales to 210 px at 390 px. Voice: tagline and copy unchanged where
+  they were already right; footer keeps the observatory framing.
+- **Cross-linking to the audit page.** `AUDIT_PAGE_URL = '../index.html'`
+  (`app/src/links.ts`) is the single source for every link (masthead meta line,
+  region-bars note, footer CTA button "See the full data - the analytical audit
+  page"). **This fixes an inherited defect:** A3's links said `../docs/index.html`,
+  which only resolves under a serve-the-repo-root layout and breaks under the
+  recommended `docs/app/` layout. `vite.config.ts` gains `base: './'` so the build
+  is path-relocatable. Verified end-to-end: a temp directory laid out as
+  `{index.html = docs/index.html, app/ = dist/*}` served statically - the app boots
+  at `/app/index.html` and the footer CTA lands on the audit page.
+- **Mobile (390 px) and contrast, verified not assumed.** Playwright at 390x844:
+  `scrollWidth - clientWidth = 0`, no element wider than the viewport, hero scales,
+  cards stack. Contrast recomputed in-page for every new surface: footer audit CTA
+  (white on teal) **5.47:1**, absence-group title 8.77:1, absence-body 13.74:1,
+  foot texts >=7:1; the absence icon was darkened `#a16207 -> #92400c` after
+  measuring 4.61:1 (decorative, but why keep the low pair).
+- **Screenshots recorded (`.playwright-mcp/`, gitignored):** `a4-desktop-1280-overview.png`,
+  `a4-desktop-1280-germany-story.png` (absence group), `a4-mobile-390-overview.png`,
+  `a4-mobile-390-sweden-story.png`, `a4-desktop-1280-reduced-motion.png`
+  (Playwright `reducedMotion: 'reduce'`; the page itself reported
+  `matchMedia('(prefers-reduced-motion: reduce)').matches === true`), plus
+  `a4-loading-state.png`, `a4-after-delayed-load.png`, `a4-error-state.png`. The
+  reduced-motion and throttled-load captures needed a local playwright-core script
+  (system Edge, no browser download); the MCP browser cannot emulate media or
+  throttle chunks.
+- **Chart problems inherited from A3, recorded not redesigned** (the task's
+  instruction): (1) full-page screenshots taken right after a viewport resize can
+  capture a **stale canvas bitmap** - Chart.js re-renders async; element shots after
+  settling are correct. Still true in A4; the screenshot script waits out the
+  animations instead. (2) The trend is **honest but thin** (DE 3, SE 4 daily
+  buckets) - fills in as cadence holds, no code change. (3) The **suppression path
+  is code-present and unexercised** by live data. (4) The app still has **no
+  automated test** pinning its honesty laws - not done here (polish-only scope); it
+  remains the standing open item, now with a concrete place to put it (a vitest or
+  a Python string check over `app/src`, per `app/README.md`).
+- **Deploy story - RECOMMENDATION ONLY, nothing deployed (Increment 25 is
+  budget-gated).** Publish the app's build output at **`docs/app/`** beside the audit
+  page (`docs/index.html`), in the same commit that refreshes the audit page: one
+  GitHub Pages artifact, one base path, relative URLs throughout (`base: './'` and
+  `AUDIT_PAGE_URL = '../index.html'` are already built for exactly this layout), and
+  the analytical fallback stays one click away. Refresh order when that day comes:
+  `make live-site` -> copy `site/build/index.html` to `docs/index.html` -> `make
+  export-app` -> `npm run build` in `app/` -> copy `app/dist/*` to `docs/app/` ->
+  release-check on `docs/index.html` -> commit both together (so the two surfaces
+  never disagree about methodology). The alternative (serving the repo root) is what
+  A3's old `../docs/index.html` href assumed; it is rejected because GitHub Pages
+  serves the *published artifact*, not the repo root. The export-feels-limiting
+  question did not arise: nothing in this polish wanted a field the export lacks.
+- **Deliberately not done.** No new chart type, statistic or data (scope law); no
+  automated app test (recorded above); no methodology bump - the app re-renders the
+  export's existing figures, branding and motion change nothing published; no CI,
+  Pages, orchestrator or deployment touches; the B1 draft (`scripts/auto_sweep.py` +
+  Makefile `auto` hunk) remains uncommitted and unreviewed for the real B1 session.
+- **Lint note.** `npm run lint` (oxlint) reports two advisory warnings, both
+  standard patterns accepted deliberately: `main.tsx` `React.lazy` in the entry file
+  (fast-refresh hint only) and `motion.ts` synchronous `setState` in the matchMedia
+  effect (the canonical subscribe-to-media-query shape; dropping the sync read would
+  miss a change that happened between render and effect attach). No errors.
+- **Gates as run.** `make check` before (ruff clean, ruff-format clean, mypy 65
+  files, 462 pytest, dbt PASS=202 WARN=0 ERROR=0) and after (identical). `npm run
+  build` green (340 modules; entry 196 kB + lazy app/export chunk 251 kB). No
+  `live-site`/`release-check`: no page output changed, `docs/index.html` untouched,
+  same conditions as A3. Working tree after the commit contains only the
+  pre-existing B1 draft.
