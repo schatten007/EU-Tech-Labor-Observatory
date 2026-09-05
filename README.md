@@ -28,7 +28,7 @@ beside every mapped figure, and unresolved values shown as their own rows rather
   working-hours type, contract duration, posting survival and flows, mapping quality, coverage
   and freshness.
 - **Reference data, all pinned:** NUTS-2024, JobTech Taxonomy v30, ESCO 1.2.1. Methodology
-  version 1.4 is stamped in the page footer and in every CSV export.
+  version 1.5 is stamped in the page footer and in every CSV export.
 - **Portfolio artefact:** `docs/index.html` is a committed copy of the last live build; rebuild
   it with `make live-site` and copy `site/build/index.html` back to `docs/`.
 
