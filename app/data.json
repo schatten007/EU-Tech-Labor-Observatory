@@ -1,7 +1,7 @@
 {
   "meta": {
     "methodology_version": "1.5",
-    "built": "2026-09-05T22:26:56.947628+00:00",
+    "built": "2026-09-06T09:49:14.553071+00:00",
     "scope_count": 2
   },
   "scopes": [
@@ -16,16 +16,16 @@
         "source_version": "jobsuche-ssr-2026-08",
         "licence_reference": "https://www.arbeitsagentur.de/",
         "access_method": "robots-permitted-html",
-        "freshness_status": "fresh",
+        "freshness_status": "stale",
         "coverage_status": "covered"
       },
       "coverage": {
         "observed_at": "2026-09-05T00:00:00",
         "expected_rows": 28904,
         "observed_rows": 28904,
-        "freshness_status": "fresh",
+        "freshness_status": "stale",
         "coverage_status": "covered",
-        "freshness_age_hours": 22.432777777777776,
+        "freshness_age_hours": 33.805,
         "coverage_limitations": "Stratified region-bounded sample, not a census: the frozen NUTS-3 panel queries 400 regions (frame = destatis Kreise AGS->NUTS 2024 key, membership hash 545b162ec6e5fbdc...), one place query per region with umkreis=0, capped at 4 pages x 25 items = 100 rows per region. Regions whose advertised stock exceeds that cap are sampled, not enumerated; the per-region advertised totals (suchergebnis.maxErgebnisse) are recorded in panel_regions.json so every region carries its own denominator. BA has no Kreis-level location filter, so a region is addressed by its largest unique-name town, or by its unambiguous anchor postcode where no unique name exists. The query set is frozen and unseeded: it is a pure function of the pinned reference, identical across sweeps. Panel sweep: 400 frozen region queries, 398 with >=1 row, 2 with none; 273 region(s) hit the declared page cap (their stock is sampled, not enumerated); 0 region(s) paginated out before the plan (stale advertised total); 1 locality mismatch(es) against the source's own woOutput echo; 0 page(s) without an ng-state envelope. 1320 of 1320 planned pages fetched, 0 non-200, 5 absorbed 403 throttle event(s) (cooled down and retried, not failures). 31083 items parsed, 2179 duplicate(s) dropped on HMAC source_id; 28904 rows written. Sum of the per-region advertised totals (maxErgebnisse): 378963 postings \u2014 the panel's per-sweep regional denominator, recorded per region in panel_regions.json; the rows are the capped sample of it. Region mapping: mapped 28621, unmapped 0, ambiguous 283, low_confidence 0.",
         "freshness_threshold_hours": 24
       },
@@ -246,6 +246,13 @@
           }
         },
         {
+          "rule": "freshness_warning",
+          "text": "Read the figures with care: the latest sweep is 34 hours old, past its freshness threshold.",
+          "evidence": {
+            "freshness_age_hours": 33.805
+          }
+        },
+        {
           "rule": "region_concentration",
           "text": "The leading region is Rendsburg-Eckernf\u00f6rde, with 186 of 28,621 mapped posting(s) in this sweep.",
           "evidence": {
@@ -282,8 +289,8 @@
       "country": "SE",
       "label": "jobtech / jobtech-f5cf1d409aa51fad",
       "demand": {
-        "observed_at": "2026-09-05T20:46:10.732241",
-        "active_postings": 599,
+        "observed_at": "2026-09-06T09:45:26.208581",
+        "active_postings": 596,
         "source_version": "JobSearch current ads",
         "licence_reference": "https://data.jobtechdev.se/dataservice/jobsearch/",
         "access_method": "official-public-api",
@@ -291,12 +298,12 @@
         "coverage_status": "covered"
       },
       "coverage": {
-        "observed_at": "2026-09-05T20:46:10.732241",
-        "expected_rows": 599,
-        "observed_rows": 599,
+        "observed_at": "2026-09-06T09:45:26.208581",
+        "expected_rows": 596,
+        "observed_rows": 596,
         "freshness_status": "fresh",
         "coverage_status": "covered",
-        "freshness_age_hours": 1.6633333333333333,
+        "freshness_age_hours": 0.04777777777777778,
         "coverage_limitations": "Keyword-scoped Platsbanken postings filtered to Sweden; provider-default ordering is not a transactional snapshot.",
         "freshness_threshold_hours": 48
       },
@@ -305,25 +312,25 @@
         "regions_in_frame": 21
       },
       "frequency": {
-        "complete_sweeps": 10,
+        "complete_sweeps": 11,
         "first_observed_at": "2026-08-19T15:41:36.447045",
-        "last_observed_at": "2026-09-05T20:46:10.732241",
-        "median_interval_hours": 7.0
+        "last_observed_at": "2026-09-06T09:45:26.208581",
+        "median_interval_hours": 10.0
       },
       "regions_top": [
         {
           "label": "Stockholms l\u00e4n",
-          "postings": 235,
+          "postings": 233,
           "taxonomy_version": "NUTS-2024"
         },
         {
           "label": "V\u00e4stra G\u00f6talands l\u00e4n",
-          "postings": 105,
+          "postings": 106,
           "taxonomy_version": "NUTS-2024"
         },
         {
           "label": "Sk\u00e5ne l\u00e4n",
-          "postings": 56,
+          "postings": 54,
           "taxonomy_version": "NUTS-2024"
         },
         {
@@ -417,12 +424,12 @@
           {
             "label": "Open-ended",
             "code": "a7uU_j21_mkL",
-            "count": 495
+            "count": 493
           },
           {
             "label": "6 months or longer",
             "code": "qQUd_4qe_NDT",
-            "count": 57
+            "count": 56
           },
           {
             "label": "6 months up to 12 months",
@@ -459,7 +466,7 @@
           {
             "label": "Regular employment",
             "code": "PFZr_Syz_cUq",
-            "count": 426
+            "count": 423
           },
           {
             "label": "Permanent employment (probationary period possible)",
@@ -481,7 +488,7 @@
           {
             "label": "Full-time",
             "code": "6YE1_gAC_R2G",
-            "count": 583
+            "count": 580
           },
           {
             "label": "Part-time",
@@ -498,35 +505,35 @@
       "mappings": {
         "occupation": {
           "ambiguous": 8,
-          "low_confidence": 47,
-          "mapped": 506,
+          "low_confidence": 48,
+          "mapped": 502,
           "unmapped": 38
         },
         "region": {
-          "mapped": 560,
+          "mapped": 557,
           "not_present": 39
         },
         "skill": {
           "ambiguous": 37,
           "low_confidence": 52,
           "mapped": 46,
-          "not_present": 554,
+          "not_present": 551,
           "unmapped": 7
         }
       },
       "denominators": {
         "occupation": {
-          "postings_total": 599,
-          "postings_with_source_value": 599,
-          "postings_mapped": 506
+          "postings_total": 596,
+          "postings_with_source_value": 596,
+          "postings_mapped": 502
         },
         "region": {
-          "postings_total": 599,
-          "postings_with_source_value": 560,
-          "postings_mapped": 560
+          "postings_total": 596,
+          "postings_with_source_value": 557,
+          "postings_mapped": 557
         },
         "skill": {
-          "postings_total": 599,
+          "postings_total": 596,
           "postings_with_source_value": 45,
           "postings_mapped": 25
         }
@@ -567,6 +574,13 @@
             "closures": 25,
             "active": 599,
             "suppressed": true
+          },
+          {
+            "bucket": "2026-09-06",
+            "openings": null,
+            "closures": null,
+            "active": 596,
+            "suppressed": true
           }
         ],
         "week": [
@@ -579,9 +593,9 @@
           },
           {
             "bucket": "2026-08-31",
-            "openings": 259,
-            "closures": 288,
-            "active": 599,
+            "openings": 260,
+            "closures": 292,
+            "active": 596,
             "suppressed": false
           }
         ],
@@ -595,9 +609,9 @@
           },
           {
             "bucket": "2026-09-01",
-            "openings": 259,
-            "closures": 288,
-            "active": 599,
+            "openings": 260,
+            "closures": 292,
+            "active": 596,
             "suppressed": false
           }
         ]
@@ -605,55 +619,55 @@
       "insights": [
         {
           "rule": "latest_count",
-          "text": "The latest complete sweep observed 599 active posting(s) on 2026-09-05.",
+          "text": "The latest complete sweep observed 596 active posting(s) on 2026-09-06.",
           "evidence": {
-            "active_postings": 599,
-            "observed_at": "2026-09-05"
+            "active_postings": 596,
+            "observed_at": "2026-09-06"
           }
         },
         {
           "rule": "region_concentration",
-          "text": "The leading region is Stockholms l\u00e4n, with 235 of 560 mapped posting(s) in this sweep.",
+          "text": "The leading region is Stockholms l\u00e4n, with 233 of 557 mapped posting(s) in this sweep.",
           "evidence": {
             "region_label": "Stockholms l\u00e4n",
-            "leader_postings": 235,
-            "mapped_postings": 560
+            "leader_postings": 233,
+            "mapped_postings": 557
           }
         },
         {
           "rule": "most_requested_occupation",
-          "text": "The most frequently mapped occupation is IKT-systemutvecklare, in 364 of 506 mapped posting(s).",
+          "text": "The most frequently mapped occupation is IKT-systemutvecklare, in 362 of 502 mapped posting(s).",
           "evidence": {
             "value_label": "IKT-systemutvecklare",
-            "posting_count": 364,
-            "postings_mapped": 506,
-            "postings_total": 599
+            "posting_count": 362,
+            "postings_mapped": 502,
+            "postings_total": 596
           }
         },
         {
           "rule": "employment_shares",
-          "text": "Of 599 postings in the latest sweep, 132 are permanent employment and 31 are fixed-term employment.",
+          "text": "Of 596 postings in the latest sweep, 132 are permanent employment and 31 are fixed-term employment.",
           "evidence": {
-            "employment_type_total": 599,
+            "employment_type_total": 596,
             "permanent_employment": 132,
             "fixed_term_employment": 31
           }
         },
         {
           "rule": "working_hours_shares",
-          "text": "Of 599 postings in the latest sweep, 583 are full-time and 9 are part-time.",
+          "text": "Of 596 postings in the latest sweep, 580 are full-time and 9 are part-time.",
           "evidence": {
-            "working_hours_total": 599,
-            "full_time": 583,
+            "working_hours_total": 596,
+            "full_time": 580,
             "part_time": 9
           }
         },
         {
           "rule": "median_duration",
-          "text": "The median observed duration is 16.0 days across the 346 closed posting(s); postings still open are right-censored and are excluded.",
+          "text": "The median observed duration is 16.0 days across the 350 closed posting(s); postings still open are right-censored and are excluded.",
           "evidence": {
             "lifecycle_status": "inferred_absence",
-            "posting_count": 346,
+            "posting_count": 350,
             "median_duration_days": 16.0
           }
         }
