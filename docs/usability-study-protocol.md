@@ -1,19 +1,26 @@
 # Iteration 11 — Usability Study Protocol (prepared, unrun)
 
-**Status:** prepared 2026-09-04 (Plan 1 Task 5). **Not recruited, not run, no results.**
-The study is Iteration 11's last open item ("user validation pending"). Nothing in this
-document was produced by observing a participant; every task below is a prediction of what
-will be asked, written before any session happens so the tasks cannot be quietly reshaped
-around what the page happens to answer well.
+**Status:** prepared 2026-09-04 (Plan 1 Task 5), updated 2026-09-06 (Plan C Task C4 — the app
+is now the primary surface). **Not recruited, not run, no results.** The study is Iteration
+11's last open item ("user validation pending"). Nothing in this document was produced by
+observing a participant; every task below is a prediction of what will be asked, written
+before any session happens so the tasks cannot be quietly reshaped around what the page
+happens to answer well.
 
 **Participants (to recruit, not yet recruited):** at least five students or recent graduates
 (the roadmap's bar). Mixed study backgrounds if available; no prior exposure to this page.
+Recruitment one-liner, ready to send: *"Think-aloud study of a job-market dashboard; ~30
+minutes; 5+ student participants."*
 
-**Material:** `docs/index.html` opened in a clean browser profile, no JavaScript required
-(the page is server-rendered and release-checked for no-JS readability; enabling JS is a
-participant choice, and whether they reach for it is itself an observation). A quiet room,
-one participant at a time, think-aloud encouraged, moderator takes verbatim notes and does
-not help. No time pressure announced; time-to-task recorded silently.
+**Material:** the primary surface is the **app** — run it locally with `make export-app`,
+then `npm install && npm run dev` in `app/` (or serve the built `app/dist/`), and open it in
+a clean browser profile. The **fallback surface is the audit page**, `docs/index.html`,
+opened directly in the same profile, no JavaScript required (the page is server-rendered and
+release-checked for no-JS readability; enabling JS is a participant choice, and whether they
+reach for it is itself an observation). A quiet room, one participant at a time, think-aloud
+encouraged, moderator takes verbatim notes and does not help. No time pressure announced;
+time-to-task recorded silently. Nothing else gets executed: recruiting and running the study
+are the owner's manual steps, not a session's.
 
 ## Tasks
 
