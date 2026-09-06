@@ -46,6 +46,7 @@ than expanding the active increment.
 | Plan A Task A4 (polish and illustration pass) | 2026-09-05 | Complete (`01c7a1b`); motion/states/branding/cross-link polish of the A3 app — no new data, statistic or chart type; audit-page link verified under the recommended publish layout; deploy recommendation recorded (nothing deployed) | Motion (entrance rise-in, card hover lift, region-bar grow, lamp breathe, Chart.js draw-in) all switch off under `prefers-reduced-motion` — one CSS media block plus the `usePrefersReducedMotion()` hook the charts read. Loading state is real (app+export lazy chunk + Suspense) with a plain-language error boundary; absence cards regrouped under one "Not available from this source" heading (A3 open item 4). Branding: "Job Market Pulse", inline SVG favicon/logo, one consistent icon set, decorative overview illustration. `AUDIT_PAGE_URL = '../index.html'` in `src/links.ts`, vite `base: './'`. Detail in the dated note below. | `make check` green before and after, identical (ruff clean, ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). `npm run build` green (340 modules; App chunk split out, 196 kB entry + 251 kB lazy app/export chunk); `npm run lint` 2 advisory warnings recorded in the note. Screenshots in `.playwright-mcp/`: desktop 1280 (overview + Germany story), 390 px (overview + Sweden story), reduced-motion emulation (page-confirmed `matchMedia` true), loading state (chunk delayed 2.5 s) and error state (chunk aborted). 390 px: zero horizontal overflow; contrast recomputed — audit CTA 5.47:1, absence group title 8.77:1, everything else ≥7:1. Dev server and `vite preview` both run against the committed live export; audit link clicked end-to-end under a simulated `docs/app/` layout. No `live-site`/`release-check`: no page output changed |
 | Plan B Task B1 (`make auto` orchestrator) | 2026-09-05 | Complete (`da9c929`); `scripts/auto_sweep.py` + `make auto`: spacing guard → sweep(s) → gates in the runbook's order → both published surfaces → one pathspec-scoped artefact commit; any failing step stops before the commit and exits 1. Proven green twice (auto commits `5deb7b9` skip-sweep, `cfeed53` real jobtech run) and safe twice (a deliberate mid-loop lint failure and a blocked spacing guard, both exit 1, nothing committed) | **Session-start incident first**: the expected uncommitted B1 draft was gone and A2's committed files (`Makefile`, `scripts/insights.py`, `scripts/export_app_data.py`) had been mechanically reverted to their pre-`b223707` content at 22:15:56 local, two seconds before the prompt; restored to HEAD with owner approval, the unrecoverable draft discarded, B1 written fresh from the plan — detail in the dated note. Stdlib-only orchestrator that subprocesses the existing entry points (`make sweep`, `main.py --source ba --panel`, `make check`, `make live-site`, `make export-app`, `release_check`, `check_ba_panel_readiness`); flags `--sources jobtech,ba`, `--skip-sweep`, `--push`, `--dry-run`, `--status`; logs to `logs/auto/<id>.log` | `make check` green before (on the restored clean tree: ruff, ruff-format, mypy 64 files, **462 pytest**, dbt **PASS=202**) and after (ruff, ruff-format, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). Page gates ran inside the auto loops: `make live-site` green, `make export-app` green (dbt PASS=197, 2 scopes), direct release check on the built page **0 problems**, copy + artefact commits `5deb7b9` (12 sweeps) and `cfeed53` (13 sweeps, jobtech sweep #10 = 599 rows) |
 | Plan B Task B2 (Windows scheduled tasks + cadence decision) | 2026-09-05 | Complete (`94f3267`); two user-level scheduled tasks registered and verified firing from the scheduler, both left **ENABLED** per owner choice, BA slot moved to **13:00** (PC off at midnight); the BA fire ran the full loop green (partition #4, auto commit `75e4e22`), the SE fires hit a JobTech source outage and proved the failure path (each stopped before commit). **Cadence decision recorded: BA daily** (keeps the 24 h freshness threshold honest; weekly rejected — it would need `freshness_threshold_hours` → 168, a scope-definition change needing a methodology note, deliberately NOT made); SE twice daily 07:30/19:30 per the pre-registered cadence. Also fixed a DoD-blocking bug: `--status` crashed on the BA run's cp1252 log bytes (UnicodeDecodeError) — log tails now read with `errors="replace"` (`94f3267`) | `scripts/install_scheduled_tasks.ps1`: registers "Observatory SE sweep" (07:30/19:30, `make auto SOURCES=jobtech`) and "Observatory BA sweep" (13:00, `make auto SOURCES=ba`), no elevation, repo as working directory, start-when-available + wake-to-run, 4 h limit, ignore-new on overlap, battery settings off; registers DISABLED by default (`-Enable` to register enabled), `-Remove` to uninstall. S4U principal refused unelevated → Interactive fallback (runs when logged on, including locked); elevated S4U re-registration is the one-command upgrade — detail in the dated note | `make check` green before and after (ruff, ruff-format, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). The BA task's own loop ran all page gates green inside `logs/auto/20260905T213703Z.log` (live-site, export-app, direct release check 0 problems) and auto-committed `75e4e22` (14 sweeps, 2 scopes); SE failure runs left HEAD at `75e4e22` throughout; `--status` verified reflecting both tasks' outcomes |
+| Plan C (final wrap-up: C1-C4) | 2026-09-06 | Complete (`8093735`); five fresh screenshots committed under `docs/screenshots/` from the running app against the committed export (15-sweep state), README final pass (current Status counts "as of 2026-09-06", new "Two surfaces" and "Use cases" + limitations sections, app rows in the command table, `app/` + `docs/screenshots/` in the layout block, two screenshots embedded with relative paths), cleanup of only the plan-listed superseded files, and the usability protocol updated to name the app as primary surface with its run command — nothing tested, nothing pushed | **C1** retaken via browser tooling (never copied from `.playwright-mcp/` drafts): `app-overview-desktop.png` (179 KB), `app-sweden-story-desktop.png` (265 KB), `app-germany-story-desktop.png` (291 KB, absence card visible), `app-overview-mobile.png` (146 KB, 390 px), `audit-page-desktop.png` (224 KB) — all PNG, all under 500 KB; **C3** deletions: the seven tracked stale `.playwright-mcp/` drafts (`console-*.log`, `page-*.yml`, `design-prototype-*.png`) removed in the commit, the untracked `a4-*`/`app-*`/`trend-*` drafts and `traces/` cleared locally (directory kept), `logs/ba-panel-sweep2.log`/`-3.log` deleted (superseded by `logs/auto/`); hygiene checks: only `.env.example`-adjacent env-like name is `.env.example` (untracked `.env` ignored), LICENSE present, default branch `merge/scrapers-lab`, remote `origin` exists, no broken relative README links | `make check` green before and after, identical (ruff clean, ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**); no page output changed, so no `live-site`/`release-check` run |
 
 ## Session Notes
 
@@ -2150,3 +2151,79 @@ no test, no partition moved. Both gate runs bracket the edit.
   nothing executed.
 - **Deliberately out of scope:** public deployment (Increment 25, budget-gated), CI, any
   change to page content/export schema/gates, the usability study itself.
+
+### 2026-09-06 - Plan C executed (final wrap-up: screenshots, README pass, cleanup, testing readiness)
+
+- **Session protocol.** MEMORY.md §4 read first; runbook state block read (PLANNED → Plan C
+  commission); `make check` run green **before** any edit and again **after** (the record
+  demands the gate as run even though no code changed). One commit: `8093735`. No push — the
+  plan forbids it.
+- **C1 — Screenshots, retaken not copied.** The app was run live (`npm.cmd run dev` in
+  `app/`, Vite 8.2.2, `http://localhost:5173`) against the committed `app/data.json`
+  (methodology 1.5, export built 2026-09-06, 15-sweep state: SE 596 postings / 11 sweeps,
+  DE 28,904 / 4 sweeps). Browser tooling retook all five; the stale `.playwright-mcp/`
+  drafts (which predate 15 sweeps) were never copied. Full-page shots at 1280×800 and
+  390×844, saved straight into the new committed `docs/screenshots/`:
+  `app-overview-desktop.png` (hero, both scope cards, lamps, fact lines — 179 KB),
+  `app-sweden-story-desktop.png` (trend with the 13-day gap preserved, region bars,
+  requirement stacks — 265 KB), `app-germany-story-desktop.png` (absence card for the five
+  missing fields visible — 291 KB), `app-overview-mobile.png` (390 px — 146 KB),
+  `audit-page-desktop.png` (`docs/index.html` — 224 KB). All stayed under ~500 KB, so all
+  five are PNG; no JPEG conversion needed. Provenance for the record: app build = Vite dev
+  server on the committed export; data.json build stamp = 2026-09-06 (the 09:43 auto run's
+  re-sync, commit `942b508`).
+- **C2 — README final pass.** Status numbers fixed to the 15-sweep / 4-German-partition
+  state (11 SE sweeps, 596 latest; DE 28,904 latest, 28,621 mapped, 392 of 400 regions)
+  and stamped "as of 2026-09-06" with an explicit "documentation, not a gate" line. New
+  "Two surfaces" section: the app (run via `make export-app` then
+  `npm install && npm run dev` in `app/`, or the built `app/dist/`; cross-links
+  `app/README.md` for the renderer-not-analyser rule) and the audit page
+  (`docs/index.html`, no-JS, every denominator). New "Use cases" section answering per
+  scope (where demand concentrates, employment/contract shapes, freshness/coverage, honest
+  absence) with the limitations paragraph (SE keyword query not a census; DE capped
+  stratified sample, rankings are collected counts; no education data anywhere; countries
+  never comparable by design). Command table extended with `make export-app`,
+  `npm run dev`/`build`, `make auto` rows with the network column kept honest. Layout
+  block gains `app/`, `docs/`, `docs/screenshots/`. Two screenshots embedded with relative
+  paths (hero at top, Germany story under "Two surfaces"); the Sweden story and mobile
+  shots sit in `docs/screenshots/` for GitHub browsing. "Where to look" pointers added
+  (app/README, protocol, plans archive).
+- **C3 — Cleanup, only the plan's list.** Deleted, tracked (in the commit):
+  `.playwright-mcp/console-2026-08-15T14-27-26-748Z.log`, `page-*.yml` ×2,
+  `design-prototype-*.png` ×4 — seven stale draft artefacts from the UI-prototype era.
+  Deleted, untracked (local view only): the `a4-*` verification screenshots ×7, the
+  `app-*` draft screenshots ×6, `trend-*.png` ×4, and `traces/` — the `.playwright-mcp/`
+  directory itself kept for browser tooling. Deleted `logs/ba-panel-sweep2.log` and
+  `logs/ba-panel-sweep3.log` (superseded by `logs/auto/`, which holds 17+ runs);
+  `data/raw/` untouched (append-only law), nothing tracked moved.
+  **GitHub hygiene checks, all pass:** no tracked env/secret/token/key file (the two
+  `transform/tests/assert_*key*` SQL files are dbt tests, not secrets; `.env` itself is
+  gitignored, `.env.example` is the template); three tracked files exceed ~2 MB
+  (`data/handover/ba/de-stock-segmented.zip` 9.5 MB, `data/reference/germany_plz_nuts_2024.csv`
+  3.9 MB, `data/reference/jobtech_skill_esco_1.2.1.csv` 4.2 MB — all pinned reference
+  data that gates and plans reference; the plan's 2 MB check was aimed at the C1
+  screenshots, which are all ≤291 KB); LICENSE present (MIT); README relative links
+  verified (only the two screenshot paths — both resolve); default branch
+  `merge/scrapers-lab`, `origin` remote exists. **No push.** SESSIONS.md, SCRAPER_*.md
+  and the plans archive all left untouched by design — they are the audit trail.
+- **C4 — User-testing readiness.** `docs/usability-study-protocol.md` updated: the
+  Material section now names the **app as the primary surface** with its local run command
+  (`make export-app`, then `npm install && npm run dev` in `app/`, or serve the built
+  `app/dist/`) and the audit page (`docs/index.html`) as the fallback; status line notes
+  the 2026-09-06 update. The recruitment one-liner is added, ready to send: *"Think-aloud
+  study of a job-market dashboard; ~30 minutes; 5+ student participants."* Nothing
+  executed — recruiting and running the study remain the owner's manual step
+  (participants are humans, not sessions).
+- **Gates as run.** `make check` green before and after, identical (ruff clean,
+  ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**).
+  No `live-site`/`release-check` run: no page output changed (README, protocol and
+  screenshots are documentation; `docs/index.html` is byte-identical to the committed
+  live build). Session commit: `8093735` (14 files changed: +5 screenshots, +README,
+  +protocol, −7 stale drafts).
+- **Open items noticed, not done (per the "implement only the named tasks" rule):** (1)
+  the three ~2-4 MB pinned reference CSVs/zip could be LFS-tracked if the repo ever goes
+  public — recorded, not decided. (2) The usability protocol's task list still targets
+  the audit page's on-page strings (e.g. "392 of 400 DE NUTS-3 regions … breadth line");
+  if the study runs against the app, the task wording may need a C5-style touch —
+  noticed, left alone. (3) The task queue is empty again; future work is
+  owner-initiated.
