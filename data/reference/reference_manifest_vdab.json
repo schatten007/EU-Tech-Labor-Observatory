@@ -1,0 +1,52 @@
+{
+  "source": "basisregisters-vlaanderen-postinfo x eurostat-gisco-nuts-2024",
+  "nuts_version": "NUTS-2024",
+  "source_version": "2026-08-22",
+  "retrieved_at": "2026-08-22T20:21:10.959800+00:00",
+  "source_urls": {
+    "postinfo_list": "https://api.basisregisters.vlaanderen.be/v2/postinfo?limit=500",
+    "postinfo_detail": "https://api.basisregisters.vlaanderen.be/v2/postinfo/{postcode}",
+    "nuts_2024": "https://gisco-services.ec.europa.eu/distribution/v2/nuts/csv/NUTS_AT_2024.csv"
+  },
+  "join": "postinfo/{postcode}.nuts3 -> GISCO NUTS 2024 level 3 (BE), validated",
+  "row_counts": {
+    "vdab_postcode_nuts_2024.csv": 528
+  },
+  "postcodes_enumerated": 529,
+  "postcodes_resolved_this_run": 528,
+  "postcodes_skipped": {
+    "no_nuts3": 1
+  },
+  "distinct_nuts3": 23,
+  "flemish_nuts3": [
+    "BE211",
+    "BE212",
+    "BE213",
+    "BE223",
+    "BE224",
+    "BE225",
+    "BE231",
+    "BE232",
+    "BE233",
+    "BE234",
+    "BE235",
+    "BE236",
+    "BE241",
+    "BE242",
+    "BE251",
+    "BE252",
+    "BE253",
+    "BE254",
+    "BE255",
+    "BE256",
+    "BE257",
+    "BE258"
+  ],
+  "non_flemish_nuts3": [
+    "0612:BE100"
+  ],
+  "unmatched_nuts3": [],
+  "hashes": {
+    "vdab_postcode_nuts_2024.csv": "1811ff6f587a99f83c1d51ef0697011b4b900ed3bb1e3845d76f4173af9339d6"
+  }
+}

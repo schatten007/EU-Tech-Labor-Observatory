@@ -1,0 +1,172 @@
+{
+  "source": "stat.fi-kunta-nuts-2024-key + stat.fi-kunta-maakunta-key x eurostat-gisco-nuts-2024",
+  "nuts_version": "NUTS-2024",
+  "source_version": "2026-08-23",
+  "retrieved_at": "2026-08-23T15:50:07.306114+00:00",
+  "classification_date": "20260101",
+  "source_urls": {
+    "nuts_2024": "https://gisco-services.ec.europa.eu/distribution/v2/nuts/csv/NUTS_AT_2024.csv",
+    "kunta_nuts": "https://data.stat.fi/api/classifications/v2/correspondenceTables/kunta_1_20260101%23nuts_2_20260101/maps",
+    "kunta_maakunta": "https://data.stat.fi/api/classifications/v2/correspondenceTables/kunta_1_20260101%23maakunta_1_20260101/maps"
+  },
+  "join": "Statistics Finland classification key kunta -> NUTS (level 3 maps only), validated against Eurostat GISCO NUTS 2024; maakunta -> NUTS 3 derived by folding the kunta -> maakunta key and verified to be single-valued",
+  "codeset_source_not_used": {
+    "url": "https://tyomarkkinatori.fi/api/codes/v1/kopa/KUNTA/koodit",
+    "reason": "the portal's robots.txt disallows /api/ and /*/api/ for all user-agents, so the source's own KUNTA/MAAKUNTA codesets are off-limits under SCRAPERS.md golden rule 1; Statistics Finland serves the same relation"
+  },
+  "row_counts": {
+    "finland_tmt_region_nuts_2024.csv": 327,
+    "kunta": 308,
+    "maakunta": 19,
+    "maakunta-ambiguous": 0
+  },
+  "kunta_nuts_maps_read": 924,
+  "kunta_maakunta_maps_read": 308,
+  "gisco_nuts3_codes": [
+    "FI196",
+    "FI198",
+    "FI199",
+    "FI19A",
+    "FI19B",
+    "FI1B1",
+    "FI1C1",
+    "FI1C2",
+    "FI1C5",
+    "FI1C6",
+    "FI1C7",
+    "FI1D5",
+    "FI1D7",
+    "FI1D8",
+    "FI1D9",
+    "FI1DA",
+    "FI1DB",
+    "FI1DC",
+    "FI200"
+  ],
+  "distinct_nuts3_mapped": [
+    "FI196",
+    "FI198",
+    "FI199",
+    "FI19A",
+    "FI19B",
+    "FI1B1",
+    "FI1C1",
+    "FI1C2",
+    "FI1C5",
+    "FI1C6",
+    "FI1C7",
+    "FI1D5",
+    "FI1D7",
+    "FI1D8",
+    "FI1D9",
+    "FI1DA",
+    "FI1DB",
+    "FI1DC",
+    "FI200"
+  ],
+  "nuts3_without_municipality": [],
+  "ambiguous_maakunta_codes": [],
+  "maakunta_join": {
+    "01": {
+      "name": "Uusimaa",
+      "nuts_code": "FI1B1",
+      "nuts_label": "Helsinki-Uusimaa"
+    },
+    "02": {
+      "name": "Varsinais-Suomi",
+      "nuts_code": "FI1C1",
+      "nuts_label": "Varsinais-Suomi"
+    },
+    "04": {
+      "name": "Satakunta",
+      "nuts_code": "FI196",
+      "nuts_label": "Satakunta"
+    },
+    "05": {
+      "name": "Kanta-Häme",
+      "nuts_code": "FI1C2",
+      "nuts_label": "Kanta-Häme"
+    },
+    "06": {
+      "name": "Pirkanmaa",
+      "nuts_code": "FI19B",
+      "nuts_label": "Pirkanmaa"
+    },
+    "07": {
+      "name": "Päijät-Häme",
+      "nuts_code": "FI1C6",
+      "nuts_label": "Päijät-Häme"
+    },
+    "08": {
+      "name": "Kymenlaakso",
+      "nuts_code": "FI1C7",
+      "nuts_label": "Kymenlaakso"
+    },
+    "09": {
+      "name": "Etelä-Karjala",
+      "nuts_code": "FI1C5",
+      "nuts_label": "Etelä-Karjala"
+    },
+    "10": {
+      "name": "Etelä-Savo",
+      "nuts_code": "FI1DA",
+      "nuts_label": "Etelä-Savo"
+    },
+    "11": {
+      "name": "Pohjois-Savo",
+      "nuts_code": "FI1DB",
+      "nuts_label": "Pohjois-Savo"
+    },
+    "12": {
+      "name": "Pohjois-Karjala",
+      "nuts_code": "FI1DC",
+      "nuts_label": "Pohjois-Karjala"
+    },
+    "13": {
+      "name": "Keski-Suomi",
+      "nuts_code": "FI198",
+      "nuts_label": "Keski-Suomi"
+    },
+    "14": {
+      "name": "Etelä-Pohjanmaa",
+      "nuts_code": "FI199",
+      "nuts_label": "Etelä-Pohjanmaa"
+    },
+    "15": {
+      "name": "Pohjanmaa",
+      "nuts_code": "FI19A",
+      "nuts_label": "Pohjanmaa"
+    },
+    "16": {
+      "name": "Keski-Pohjanmaa",
+      "nuts_code": "FI1D5",
+      "nuts_label": "Keski-Pohjanmaa"
+    },
+    "17": {
+      "name": "Pohjois-Pohjanmaa",
+      "nuts_code": "FI1D9",
+      "nuts_label": "Pohjois-Pohjanmaa"
+    },
+    "18": {
+      "name": "Kainuu",
+      "nuts_code": "FI1D8",
+      "nuts_label": "Kainuu"
+    },
+    "19": {
+      "name": "Lappi",
+      "nuts_code": "FI1D7",
+      "nuts_label": "Lappi"
+    },
+    "21": {
+      "name": "Ahvenanmaa",
+      "nuts_code": "FI200",
+      "nuts_label": "Åland"
+    }
+  },
+  "municipalities_read": 308,
+  "historic_names_included": false,
+  "historic_names_reason": "the API sends current KUNTA/MAAKUNTA codes, not names, and Statistics Finland publishes one key per vintage; a merged municipality's code is absent from the current key and stays unmapped rather than being guessed",
+  "hashes": {
+    "finland_tmt_region_nuts_2024.csv": "970b6b6c3cf753639df315a911d13befdf527b0b6380f7dd7b645d57a2426403"
+  }
+}

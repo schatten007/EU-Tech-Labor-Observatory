@@ -10,15 +10,27 @@ beside every mapped figure, and unresolved values shown as their own rows rather
 
 ## Status
 
-- **Sources:** JobTech Development / Arbetsförmedlingen `JobSearch` (Sweden), keyword scope. No
-  German source has passed the approval gate yet — see `SOURCE_FEASIBILITY.md` for the six-criteria
-  review and the verdicts.
-- **Data:** 8 stored sweeps, the latest carrying 628 postings across 7 pages.
-- **Published dimensions:** postings by country and NUTS region, ranked ESCO occupations and skills,
-  employment type, working-hours type, contract duration, posting survival and flows, mapping
-  quality, coverage and freshness.
-- **Reference data, all pinned:** NUTS-2024, JobTech Taxonomy v30, ESCO 1.2.1. Methodology version
-  1.2 is stamped in the page footer and in every CSV export.
+- **Sources:** two collecting scopes. JobTech Development / Arbetsförmedlingen `JobSearch`
+  (Sweden, keyword scope), and BA Jobsuche (Germany) collected by the sister scraper lab as the
+  `ba/de-nuts3-panel` scope under the owner-relaxed ToS/robots gate recorded in
+  `SOURCE_FEASIBILITY.md`.
+- **Data:** 9 stored sweeps — 8 Swedish (628 postings in the latest) and 1 German panel sweep
+  (28,900 postings, 28,603 mapped to a region, covering 393 of 400 German NUTS-3 regions).
+- **Sampling design:** the German scope is a stratified region-bounded sample with a capped
+  within-stratum draw over a frozen 400-region NUTS-3 panel — not a census and not a partial
+  crawl; the caveat beside its figures is the panel's own manifest string. The Swedish keyword
+  scope is a keyword-scoped query, not a sample.
+- **Occupation gap, stated rather than papered over:** the BA search surface carries no
+  structured occupation field, so the German occupation and skill rankings are empty by
+  construction — job titles and free text are never classified.
+- **Published dimensions:** postings by country and NUTS region (with a region-breadth count
+  against the pinned NUTS-3 frame), ranked ESCO occupations and skills, employment type,
+  working-hours type, contract duration, posting survival and flows, mapping quality, coverage
+  and freshness.
+- **Reference data, all pinned:** NUTS-2024, JobTech Taxonomy v30, ESCO 1.2.1. Methodology
+  version 1.5 is stamped in the page footer and in every CSV export.
+- **Portfolio artefact:** `docs/index.html` is a committed copy of the last live build; rebuild
+  it with `make live-site` and copy `site/build/index.html` back to `docs/`.
 
 ## Quick start
 
@@ -39,6 +51,43 @@ configuration to edit.
 | `make release-check` | Inspects the built page against the publication rules. | Never |
 | `make sweep` | Collects one complete sweep from the live source. | Yes |
 | `make reference` | Rebuilds the pinned crosswalks from the JobTech Taxonomy API. | Yes |
+
+## Automation
+
+Two user-level Windows scheduled tasks (no elevation needed) run the whole publish loop
+unattended — sweep, gates, both published surfaces, then one pathspec-scoped artefact
+commit:
+
+| Task | Cadence (local time) | Command |
+| --- | --- | --- |
+| Observatory SE sweep | daily 07:30 and 19:30 | `make auto SOURCES=jobtech` |
+| Observatory BA sweep | daily 13:00 (owner-chosen slot; the PC is off overnight) | `make auto SOURCES=ba` |
+
+Missed slots (PC off) self-heal: start-when-available fires the run at the next logon,
+and the orchestrator's spacing guard prevents a catch-up over-sweep.
+
+```powershell
+# install (registers both tasks disabled; -Enable registers them enabled)
+powershell -ExecutionPolicy Bypass -File scripts\install_scheduled_tasks.ps1
+# uninstall (reversible)
+powershell -ExecutionPolicy Bypass -File scripts\install_scheduled_tasks.ps1 -Remove
+```
+
+A disabled task never fires on schedule; enabling is one command:
+`Get-ScheduledTask "Observatory SE sweep", "Observatory BA sweep" | Enable-ScheduledTask`.
+
+To see what automation would do right now — partition ages, spacing verdicts (JobTech at
+least 2 h, BA at least 20 h between sweeps), freshness, and the newest run's log tail:
+
+```sh
+uv run --offline python scripts/auto_sweep.py --status
+```
+
+When a scheduled run fails: **read the log** (`logs/auto/<run id>.log`; `--status` prints
+the newest tail). The orchestrator **never commits a red gate**: any failing step stops the
+run before `git commit` and exits non-zero, so a failed run leaves the repository exactly
+where it was. Stored partitions are append-only — **never delete one**; a bad sweep is
+superseded by the next sweep, not removed.
 
 ## How it works
 

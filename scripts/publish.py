@@ -5,7 +5,8 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterable, Sequence
+import re
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from html import escape
 from pathlib import Path
@@ -71,7 +72,21 @@ WORKFLOW = (
 # only sense that matters - a median, a share, a superlative, each with its own rule for when it
 # appears and which denominator it carries. 1.2 published no such sentence at all, so the bump is a
 # fact about the page, decided before the first insight rendered.
-METHODOLOGY_VERSION = "1.3"
+# 1.4: the page now states its own sampling designs and an occupation gap. The `ba/de-nuts3-panel`
+# scope is a stratified region-bounded sample with a capped within-stratum draw over a frozen
+# NUTS-3 panel - not a census and not a partial crawl - and the Swedish keyword scope is a
+# keyword-scoped query, not a sample. One published scope carries no structured occupation
+# field, which is why one occupation ranking is empty by construction. Region breadth - the
+# count of NUTS-3 regions with at least one mapped posting against the pinned frame
+# (Increment 22) - is a new published figure of the same kind: a rule deciding whether and
+# against which denominator a number is stated.
+# 1.5: two derived statements joined the page, both computed per scope from rows the page
+# already publishes: regional concentration (the leading region's share of mapped postings,
+# stated as counts) and sweep-over-sweep churn (openings and closures between the two most
+# recent daily buckets, with the bucket spacing stated). Both are definitions in the same
+# sense as 1.3's sentences - rules deciding when a number is stated - so they cannot share a
+# version with pages that lack them.
+METHODOLOGY_VERSION = "1.5"
 # Mirrors the offline default in transform/models/staging/stg_postings.sql.
 SAMPLE_OBSERVATIONS = "data/sample/postings_sample.ndjson"
 SOURCE_TERMS = {
@@ -160,9 +175,20 @@ DimensionRow = tuple[str, str, str, int]
 # a `Not stated` row is a posting whose source field was empty and so has no code to publish.
 RequirementRow = tuple[str, str, str | None, str, int]
 MappingRow = tuple[str, str, int]
+# The scope-keyed query results: (source, scope_id) prefixed onto the published row so the
+# publisher can group per scope and insights can partition before any rule runs. The published
+# row shapes above stay unchanged, so the renderers' index maths stays put.
+ScopeKey = tuple[str, str]
+ScopedDimensionRow = tuple[str, str, str, str, str, int]
+ScopedMappingRow = tuple[str, str, str, str, int]
+ScopedRequirementRow = tuple[str, str, str, str, str | None, str, int]
 # (source, scope_id, dimension, postings_total, postings_with_source_value, postings_mapped):
 # the scope keys are carried so the single-scope guard and the denominators read the same rows.
 MappingCoverageRow = tuple[str, str, str, int, int, int]
+# (source, scope_id, country, regions_with_postings, regions_in_frame): one row per scope from
+# region_breadth_latest. regions_in_frame is null when no NUTS-3 reference frame is pinned for
+# the scope's country, which renders as the degraded no-frame sentence, not as a wrong number.
+RegionBreadthRow = tuple[str, str, str | None, int, int | None]
 # ponytail: the scope-keyed rows carry `source` last so the existing index maths and helpers
 # stay put; only the filter attributes read it.
 FlowRow = tuple[str, str, datetime, int | None, int | None, int | None, int | None, str]
@@ -183,107 +209,192 @@ ProvenanceRow = tuple[
     str, str, datetime, str | None, str | None, str | None, str | None, str | None, str | None, int
 ]
 
-# Palette is checked against the #f4f6f5 page and white panels for WCAG AA text contrast;
-# --accent and --bar carry no text and always have a written value beside them.
+# Palette and type system per design/UI_REDESIGN_SPEC.md (§1.2, §1.3), guideline-reviewed
+# 2026-09-04: contrast computed in §5.1; bright amber never fills a lamp and never outlines
+# focus alone; no white text on Signal Green.
 STYLE = r"""
     :root {
       color-scheme: light;
+      /* core palette (spec §1.2) */
+      --housing: #163d2c;
+      --signal: #27845b;
+      --caution: #efb744;
       --ink: #17201c;
       --ink-soft: #4c5b54;
-      --page: #f4f6f5;
+      --ground: #f4f6f5;
       --panel: #ffffff;
+      /* lines and states */
       --line: #cbd3cf;
       --line-soft: #e1e6e3;
-      --brand: #163d2c;
       --brand-ink: #dfeae4;
-      --accent: #efb744;
-      --bar: #27845b;
       --link: #12543b;
-      --ok-bg: #e3f0e9;
-      --ok-ink: #14543a;
-      --warn-bg: #fbeed2;
-      --warn-ink: #6a4703;
-      --err-bg: #fbe7e4;
-      --err-ink: #7a2318;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --ok-bg: #e3f0e9; --ok-ink: #14543a;
+      --warn-bg: #fbeed2; --warn-ink: #6a4703;
+      --err-bg: #fbe7e4; --err-ink: #7a2318;
+      --unknown-bg: #e9edea;
+      --hatch: #6f8178;
+      /* type voices (spec §1.3) */
+      --register: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Roboto Mono", Menlo, monospace;
+      --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: var(--body);
+      font-size: 16px;
+      line-height: 1.5;
       color: var(--ink);
-      background: var(--page);
+      background: var(--ground);
     }
     * { box-sizing: border-box; }
-    body { margin: 0; font-size: 16px; line-height: 1.45; }
+    body { margin: 0; }
     [hidden] { display: none !important; }
     .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
     .skip { position: absolute; left: -9999px; top: 0; background: var(--panel); color: var(--link); padding: 10px 14px; z-index: 5; }
     .skip:focus { left: 8px; top: 8px; }
-    header { background: var(--brand); color: white; border-bottom: 5px solid var(--accent); }
+    :focus-visible { outline: 3px solid var(--caution); box-shadow: 0 0 0 1px var(--ink); outline-offset: 1px; }
+    .table-wrap:focus-visible { outline-offset: -3px; }
+    a { color: var(--link); }
+    a:hover { text-decoration-thickness: 2px; }
+
+    /* header plate */
+    header { background: var(--housing); color: white; border-bottom: 5px solid var(--caution); }
     header div, main, .tabs { width: min(1080px, calc(100% - 32px)); margin: auto; }
-    header div { padding: 22px 0 18px; }
-    h1 { margin: 0; font-size: 2.1rem; }
-    header p { margin: 6px 0 0; color: var(--brand-ink); }
+    header div { padding: 26px 0 20px; }
+    h1 { margin: 0; font-family: var(--register); font-size: 1.9rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; text-wrap: balance; }
+    header p { margin: 8px 0 0; max-width: 78ch; color: var(--brand-ink); }
     header small, header p small { color: var(--brand-ink); }
     header time { color: white; }
+
+    /* mode selector */
+    nav.tabs-outer { background: var(--housing); }
+    .tabs { display: flex; flex-wrap: wrap; gap: 2px; padding-bottom: 0; }
+    .tabs a { color: var(--brand-ink); text-decoration: none; padding: 10px 13px; font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; border-bottom: 3px solid transparent; touch-action: manipulation; }
+    .tabs a:hover { color: white; }
+    .tabs a[aria-current] { color: white; background: rgba(255,255,255,.1); border-bottom-color: var(--caution); }
+
+    main { padding: 22px 0 48px; }
+    section { scroll-margin-top: 12px; }
+    h2 { font-size: 1.3rem; margin: 26px 0 6px; text-wrap: balance; }
+    .panel > h2:first-child { margin-top: 4px; }
+    h3 { font-size: 1.02rem; margin: 22px 0 6px; }
+    h4 { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); margin: 20px 0 6px; }
+    p { margin: 8px 0; max-width: 78ch; }
+    small { color: var(--ink-soft); }
+    .lede, .definition, .label, .denominator { color: var(--ink-soft); font-size: .9rem; }
+    .definition { margin: 4px 0 10px; }
+    .denominator { margin: 6px 0 8px; padding-left: 10px; border-left: 2px solid var(--signal); font-family: var(--register); font-size: .84rem; }
+
+    /* annunciator lamps (spec §3.2) */
+    .lamps { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+    .lamp { display: inline-flex; align-items: center; gap: 7px; font-size: .74rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 3px 9px; border: 1px solid transparent; white-space: nowrap; }
+    .lamp .bulb { width: 8px; height: 8px; flex: none; }
+    .lamp.ok { background: var(--ok-bg); color: var(--ok-ink); border-color: #bcd9c9; }
+    .lamp.ok .bulb { background: var(--ok-ink); }
+    .lamp.warn { background: var(--warn-bg); color: var(--warn-ink); border-color: #e0c179; }
+    .lamp.warn .bulb { background: var(--warn-ink); }
+    .lamp.err { background: var(--err-bg); color: var(--err-ink); border-color: #e0b0a8; }
+    .lamp.err .bulb { background: var(--err-ink); }
+    .lamp.unknown { background: var(--unknown-bg); color: var(--ink-soft); border-color: var(--line); }
+    .lamp.unknown .bulb { background: var(--ink-soft); }
+
+    /* observation board (spec §3.3) */
+    .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin: 14px 0 6px; }
+    .card { border: 1.5px solid var(--housing); background: var(--panel); padding: 14px 16px 16px; min-width: 0; }
+    .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    .scope-name { margin: 0; font-family: var(--register); font-size: .88rem; font-weight: 600; overflow-wrap: anywhere; }
+    .country-chip { font-family: var(--register); font-size: .72rem; border: 1px solid var(--line); padding: 0 6px; color: var(--ink-soft); }
+    .card .count { font-family: var(--register); font-size: 1.6rem; font-weight: 600; line-height: 1.1; }
+    .card .count small { display: block; font-family: var(--body); font-weight: 400; font-size: .78rem; margin-top: 2px; }
+    .card .observed { font-size: .8rem; color: var(--ink-soft); margin: 2px 0 10px; }
+    .frame-fig { margin: 10px 0 4px; }
+    .frame-fig svg { display: block; height: auto; }
+    .frame-fig .tick-on { fill: var(--signal); }
+    .frame-fig .tick-off { fill: none; stroke: var(--ink-soft); stroke-width: 1; }
+    .frame-fig .grad { stroke: var(--ink-soft); stroke-width: 1; }
+    .frame-note { font-size: .78rem; color: var(--ink-soft); margin: 4px 0 0; }
+    .trend-line { font-size: .8rem; color: var(--ink-soft); margin: 8px 0 0; padding-left: 10px; border-left: 2px solid var(--line); }
+
+    /* mark key (spec §3.5) */
+    .mark-key { list-style: none; margin: 10px 0; padding: 0; max-width: 78ch; }
+    .mark-key li { display: flex; align-items: center; gap: 10px; margin: 4px 0; font-size: .88rem; }
+    .mk { width: 26px; height: 14px; flex: none; border: 1px solid var(--line); }
+    .mk.filled { background: var(--signal); border-color: var(--signal); }
+    .mk.hollow { background: var(--panel); border: 1.5px solid var(--ink-soft); }
+    .mk.hatched { background: repeating-linear-gradient(45deg, transparent 0 3px, var(--hatch) 3px 4.5px); }
+    .mk.dashed { border: 1.5px dashed var(--ink-soft); background: transparent; }
+    .mk-dot { display: inline-block; width: 11px; height: 11px; vertical-align: -1px; }
+
+    /* scope plates (spec §3.1) */
+    .scope-plate { border: 1.5px solid var(--housing); background: var(--panel); padding: 12px 16px 16px; margin: 14px 0 20px; }
+    .scope-plate > .card-head { border-bottom: 1px solid var(--line-soft); padding-bottom: 8px; }
+
+    /* stats readouts (spec §3.15) */
+    .stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0 6px; padding: 0; }
+    .stats div { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--signal); padding: 10px 14px; min-width: 12rem; }
+    .stats dt { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); }
+    .stats dd { margin: 3px 0 0; font-family: var(--register); font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+    .stats dd small { display: block; font-family: var(--body); font-size: .78rem; }
+
+    /* filters and controls */
+    .filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; margin: 0 0 14px; }
+    .filters .field { display: flex; flex-direction: column; gap: 3px; }
+    .filters label { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); }
+    .filters select, .filters input { font: inherit; font-size: .88rem; padding: 5px 7px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); min-width: 9rem; }
+    .filters .actions { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+    button { font: inherit; font-size: .85rem; padding: 5px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--link); cursor: pointer; touch-action: manipulation; }
+    button:hover { border-color: var(--housing); }
+    .live { min-height: 1.2em; font-size: .85rem; color: var(--ink-soft); margin: 0 0 12px; }
+
+    /* tables (spec §3.8) */
+    .block { margin: 12px 0 20px; }
+    .block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--panel); overscroll-behavior: contain; }
+    table { width: 100%; border-collapse: collapse; min-width: 640px; }
+    caption { text-align: left; padding: 12px 14px; font-size: .9rem; color: var(--ink-soft); }
+    th, td { padding: 8px 14px; border-top: 1px solid var(--line-soft); text-align: left; white-space: nowrap; font-size: .92rem; }
+    th { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); background: #f8faf9; }
+    tbody tr:hover { background: #f8faf9; }
+    .count, td.count { text-align: right; font-family: var(--register); font-variant-numeric: tabular-nums; }
+    td.wrap { white-space: normal; min-width: 20rem; font-size: .85rem; color: var(--ink-soft); }
+    .bar-cell { width: 16%; min-width: 7rem; }
+    .bar { display: block; height: 9px; background: var(--signal); min-width: 2px; }
+    .bar-text { font-size: .74rem; color: var(--ink-soft); }
+    td.state { border-left: 0; border-right: 0; color: var(--ink-soft); }
+    .state { font-size: .88rem; padding: 10px 14px; margin: 8px 0; border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); }
+    .state.error { background: var(--err-bg); color: var(--err-ink); border-color: #e0b0a8; }
+    tr.filtered-empty td { color: var(--ink-soft); }
+
+    /* suppressed cells: hatched ground on the word "suppressed" (spec §3.10) */
+    td.suppressed { background: repeating-linear-gradient(45deg, transparent 0 3px, rgba(111, 129, 120, .5) 3px 4.5px); }
+
+    /* mapping-strength chip (spec §3.7) */
+    .chip { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; font-family: var(--register); font-size: .78rem; color: var(--ink-soft); }
+    .chip .track { display: inline-flex; width: 96px; height: 12px; border: 1px solid var(--line); flex: none; }
+    .chip .seg-on { background: var(--signal); }
+    .chip .seg-half { background: repeating-linear-gradient(45deg, transparent 0 3px, var(--hatch) 3px 4.5px); }
+    .chip .seg-off { background: var(--panel); }
+
+    /* absence plate (spec §3.9) */
+    .absence { border: 1.5px dashed var(--ink-soft); background: var(--panel); padding: 14px 16px; margin: 10px 0 16px; }
+    .absence .eyebrow { font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); display: flex; align-items: center; gap: 10px; margin: 0 0 6px; }
+    .absence .dash { width: 34px; height: 0; border-top: 3px solid var(--ink-soft); flex: none; }
+    .absence p { margin: 4px 0; font-size: .92rem; }
+
+    /* sparkline (spec §3.12) */
+    .spark { display: block; width: 100%; max-width: 720px; height: auto; background: var(--panel); border: 1px solid var(--line); }
+    .spark .axis { stroke: var(--line); stroke-width: 1; }
+    .spark polyline { fill: none; stroke: var(--signal); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+    .spark circle { fill: var(--signal); }
+
+    .insight { margin: 6px 0; padding-left: 10px; border-left: 2px solid var(--ink-soft); max-width: 78ch; }
+    .workflow { margin: 8px 0 4px; padding-left: 1.3em; max-width: 74ch; }
+    .workflow li { margin: 3px 0; }
     .definitions { margin: 8px 0 4px; max-width: 78ch; }
     .definitions dt { font-weight: 600; margin-top: 8px; }
     .definitions dd { margin: 2px 0 0 1.2em; color: var(--ink-soft); font-size: .9rem; }
-    nav.tabs-outer { background: var(--brand); }
-    .tabs { display: flex; flex-wrap: wrap; gap: 2px; padding-bottom: 0; }
-    .tabs a { color: var(--brand-ink); text-decoration: none; padding: 9px 13px; font-size: .92rem; border-bottom: 3px solid transparent; }
-    .tabs a:hover { color: white; }
-    .tabs a[aria-current] { color: white; background: rgba(255,255,255,.1); border-bottom-color: var(--accent); font-weight: 600; }
-    main { padding: 22px 0 48px; }
-    h2 { font-size: 1.3rem; margin: 26px 0 4px; }
-    h3 { font-size: 1rem; margin: 22px 0 4px; }
-    .panel > h2:first-child { margin-top: 4px; }
-    p { margin: 8px 0; }
-    a { color: var(--link); }
-    small { color: var(--ink-soft); }
-    .lede, .definition, .label, .denominator { color: var(--ink-soft); font-size: .9rem; }
-    .definition { margin: 4px 0 8px; max-width: 78ch; }
-    .denominator { margin: 4px 0 8px; max-width: 78ch; font-variant-numeric: tabular-nums; }
-    .filters { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; margin: 0 0 14px; }
-    .filters .field { display: flex; flex-direction: column; gap: 3px; }
-    .filters label { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); }
-    .filters select, .filters input { font: inherit; font-size: .88rem; padding: 5px 7px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); min-width: 9rem; }
-    .filters .actions { display: flex; gap: 8px; align-items: center; margin-left: auto; }
-    button { font: inherit; font-size: .85rem; padding: 5px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--link); cursor: pointer; }
-    button:hover { border-color: var(--brand); }
-    .live { min-height: 1.2em; font-size: .85rem; color: var(--ink-soft); margin: 0 0 12px; }
-    .stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0 4px; padding: 0; }
-    .stats div { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--bar); padding: 10px 14px; min-width: 12rem; }
-    .stats dt { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); }
-    .stats dd { margin: 3px 0 0; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
-    .stats dd small { display: block; font-size: .78rem; }
-    .workflow { margin: 8px 0 4px; padding-left: 1.3em; max-width: 74ch; }
-    .workflow li { margin: 3px 0; }
-    .badge { display: inline-block; font-size: .74rem; padding: 1px 7px; border: 1px solid transparent; border-radius: 2px; white-space: nowrap; }
-    .badge.ok { background: var(--ok-bg); color: var(--ok-ink); border-color: #bcd9c9; }
-    .badge.warn { background: var(--warn-bg); color: var(--warn-ink); border-color: #e0c179; }
-    .badge.err { background: var(--err-bg); color: var(--err-ink); border-color: #e0b0a8; }
-    .state { font-size: .88rem; padding: 10px 14px; margin: 8px 0; border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); }
-    .state.error { background: var(--err-bg); color: var(--err-ink); border-color: #e0b0a8; }
-    td.state { border-left: 0; border-right: 0; }
-    .block { margin: 12px 0 22px; }
-    .block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-    .table-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--panel); }
-    table { width: 100%; border-collapse: collapse; min-width: 640px; }
-    caption { text-align: left; padding: 12px 14px; font-size: .9rem; color: var(--ink-soft); }
-    th, td { padding: 9px 14px; border-top: 1px solid var(--line-soft); text-align: left; white-space: nowrap; font-size: .92rem; }
-    th { font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-soft); background: #f8faf9; }
-    tbody tr:hover { background: #f8faf9; }
-    .count { text-align: right; font-variant-numeric: tabular-nums; }
-    td.wrap { white-space: normal; min-width: 20rem; font-size: .85rem; color: var(--ink-soft); }
-    .bar-cell { width: 16%; min-width: 7rem; }
-    .bar { display: block; height: 9px; background: var(--bar); min-width: 2px; }
-    .bar-text { font-size: .74rem; color: var(--ink-soft); }
-    .spark { display: block; width: 100%; max-width: 720px; height: auto; background: var(--panel); border: 1px solid var(--line); }
-    .spark .axis { stroke: var(--line); stroke-width: 1; }
-    .spark polyline { fill: none; stroke: var(--bar); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
-    .spark circle { fill: var(--bar); }
+    .noscript-note { font-size: .88rem; }
     footer { margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--ink-soft); font-size: .85rem; }
-    :focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
-    .table-wrap:focus-visible { outline-offset: -3px; }
     @media (max-width: 600px) {
-      h1 { font-size: 1.4rem; }
+      h1 { font-size: 1.25rem; }
+      .board { grid-template-columns: 1fr; }
+      .card .count { font-size: 1.4rem; }
       .filters .actions { margin-left: 0; }
       .filters select, .filters input { min-width: 0; width: 100%; }
       header div, main, .tabs { width: min(100% - 24px, 1080px); }
@@ -476,8 +587,13 @@ SCRIPT = r"""
 
 
 def _count(value: int | None) -> str:
-    """Render a possibly suppressed small-count cell."""
+    """Render a possibly suppressed small-count cell: hatched ground on the word."""
     return f"{value:,}" if value is not None else "suppressed"
+
+
+def _suppressed_class(value: int | None) -> str:
+    """The cell class for a masked-view count: hatched ground when the group is withheld."""
+    return " suppressed" if value is None else ""
 
 
 def _stat(value: float | None) -> str:
@@ -524,15 +640,36 @@ def _build_basis() -> str:
 
 
 def _badge(freshness_status: str, coverage_status: str) -> str:
-    """Explicit stale-data and partial-coverage states, driven by the published statuses."""
-    freshness_tone = {"fresh": "ok", "stale": "warn"}.get(freshness_status, "warn")
-    coverage_tone = {"covered": "ok", "invalid": "err"}.get(coverage_status, "warn")
-    freshness = FRESHNESS_LABELS.get(freshness_status, freshness_status)
-    coverage = COVERAGE_LABELS.get(coverage_status, coverage_status)
-    return (
-        f'<span class="badge {freshness_tone}">{escape(freshness)}</span> '
-        f'<span class="badge {coverage_tone}">{escape(coverage)}</span>'
-    )
+    """Annunciator pair for table cells: word + numbers, never colour alone (spec §3.2)."""
+    return f"{_lamp_freshness(freshness_status, None, None)} {_lamp_coverage(coverage_status)}"
+
+
+def _lamp(tone: str, text: str, *, aria: bool = True) -> str:
+    """One annunciator chip: a lamp bulb plus its Panel-Label text."""
+    label = escape(text, quote=True) if aria else escape(text)
+    return f'<span class="lamp {tone}"><span class="bulb" aria-hidden="true"></span>{label}</span>'
+
+
+def _lamp_freshness(status: str, age_hours: float | None, threshold_hours: int | None) -> str:
+    """Freshness lamp carrying its own numbers: age and threshold are always stated."""
+    freshness = FRESHNESS_LABELS.get(status, status)
+    if age_hours is not None and threshold_hours is not None:
+        text = f"{freshness} · {age_hours:.0f} h old · threshold {threshold_hours} h"
+    else:
+        text = freshness
+    tone = {"fresh": "ok", "stale": "warn"}.get(status, "unknown")
+    return _lamp(tone, text)
+
+
+def _lamp_coverage(status: str, observed: int | None = None, expected: int | None = None) -> str:
+    """Coverage lamp: the row-count comparison is stated, not implied by tone."""
+    coverage = COVERAGE_LABELS.get(status, status)
+    if observed is not None and expected is not None:
+        text = f"{coverage} · {observed:,} of {expected:,} rows"
+    else:
+        text = coverage
+    tone = {"covered": "ok", "invalid": "err"}.get(status, "unknown")
+    return _lamp(tone, text)
 
 
 def _table(
@@ -686,53 +823,84 @@ def _query_coverage(connection: duckdb.DuckDBPyConnection) -> list[CoverageRow]:
     return rows
 
 
-def _query_dimension(connection: duckdb.DuckDBPyConnection, *, region: bool) -> list[DimensionRow]:
-    """Region rows feed Countries; everything else feeds Occupations and skills."""
+def _query_region_breadth(connection: duckdb.DuckDBPyConnection) -> list[RegionBreadthRow]:
+    """Region breadth per scope: distinct mapped NUTS-3 codes against the pinned frame.
+
+    This cannot come from the rendered region rows: _query_dimension truncates the ranking at
+    DIMENSION_LIMIT per scope, and the live German scope has 393 region rows of which 25 are
+    published. The view counts what the ranking would have listed, not what fits on the page.
+    """
+    rows: list[RegionBreadthRow] = connection.execute(
+        """
+        select source, scope_id, country, regions_with_postings, regions_in_frame
+        from region_breadth_latest
+        order by source, scope_id
+        """
+    ).fetchall()
+    return rows
+
+
+def _query_dimension(
+    connection: duckdb.DuckDBPyConnection, *, region: bool
+) -> list[ScopedDimensionRow]:
+    """Region rows feed Countries; everything else feeds Occupations and skills.
+
+    DIMENSION_LIMIT applies per scope: `qualify` ranks inside each (source, scope_id), so
+    one busy scope cannot crowd another scope's values out of its own top list.
+    """
     comparison = "=" if region else "<>"
-    rows: list[DimensionRow] = connection.execute(
+    rows: list[ScopedDimensionRow] = connection.execute(
         f"""
-        select dimension, value_label, taxonomy_version, posting_count
+        select source, scope_id, dimension, value_label, taxonomy_version, posting_count
         from dimension_demand_latest
         where dimension {comparison} 'region'
-        order by posting_count desc, dimension, value_label
-        limit {DIMENSION_LIMIT}
+        qualify row_number() over (
+            partition by source, scope_id, dimension order by posting_count desc, value_label
+        ) <= {DIMENSION_LIMIT}
+        order by source, scope_id, posting_count desc, dimension, value_label
         """
     ).fetchall()
     return rows
 
 
-def _query_skills(connection: duckdb.DuckDBPyConnection) -> list[DimensionRow]:
-    rows: list[DimensionRow] = connection.execute(
+def _query_skills(connection: duckdb.DuckDBPyConnection) -> list[ScopedDimensionRow]:
+    rows: list[ScopedDimensionRow] = connection.execute(
         f"""
-        select dimension, value_label, taxonomy_version, posting_count
+        select source, scope_id, dimension, value_label, taxonomy_version, posting_count
         from skill_demand_latest
-        order by posting_count desc, value_label
-        limit {DIMENSION_LIMIT}
+        qualify row_number() over (
+            partition by source, scope_id, dimension order by posting_count desc, value_label
+        ) <= {DIMENSION_LIMIT}
+        order by source, scope_id, posting_count desc, value_label
         """
     ).fetchall()
     return rows
 
 
-def _query_mapping(connection: duckdb.DuckDBPyConnection) -> list[MappingRow]:
-    rows: list[MappingRow] = connection.execute(
-        "select dimension, mapping_status, sum(outcome_count)::bigint "
-        "from mapping_quality_latest group by all order by dimension, mapping_status"
+def _query_mapping(connection: duckdb.DuckDBPyConnection) -> list[ScopedMappingRow]:
+    """Per-scope mapping outcomes. The sum is within one scope only: summing across scopes
+    would publish a figure belonging to no sweep at all."""
+    rows: list[ScopedMappingRow] = connection.execute(
+        "select source, scope_id, dimension, mapping_status, sum(outcome_count)::bigint "
+        "from mapping_quality_latest "
+        "group by source, scope_id, dimension, mapping_status "
+        "order by source, scope_id, dimension, mapping_status"
     ).fetchall()
     return rows
 
 
-def _query_requirements(connection: duckdb.DuckDBPyConnection) -> list[RequirementRow]:
+def _query_requirements(connection: duckdb.DuckDBPyConnection) -> list[ScopedRequirementRow]:
     """Three closed-vocabulary distributions. No limit: at most six values cannot truncate, and a
     truncated distribution would stop summing to the sweep it was drawn from.
 
     `value_code` is the final tiebreak because two unmapped codes share the label
     `Unrecognised code`, so label alone is not a total order and their published order would be
     whatever the engine happened to produce."""
-    rows: list[RequirementRow] = connection.execute(
+    rows: list[ScopedRequirementRow] = connection.execute(
         """
-        select dimension, value_label, value_code, mapping_status, posting_count
+        select source, scope_id, dimension, value_label, value_code, mapping_status, posting_count
         from requirement_demand_latest
-        order by dimension, posting_count desc, value_label, value_code
+        order by source, scope_id, dimension, posting_count desc, value_label, value_code
         """
     ).fetchall()
     return rows
@@ -753,23 +921,233 @@ def _query_mapping_coverage(
     return rows
 
 
-def _verify_single_scope(coverage: Sequence[MappingCoverageRow]) -> None:
-    """Refuse to publish pooled aggregates as soon as a second scope has postings.
+def _scope_keys(demand: Sequence[DemandRow]) -> list[ScopeKey]:
+    """Ordered (source, scope_id) subsections, in demand order so the largest scope leads.
 
-    _query_dimension, _query_skills and _query_mapping all read their views without a scope filter,
-    so two collecting scopes would be summed into one ranking while the denominator beside it named
-    a single sweep, and a posting counted by both scopes would be counted twice. Per-scope sections
-    are the fix; failing the build is how that work does not get skipped by accident. Green today
-    with one collecting scope, and a zero-row scope publishes no coverage row to collide with.
+    An empty demand still renders one fallback subsection: the ranked tables and their
+    denominators must exist even on a page with no postings, because the release check fails a
+    ranked table that disappears entirely.
     """
-    scopes = sorted({(row[0], row[1]) for row in coverage if row[3] > 0})
-    if len(scopes) > 1:
-        collided = ", ".join(f"{source}/{scope_id}" for source, scope_id in scopes)
-        raise ValueError(
-            f"{len(scopes)} scopes have postings ({collided}), and _query_dimension, "
-            "_query_skills and _query_mapping pool every scope into one figure; publish "
-            "per-scope sections before this build can be trusted"
+    keys: list[ScopeKey] = []
+    for row in demand:
+        key = (row[0], row[1])
+        if key not in keys:
+            keys.append(key)
+    return keys or [("", "")]
+
+
+def _scope_slug(source: str, scope_id: str) -> str:
+    """A stable id fragment for one scope's tables; unique per (source, scope_id) pair."""
+    text = re.sub(r"[^a-z0-9]+", "-", f"{source}-{scope_id}".lower()).strip("-")
+    return text[:60] or "scope"
+
+
+def _scope_label(source: str, scope_id: str) -> str:
+    return f"{source} / {scope_id}" if source or scope_id else "No collecting scope"
+
+
+def _scope_plate(source: str, scope_id: str, country: str | None, suffix: str, body: str) -> str:
+    """The bounded plate for one (source, scope_id): name as a real h3, one country chip.
+
+    The plate name must be an h3, not a styled span: the page's heading ladder is
+    h2 section -> h3 scope -> h4 sub-block, and release_check fails skipped levels.
+    `translate="no"` keeps auto-translation from garbling code tokens such as
+    `jobtech-f5cf1d409aa51fad`.
+    """
+    slug = _scope_slug(source, scope_id)
+    label = _scope_label(source, scope_id)
+    chip = f'<span class="country-chip" translate="no">{escape(country)}</span>' if country else ""
+    return (
+        f'<article class="scope-plate" aria-labelledby="plate-{slug}-{suffix}">'
+        f'<div class="card-head"><h3 class="scope-name" translate="no" '
+        f'id="plate-{slug}-{suffix}">{escape(label)}</h3>{chip}</div>'
+        f"{body}</article>"
+    )
+
+
+def _lamps_for(row: Sequence[object]) -> str:
+    """Both annunciators for one coverage row, numbers included (freshness then coverage).
+
+    An empty row (no coverage published) renders the unknown-usage pair: absence of
+    coverage data is itself the state to state, not a crash.
+    """
+    if len(row) < 11:
+        return (
+            '<div class="lamps">'
+            + _lamp_freshness("unknown", None, None)
+            + " "
+            + _lamp_coverage("unknown_metadata")
+            + "</div>"
         )
+    expected, observed = row[4], row[5]
+    freshness, coverage = row[6], row[7]
+    age, threshold = row[8], row[10]
+    lamps = _lamp_freshness(
+        str(freshness),
+        age if isinstance(age, float) else None,
+        threshold if isinstance(threshold, int) else None,
+    )
+    lamps += " " + _lamp_coverage(
+        str(coverage),
+        observed if isinstance(observed, int) else None,
+        expected if isinstance(expected, int) else None,
+    )
+    return f'<div class="lamps">{lamps}</div>'
+
+
+def _frame_strip(row: RegionBreadthRow | None, *, context: str = "") -> str:
+    """The unit-tick strip for one scope's breadth (spec §1.5/§3.4), as honest SVG.
+
+    Frames of <= 60 regions render one tick per region; larger frames render two
+    pattern-filled runs (filled for regions_with_postings cells, hollow for the rest)
+    plus ruler graduations. The printed sentence is the breadth sentence itself,
+    carried by aria-label and <desc> so the figure never replaces the words. The
+    pattern ids carry a `context` suffix because one scope's strip renders in more
+    than one place (board card and region plate), and ids must stay unique.
+    """
+    if row is None:
+        return ""
+    _source, _scope_id, country, with_postings, in_frame = row
+    if in_frame is None or in_frame == 0 or with_postings is None:
+        return ""
+    text = (
+        f"{with_postings:,} of {in_frame:,} {country} NUTS-3 regions have at least one "
+        "mapped posting."
+    )
+    title = escape(text)
+    if in_frame <= 60:
+        pitch, unit = 36, 28
+        width = in_frame * pitch - (pitch - unit)
+        ticks = "".join(
+            f'<rect class="{"tick-on" if index < with_postings else "tick-off"}" '
+            f'x="{index * pitch}" y="4" width="{unit}" height="14"></rect>'
+            for index in range(in_frame)
+        )
+        return (
+            f'<figure class="frame-fig"><svg viewBox="0 0 {width} 22" width="{width}" '
+            f'style="max-width:100%" role="img" aria-label="{title}">'
+            f"<title>{title}</title>"
+            f"<desc>One tick per region in the pinned {in_frame}-region NUTS-3 frame; filled "
+            f"ticks are regions with at least one mapped posting, hollow ticks are regions "
+            "the sweep did not reach.</desc>"
+            f"<g>{ticks}</g></svg></figure>"
+        )
+    cell, height = 4, 14
+    width = in_frame * cell
+    on_width = with_postings * cell
+    slug = re.sub(r"[^a-z0-9]+", "-", f"{country or 'xx'}-{in_frame}-{context}".lower())
+    grads_every = 100
+    lines = "".join(
+        f'<line class="grad" x1="{mark}" y1="0" x2="{mark}" y2="22" stroke-width="0.8"></line>'
+        for mark in range(grads_every, width, grads_every)
+    )
+    return (
+        f'<figure class="frame-fig"><svg viewBox="0 0 {width} 22" width="{width}" '
+        f'style="max-width:100%" role="img" aria-label="{title}">'
+        f"<title>{title}</title>"
+        f"<desc>One tick per region in the pinned {in_frame}-region NUTS-3 frame, at unit "
+        "pitch: filled ticks are regions with at least one mapped posting, hollow ticks are "
+        "regions the sweep did not reach. Ruler graduations every "
+        f"{grads_every} regions.</desc>"
+        f'<defs><pattern id="tick-on-{slug}" width="{cell}" height="{height}" '
+        f'patternUnits="userSpaceOnUse"><rect x="0.4" y="0" width="2.6" height="{height}" '
+        f'fill="var(--signal)"></rect></pattern>'
+        f'<pattern id="tick-off-{slug}" width="{cell}" height="{height}" '
+        f'patternUnits="userSpaceOnUse"><rect x="0.4" y="0" width="2.6" height="{height}" '
+        f'fill="none" stroke="var(--ink-soft)" stroke-width="0.7"></rect></pattern></defs>'
+        f'<rect x="0" y="4" width="{on_width}" height="{height}" '
+        f'fill="url(#tick-on-{slug})"></rect>'
+        f'<rect x="{on_width}" y="4" width="{width - on_width}" height="{height}" '
+        f'fill="url(#tick-off-{slug})"></rect>'
+        f"{lines}</svg></figure>"
+    )
+
+
+MARK_KEY = (
+    '<ul class="mark-key" aria-label="Mark key">'
+    '<li><span class="mk filled" aria-hidden="true"></span> '
+    "Counted: observed and published by this sweep.</li>"
+    '<li><span class="mk hollow" aria-hidden="true"></span> '
+    "In the frame, not reached: within the pinned reference frame, with no mapped posting.</li>"
+    '<li><span class="mk hatched" aria-hidden="true"></span> '
+    "Withheld: a real group of 1 to 4 postings, suppressed for disclosure control.</li>"
+    '<li><span class="mk dashed" aria-hidden="true"></span> '
+    "Structurally absent: the source publishes no field for this, so nothing can be observed."
+    "</li></ul>"
+)
+
+
+def _absence_plate(eyebrow: str, sentence: str, drawn_from: str = "") -> str:
+    """The dashed plate that replaces a ranking table the source cannot feed (spec §3.9)."""
+    denominator = f'<p class="denominator">{escape(drawn_from)}</p>' if drawn_from else ""
+    return (
+        f'<div class="absence"><p class="eyebrow"><span class="dash" aria-hidden="true">'
+        f"</span>{escape(eyebrow)}</p><p>{escape(sentence)}</p>{denominator}</div>"
+    )
+
+
+def _mapping_chip(
+    coverage: Sequence[MappingCoverageRow], scope: ScopeKey, dimension: str, noun: str
+) -> str:
+    """Mapping-strength chip beside a ranking: three segments plus printed counts (spec §3.7).
+
+    Segments are scaled within the dimension's own postings_total, a rendering of counts
+    the denominator sentence already states, so the chip can never contradict it.
+    """
+    row = next(
+        (
+            entry
+            for entry in coverage
+            if (entry[0], entry[1]) == scope and entry[2] == dimension and entry[3] > 0
+        ),
+        None,
+    )
+    if row is None:
+        return ""
+    total, with_value, mapped = row[3], row[4], row[5]
+
+    def pct(count: int) -> float:
+        return max(100 * count / total, 1) if count else 0
+
+    label = (
+        f"Mapping strength: {mapped:,} of {total:,} postings mapped; {with_value:,} carry a "
+        f"structured {noun} field."
+    )
+    return (
+        f'<p class="chip" aria-label="{escape(label, quote=True)}">'
+        f'<span class="track" aria-hidden="true"><span class="seg-on" '
+        f'style="width:{pct(mapped):.1f}%"></span>'
+        f'<span class="seg-half" style="width:{pct(with_value - mapped):.1f}%"></span>'
+        f'<span class="seg-off" style="width:{pct(total - with_value):.1f}%"></span></span>'
+        f"{mapped:,} mapped · {with_value:,} carry the field · {total:,} in the sweep</p>"
+    )
+
+
+def _group_dimensions(
+    rows: Sequence[ScopedDimensionRow],
+) -> dict[ScopeKey, list[DimensionRow]]:
+    grouped: dict[ScopeKey, list[DimensionRow]] = {}
+    for source, scope_id, dimension, label, taxonomy_version, count in rows:
+        grouped.setdefault((source, scope_id), []).append(
+            (dimension, label, taxonomy_version, count)
+        )
+    return grouped
+
+
+def _group_mapping(rows: Sequence[ScopedMappingRow]) -> dict[ScopeKey, list[MappingRow]]:
+    grouped: dict[ScopeKey, list[MappingRow]] = {}
+    for source, scope_id, dimension, status, count in rows:
+        grouped.setdefault((source, scope_id), []).append((dimension, status, count))
+    return grouped
+
+
+def _group_requirements(
+    rows: Sequence[ScopedRequirementRow],
+) -> dict[ScopeKey, list[RequirementRow]]:
+    grouped: dict[ScopeKey, list[RequirementRow]] = {}
+    for source, scope_id, dimension, label, code, status, count in rows:
+        grouped.setdefault((source, scope_id), []).append((dimension, label, code, status, count))
+    return grouped
 
 
 def _query_flows(connection: duckdb.DuckDBPyConnection) -> list[FlowRow]:
@@ -862,34 +1240,157 @@ def _insight_paragraph(text: str) -> str:
     return f'<p class="insight">{escape(text)}</p>'
 
 
+def _insights_by_scope(
+    section_insights: Sequence[insights.Insight],
+) -> dict[str, list[insights.Insight]]:
+    """Group one section's insights by the scope each sentence describes."""
+    grouped: dict[str, list[insights.Insight]] = {}
+    for insight in section_insights:
+        grouped.setdefault(insight.scope, []).append(insight)
+    return grouped
+
+
+def _insight_groups(
+    grouped: Mapping[str, Sequence[insights.Insight]],
+    labels: Mapping[str, str],
+) -> str:
+    """Labelled insight groups, for sections without per-scope subsections of their own.
+
+    The scope label is markup beside the sentences, never inside them: a scope id such as
+    `jobtech-f5cf1d409aa51fad` inside `Insight.text` would read as an unsourced number to
+    the traceability test, and two scopes' sentences must never be readable as one.
+    """
+    return "".join(
+        f'<p class="label">{escape(labels.get(scope, scope))}</p>'
+        + "".join(_insight_paragraph(insight.text) for insight in group)
+        for scope, group in grouped.items()
+    )
+
+
+def _observation_board(
+    demand: Sequence[DemandRow],
+    coverage: Sequence[CoverageRow],
+    flows: Sequence[FlowRow],
+    frequency: Sequence[FrequencyRow],
+    breadth_by_scope: Mapping[ScopeKey, RegionBreadthRow],
+    regions_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
+    mapping_coverage: Sequence[MappingCoverageRow],
+) -> str:
+    """One card per (source, scope_id); nothing pools across cards.
+
+    The board replaces the old "Largest single observation" hero stat, which invited
+    exactly the cross-scope comparison the page forbids. Every card reads its own
+    scope's demand row, coverage lamps, breadth strip, and trend state. The friendly
+    fact lines (leading region, churn) are rendered from the evidence dicts of the
+    existing insight rules, so their numbers are identical to the formal sentences by
+    construction — presentation voice, not new statistics.
+    """
+    coverage_by_scope: dict[str, Sequence[object]] = {}
+    for row in coverage:
+        coverage_by_scope.setdefault(row[1], row)
+    sweeps_by_scope = {row[0]: row[1] for row in frequency}
+    published = {row[0] for row in flows}
+    cards: list[str] = []
+    for source, scope_id, country, observed_at, active, *_rest in demand:
+        lamps = _lamps_for(coverage_by_scope.get(scope_id, ()))
+        strip = _frame_strip(breadth_by_scope.get((source, scope_id)), context="card")
+        note = _breadth_note(breadth_by_scope.get((source, scope_id)))
+        facts = _friendly_facts(source, scope_id, regions_by_scope, mapping_coverage, flows)
+        if scope_id in published:
+            grain, series = _finest_series([row for row in flows if row[0] == scope_id])
+            direction = _direction([row[5] for row in series])
+            sweeps = sweeps_by_scope.get(scope_id, 0)
+            trend = (
+                f"{GRAIN_LABELS.get(grain, 'No grain')} · {direction} · {sweeps} complete sweeps"
+            )
+        else:
+            trend = "no trend published for this scope"
+        cards.append(
+            f'<article class="card" aria-labelledby="card-{_scope_slug(source, scope_id)}">'
+            f'<div class="card-head"><h3 class="scope-name" translate="no" '
+            f'id="card-{_scope_slug(source, scope_id)}">'
+            f"{escape(_scope_label(source, scope_id))}</h3>"
+            f'<span class="country-chip" translate="no">{escape(country or "")}</span></div>'
+            f"{lamps}"
+            f'<p class="count">{active:,}<small>open technology postings · this scope only</small></p>'
+            f'<p class="observed">Last checked {_time(observed_at)}</p>'
+            f"{facts}"
+            f"{strip}{note}"
+            f'<p class="trend-line">{escape(trend)}</p>'
+            "</article>"
+        )
+    return f'<h3>At a glance</h3><div class="board">{"".join(cards)}</div>'
+
+
+def _friendly_facts(
+    source: str,
+    scope_id: str,
+    regions_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
+    mapping_coverage: Sequence[MappingCoverageRow],
+    flows: Sequence[FlowRow],
+) -> str:
+    """Plain-language fact lines for one board card, from insight-rule evidence only.
+
+    Each line re-renders an existing rule's numbers in a friendlier voice. If the rule
+    is silent (unmet preconditions), the line is absent — no friendly phrasing may
+    invent a figure the formal layer refused to state.
+    """
+    lines: list[str] = []
+    concentration = insights.rule_region_concentration(
+        regions_by_scope.get((source, scope_id), []), mapping_coverage, scope_id
+    )
+    if concentration is not None:
+        evidence = concentration.evidence
+        lines.append(
+            f"Most postings sit in {evidence['region_label']} — "
+            f"{evidence['leader_postings']:,} of {evidence['mapped_postings']:,} mapped."
+        )
+    churn = insights.rule_sweep_churn([row for row in flows if row[0] == scope_id], scope_id)
+    if churn is not None:
+        evidence = churn.evidence
+        days = evidence.get("days_apart")
+        spacing = f"{days} day earlier" if days == 1 else f"{days} days earlier"
+        lines.append(
+            f"Since the previous sweep ({spacing}): {evidence['openings']:,} postings "
+            f"opened, {evidence['closures']:,} closed."
+        )
+    return "".join(f'<p class="trend-line">{escape(line)}</p>' for line in lines)
+
+
+def _breadth_note(row: RegionBreadthRow | None) -> str:
+    """The frame-note line under a board card's strip: the breadth sentence itself."""
+    if row is None:
+        return ""
+    _source, _scope_id, country, with_postings, in_frame = row
+    if in_frame is None or in_frame == 0 or with_postings is None:
+        return ""
+    return f'<p class="frame-note">{
+        escape(
+            f"{with_postings:,} of {in_frame:,} {country} NUTS-3 "
+            "regions have at least one mapped posting."
+        )
+    }</p>'
+
+
 def _render_overview(
     demand: Sequence[DemandRow],
     coverage: Sequence[CoverageRow],
     flows: Sequence[FlowRow],
-    digest: Sequence[insights.Insight],
+    frequency: Sequence[FrequencyRow],
+    breadth_by_scope: Mapping[ScopeKey, RegionBreadthRow],
+    regions_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
+    mapping_coverage: Sequence[MappingCoverageRow],
+    digest: str,
 ) -> str:
     steps = "".join(f"<li>{escape(step)}</li>" for step in WORKFLOW)
-    # ponytail: the headline trend must stay inside one scope, so pick the leading demand scope
-    # that actually publishes flows rather than falling back to every scope's buckets.
-    published = {row[0] for row in flows}
-    scope = next((row[1] for row in demand if row[1] in published), "")
-    grain, series = _finest_series([row for row in flows if row[0] == scope])
-    trend = _direction([row[5] for row in series]) if scope else "no trend published for this scope"
     updated = max((row[3] for row in demand), default=None)
     fresh = sum(1 for row in coverage if row[6] == "fresh")
     covered = sum(1 for row in coverage if row[7] == "covered")
-    leader = demand[0] if demand else None
     stats = (
         f"<div><dt>Last successful update</dt><dd>{_time(updated) if updated else '—'}"
         "<small>Latest approved complete sweep</small></dd></div>"
-        f"<div><dt>Largest single observation</dt>"
-        f"<dd>{leader[4]:,} postings<small>{escape(leader[2] or 'No postings')} via {escape(leader[0])}</small></dd></div>"
-        if leader
-        else "<div><dt>Last successful update</dt><dd>—<small>No approved sweep yet</small></dd></div>"
     )
     stats += (
-        f"<div><dt>Trend direction</dt><dd>{escape(GRAIN_LABELS.get(grain, 'No trend'))}"
-        f"<small>{escape(trend)}{escape(f' · {scope}' if scope else '')}</small></dd></div>"
         f"<div><dt>Source coverage</dt><dd>{covered} of {len(coverage)}"
         f"<small>source scope(s) covered · {fresh} fresh</small></dd></div>"
     )
@@ -916,11 +1417,21 @@ def _render_overview(
         '<p class="lede">A quiet, aggregate record of public technology job-posting demand. '
         "Counts are not summed or deduplicated across sources, and nothing here is real time: "
         "every figure comes from the latest approved complete sweep.</p>"
-        "<h3>How to use this page</h3>"
-        f'<ol class="workflow">{steps}</ol>'
+        + _observation_board(
+            demand,
+            coverage,
+            flows,
+            frequency,
+            breadth_by_scope,
+            regions_by_scope,
+            mapping_coverage,
+        )
+        + "<h3>How to read this page</h3>"
+        + MARK_KEY
+        + f'<ol class="workflow">{steps}</ol>'
         "<h3>Where the data stands now</h3>"
         f'<dl class="stats">{stats}</dl>'
-        + "".join(_insight_paragraph(insight.text) for insight in digest)
+        + digest
         + _definition(
             "Active postings are postings observed as open in the latest complete sweep for one "
             "source and scope. Freshness compares the observation age with the source threshold; "
@@ -983,7 +1494,7 @@ def _render_status(
     coverage: Sequence[CoverageRow],
     frequency: Sequence[FrequencyRow],
     built: datetime,
-    section_insights: Sequence[insights.Insight],
+    insights_html: str,
 ) -> str:
     """Operational run summary: what the last sweep did per scope and how to read that state."""
     cadence = {(row[7], row[0]): row for row in frequency}
@@ -1020,7 +1531,7 @@ def _render_status(
             f'<td class="wrap">{escape(_run_state(row))}</td></tr>'
         )
     return (
-        "".join(_insight_paragraph(insight.text) for insight in section_insights)
+        insights_html
         + '<p class="lede">Whether the figures on this page are current, per source and scope. '
         "A stale or partially covered scope stays published and labelled rather than hidden.</p>"
         + _definition(
@@ -1053,7 +1564,17 @@ def _render_status(
     )
 
 
-def _render_countries(demand: Sequence[DemandRow], regions: Sequence[DimensionRow]) -> str:
+def _render_countries(
+    demand: Sequence[DemandRow],
+    regions_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
+    coverage: Sequence[MappingCoverageRow],
+    scopes: Sequence[ScopeKey],
+    countries: Mapping[str, str],
+    breadth_by_scope: Mapping[ScopeKey, RegionBreadthRow],
+    limitations: Mapping[ScopeKey, str | None],
+    section_insights: Mapping[str, Sequence[insights.Insight]] | None = None,
+    coverage_rows: Sequence[CoverageRow] = (),
+) -> str:
     # ponytail: one bar baseline per source, never page-wide, so the bar cannot imply a
     # between-source or between-country magnitude comparison.
     baselines: dict[str, int] = {}
@@ -1083,12 +1604,54 @@ def _render_countries(demand: Sequence[DemandRow], regions: Sequence[DimensionRo
             coverage_status,
         ) in demand
     )
-    regions_body = "".join(
-        f"<tr{_attrs(dimension=dimension, value=label)}>"
-        f"<td>{escape(label)}</td><td>{escape(taxonomy_version)}</td>"
-        f'<td class="count">{count:,}</td></tr>'
-        for dimension, label, taxonomy_version, count in regions
-    )
+    region_blocks: list[str] = []
+    for source, scope_id in scopes:
+        rows = regions_by_scope.get((source, scope_id), [])
+        regions_body = "".join(
+            f"<tr{_attrs(dimension=dimension, value=label, source=source, country=countries.get(scope_id))}>"
+            f"<td>{escape(label)}</td><td>{escape(taxonomy_version)}</td>"
+            f'<td class="count">{count:,}</td></tr>'
+            for dimension, label, taxonomy_version, count in rows
+        )
+        breadth = _region_breadth_sentence(breadth_by_scope.get((source, scope_id)))
+        limitation = limitations.get((source, scope_id))
+        caveat = f'<p class="definition">{escape(limitation)}</p>' if limitation is not None else ""
+        scope_sentences = (
+            "".join(
+                _insight_paragraph(insight.text)
+                for insight in (section_insights or {}).get(scope_id, [])
+            )
+            if section_insights is not None
+            else ""
+        )
+        # One plate per scope (spec §2.3): lamps, strip, caveat, sentences, denominator, table.
+        coverage_row = next(
+            (row for row in coverage_rows if row[1] == scope_id),
+            (),
+        )
+        region_blocks.append(
+            _scope_plate(
+                source,
+                scope_id,
+                countries.get(scope_id),
+                "regions",
+                _lamps_for(coverage_row)
+                + _frame_strip(breadth_by_scope.get((source, scope_id)), context="regions")
+                + breadth
+                + caveat
+                # A region ranking is one row per posting, so the truncation at DIMENSION_LIMIT is
+                # material (25 of 393 German regions): the unlisted-tail sentence must be stated.
+                + scope_sentences
+                + _denominator(coverage, (source, scope_id), "region", "region", listed=rows)
+                + _table(
+                    "Latest mapped demand by NUTS region",
+                    (("Region", False), ("Reference version", False), ("Postings", True)),
+                    regions_body,
+                    name=f"countries-regions-{_scope_slug(source, scope_id)}",
+                    empty="No mapped region results",
+                ),
+            )
+        )
     return (
         _definition(
             "One row per source and scope. Counts are not summed or deduplicated across sources, "
@@ -1116,21 +1679,45 @@ def _render_countries(demand: Sequence[DemandRow], regions: Sequence[DimensionRo
         )
         + "<h3>NUTS regions</h3>"
         + _definition(
-            "Mapped NUTS 2024 regions for the latest sweep. Region counts come from structured "
-            "source geography only, never from free text, and are a subset of the country total."
+            "Mapped NUTS 2024 regions for the latest sweep of each collecting scope. Region "
+            "counts come from structured source geography only, never from free text, and are "
+            "a subset of that scope's country total."
         )
-        + _table(
-            "Latest mapped demand by NUTS region",
-            (("Region", False), ("Reference version", False), ("Postings", True)),
-            regions_body,
-            name="countries-regions",
-            empty="No mapped region results",
-        )
+        + "".join(region_blocks)
     )
+
+
+def _region_breadth_sentence(row: RegionBreadthRow | None) -> str:
+    """How many NUTS-3 regions carry at least one mapped posting, against the pinned frame.
+
+    A count, never a share: a percentage invites a coverage trend a single sweep cannot
+    support. A missing frame degrades to an explicit sentence rather than a wrong denominator,
+    and "N of 0" is never rendered. The country is named by its own code (DE, SE), never a
+    scope id: digits in a scope id would read as an unsourced number.
+    """
+    if row is None:
+        return (
+            '<p class="definition">No region breadth was published for this scope, so no '
+            "breadth count is stated.</p>"
+        )
+    _source, _scope_id, country, with_postings, in_frame = row
+    text: str
+    if in_frame is None or in_frame == 0:
+        text = (
+            "No NUTS-3 frame is pinned for this country in the reference data, so no breadth "
+            "count is published."
+        )
+    else:
+        text = (
+            f"{with_postings:,} of {in_frame:,} {country} NUTS-3 regions have at least one "
+            "mapped posting."
+        )
+    return f'<p class="definition">{escape(text)}</p>'
 
 
 def _denominator(
     coverage: Sequence[MappingCoverageRow],
+    scope: ScopeKey,
     dimension: str,
     noun: str,
     *,
@@ -1142,12 +1729,22 @@ def _denominator(
     support. The class is on the paragraph so scripts/release_check.py can insist the sentence is
     still there next to each ranked table.
 
+    The scope key names the sweep: a denominator borrowed from another scope would state a
+    total this table's rows were never drawn from.
+
     Pass `listed` for a ranking whose rows are one-per-posting, where the column is supposed to
     account for every mapped posting. It stops doing so the moment the ranking truncates at
     DIMENSION_LIMIT, and a reader who adds the column then gets a smaller number than the
     sentence above it states. The shortfall is published rather than left to be discovered.
     """
-    row = next((entry for entry in coverage if entry[2] == dimension and entry[3] > 0), None)
+    row = next(
+        (
+            entry
+            for entry in coverage
+            if (entry[0], entry[1]) == scope and entry[2] == dimension and entry[3] > 0
+        ),
+        None,
+    )
     if row is None:
         text = (
             f"No coverage row was published for the latest sweep, so this {noun} ranking has no "
@@ -1170,133 +1767,314 @@ def _denominator(
     return f'<p class="denominator">{escape(text)}</p>'
 
 
-def _render_occupations(
-    occupations: Sequence[DimensionRow],
-    skills: Sequence[DimensionRow],
-    mapping: Sequence[MappingRow],
+def _denominator_text(
     coverage: Sequence[MappingCoverageRow],
-    section_insights: Sequence[insights.Insight],
+    scope: ScopeKey,
+    dimension: str,
+    noun: str,
+    *,
+    listed: Sequence[DimensionRow] | None = None,
 ) -> str:
-    def ranked(rows: Sequence[DimensionRow]) -> str:
+    """The denominator sentence as plain text, for an absence plate's drawn-from line."""
+    row = next(
+        (
+            entry
+            for entry in coverage
+            if (entry[0], entry[1]) == scope and entry[2] == dimension and entry[3] > 0
+        ),
+        None,
+    )
+    if row is None:
+        return (
+            f"No coverage row was published for the latest sweep, so this {noun} ranking has no "
+            "stated denominator."
+        )
+    total, with_source_value, mapped = row[3], row[4], row[5]
+    text = (
+        f"Ranked from {mapped:,} mapped posting(s) of {total:,} in the latest sweep; "
+        f"{with_source_value:,} carry a structured {noun}."
+    )
+    if listed is not None:
+        shown = sum(entry[3] for entry in listed)
+        if shown < mapped:
+            text += (
+                f" Only the {len(listed):,} most frequent {noun}s are listed below, "
+                f"accounting for {shown:,} of those mapped postings; the rest sit in "
+                "an unlisted tail."
+            )
+    return text
+
+
+def _empty_by_construction(
+    coverage: Sequence[MappingCoverageRow], scope: ScopeKey, noun: str
+) -> str:
+    """State, from mapping_coverage_latest alone, when a ranking is empty because the source
+    publishes no structured field for it.
+
+    The condition is postings_with_source_value = 0 with postings_total > 0: a data-derived
+    statement, not a hardcoded source special case, so any future source with the same gap is
+    described correctly. Rendered above the denominator and with class="definition", because
+    release_check consumes the next class="denominator" paragraph for the ranked table.
+    """
+    row = next(
+        (
+            entry
+            for entry in coverage
+            if (entry[0], entry[1]) == scope and entry[2] == noun and entry[3] > 0
+        ),
+        None,
+    )
+    if row is None or row[4] != 0:
+        return ""
+    text = (
+        f"This source publishes no structured {noun} field for this scope, so no posting here "
+        f"can be mapped to an ESCO {noun}: the ranking is empty by construction, not by a "
+        "mapping failure."
+    )
+    return f'<p class="definition">{escape(text)}</p>'
+
+
+def _render_occupations(
+    occupations_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
+    skills_by_scope: Mapping[ScopeKey, Sequence[DimensionRow]],
+    mapping_by_scope: Mapping[ScopeKey, Sequence[MappingRow]],
+    coverage: Sequence[MappingCoverageRow],
+    scopes: Sequence[ScopeKey],
+    section_insights: Mapping[str, Sequence[insights.Insight]],
+    countries: Mapping[str, str],
+) -> str:
+    columns = (("Rank", True), ("Value", False), ("Reference version", False), ("Postings", True))
+
+    def ranked(rows: Sequence[DimensionRow], source: str, scope_id: str) -> str:
+        # Numbers start from 1 inside each scope's own section.
         return "".join(
-            f"<tr{_attrs(dimension=dimension, value=label)}>"
+            f"<tr{_attrs(dimension=dimension, value=label, source=source, country=countries.get(scope_id))}>"
             f'<td class="count">{rank}</td><td>{escape(label)}</td>'
             f"<td>{escape(taxonomy_version)}</td>"
             f'<td class="count">{count:,}</td></tr>'
             for rank, (dimension, label, taxonomy_version, count) in enumerate(rows, start=1)
         )
 
-    mapping_body = "".join(
-        f"<tr{_attrs()}><td>{escape(dimension)}</td><td>{escape(status)}</td>"
-        f'<td class="count">{count:,}</td></tr>'
-        for dimension, status, count in mapping
-    )
-    columns = (("Rank", True), ("Value", False), ("Reference version", False), ("Postings", True))
+    blocks: list[str] = []
+    for source, scope_id in scopes:
+        key = (source, scope_id)
+        slug = _scope_slug(source, scope_id)
+        occupations = occupations_by_scope.get(key, [])
+        skills = skills_by_scope.get(key, [])
+        mapping_body = "".join(
+            f"<tr{_attrs()}><td>{escape(dimension)}</td><td>{escape(status)}</td>"
+            f'<td class="count">{count:,}</td></tr>'
+            for dimension, status, count in mapping_by_scope.get(key, [])
+        )
+        # Absence plates replace rankings the source cannot feed (spec §3.9); the plate
+        # carries the empty-by-construction sentence plus the drawn-from line.
+        occupation_absent = _empty_by_construction(coverage, key, "occupation")
+        skill_absent = _empty_by_construction(coverage, key, "skill")
+        if occupation_absent:
+            occupation_block = _absence_plate(
+                "Occupation ranking — structurally absent",
+                "This source publishes no structured occupation field for this scope, so no "
+                "posting here can be mapped to an ESCO occupation: the ranking is empty by "
+                "construction, not by a mapping failure.",
+                _denominator_text(coverage, key, "occupation", "occupation"),
+            )
+        else:
+            occupation_block = (
+                "<h4>Occupation ranking</h4>"
+                + _mapping_chip(coverage, key, "occupation", "occupation")
+                + _denominator(coverage, key, "occupation", "occupation", listed=occupations)
+                + _table(
+                    "Ranked mapped demand by ESCO occupation",
+                    columns,
+                    ranked(occupations, source, scope_id),
+                    name=f"occupations-ranked-{slug}",
+                    empty="No mapped dimension results",
+                )
+            )
+        if skill_absent:
+            skill_block = _absence_plate(
+                "Technology skills — structurally absent",
+                "This source publishes no structured skill field for this scope, so no posting "
+                "here can be mapped to an ESCO skill: the ranking is empty by construction, not "
+                "by a mapping failure.",
+                _denominator_text(coverage, key, "skill", "skill"),
+            )
+        else:
+            skill_block = (
+                "<h4>Technology skills</h4>"
+                + _mapping_chip(coverage, key, "skill", "skill")
+                + _denominator(coverage, key, "skill", "skill")
+                + _table(
+                    "Ranked mapped demand by ESCO skill",
+                    columns,
+                    ranked(skills, source, scope_id),
+                    name=f"occupations-skills-{slug}",
+                    empty="No mapped skill results",
+                )
+            )
+        blocks.append(
+            _scope_plate(
+                source,
+                scope_id,
+                countries.get(scope_id),
+                "occupations",
+                "".join(
+                    _insight_paragraph(insight.text)
+                    for insight in section_insights.get(scope_id, [])
+                )
+                + occupation_block
+                + skill_block
+                + "<h4>Mapping quality</h4>"
+                + _table(
+                    "Mapping quality outcomes",
+                    (("Dimension", False), ("Status", False), ("Outcomes", True)),
+                    mapping_body,
+                    name=f"occupations-mapping-{slug}",
+                    empty="No mapping quality results",
+                ),
+            )
+        )
     return (
-        "".join(_insight_paragraph(insight.text) for insight in section_insights)
-        + _definition(
+        _definition(
             "Mappings use pinned reference data: NUTS 2024 regions, JobTech Taxonomy v30, and ESCO "
             "1.2.1. Only structured taxonomy fields are used; job titles and free text are never "
-            "classified. Sweden only: no German posting source has passed the approval gate. "
-            "Where the crosswalk offers several candidates for one source concept and exactly one "
-            "of them is an exact match, that one is used; two or more exact matches are left "
-            "unresolved, as is a set with none. Ambiguous, low-confidence, unmapped, and "
+            "classified. Where the crosswalk offers several candidates for one source concept and "
+            "exactly one of them is an exact match, that one is used; two or more exact matches "
+            "are left unresolved, as is a set with none. Ambiguous, low-confidence, unmapped, and "
             "not-present values are excluded from mapped demand and shown separately as mapping "
-            "quality."
+            "quality. Each ranking and its denominator below belong to exactly one collecting "
+            "scope; scopes are never summed."
         )
-        + _denominator(coverage, "occupation", "occupation", listed=occupations)
-        + _table(
-            "Ranked mapped demand by ESCO occupation",
-            columns,
-            ranked(occupations),
-            name="occupations-ranked",
-            empty="No mapped dimension results",
-        )
-        + "<h3>Technology skills</h3>"
         + _definition(
             "Skill demand counts postings whose structured fields map to an ESCO skill. Historical "
             "movement is read from the trend section within one source; a skill can rise in share "
             "while the total posting count falls. A posting asking for several mapped skills is "
             "counted in every one of their rows, so the rows below count postings per skill and do "
-            "not sum to the mapped-posting count stated under this paragraph."
+            "not sum to the mapped-posting count stated beside each table."
         )
-        + _denominator(coverage, "skill", "skill")
-        + _table(
-            "Ranked mapped demand by ESCO skill",
-            columns,
-            ranked(skills),
-            name="occupations-skills",
-            empty="No mapped skill results",
-        )
-        + "<h3>Mapping quality</h3>"
         + _definition(
-            "Mapping outcomes for the latest sweep. Unmapped, ambiguous, low-confidence, and "
-            "not-present outcomes stay distinct so that a missing value is never read as zero demand."
+            "Mapping outcomes for the latest sweep of each scope. Unmapped, ambiguous, "
+            "low-confidence, and not-present outcomes stay distinct so that a missing value is "
+            "never read as zero demand."
         )
-        + _table(
-            "Mapping quality outcomes",
-            (("Dimension", False), ("Status", False), ("Outcomes", True)),
-            mapping_body,
-            name="occupations-mapping",
-            empty="No mapping quality results",
-        )
+        + "".join(blocks)
     )
 
 
 def _render_requirements(
-    requirements: Sequence[RequirementRow],
-    section_insights: Sequence[insights.Insight],
+    requirements_by_scope: Mapping[ScopeKey, Sequence[RequirementRow]],
+    scopes: Sequence[ScopeKey],
+    section_insights: Mapping[str, Sequence[insights.Insight]],
+    countries: Mapping[str, str],
+    demand: Sequence[DemandRow] = (),
 ) -> str:
-    """Three closed-vocabulary distributions, each accounting for every posting in the sweep.
+    """Three closed-vocabulary distributions, each accounting for every posting in its sweep.
 
-    Unlike the rankings above, nothing here is filtered to mapped values and nothing is truncated,
-    so no denominator sentence is needed: a null source value is published as `Not stated` and a
-    code the reference does not carry as `Unrecognised code`, both counted, and each column
-    therefore sums to the sweep's posting count by inspection.
+    Unlike the rankings above, nothing here is filtered to mapped values and nothing is
+    truncated, so no denominator sentence is needed: a null source value is published as
+    `Not stated` and a code the reference does not carry as `Unrecognised code`, both counted,
+    and each column therefore sums to its own scope's sweep by inspection.
     """
-    tables = "".join(
-        f"<h3>{escape(heading)}</h3>"
-        + _table(
-            f"Latest postings by {noun}",
-            (("Value", False), ("Source code", False), ("Postings", True)),
-            "".join(
-                f"<tr{_attrs(dimension=dimension, value=label)}>"
-                f"<td>{escape(label)}</td><td>{escape(code or '—')}</td>"
-                f'<td class="count">{count:,}</td></tr>'
-                for dimension, label, code, _status, count in requirements
-                if dimension == slug
-            ),
-            name=f"requirements-{slug.replace('_', '-')}",
-            empty=f"No {noun} results",
+    demand_totals = list(demand)
+    blocks: list[str] = []
+    for source, scope_id in scopes:
+        requirements = requirements_by_scope.get((source, scope_id), [])
+        slug = _scope_slug(source, scope_id)
+        demand_total = next(
+            (row[4] for row in demand_totals if (row[0], row[1]) == (source, scope_id)), None
         )
-        for slug, heading, noun in REQUIREMENT_SECTIONS
-    )
+        tables = ""
+        for dimension_slug, heading, noun in REQUIREMENT_SECTIONS:
+            dimension_rows = [row for row in requirements if row[0] == dimension_slug]
+            if dimension_rows:
+                tables += f"<h4>{escape(heading)}</h4>" + _table(
+                    f"Latest postings by {noun}",
+                    (("Value", False), ("Source code", False), ("Postings", True)),
+                    "".join(
+                        f"<tr{_attrs(dimension=dimension, value=label, source=source, country=countries.get(scope_id))}>"
+                        + _requirement_label_cell(label)
+                        + f"<td>{escape(code or '—')}</td>"
+                        f'<td class="count">{count:,}</td></tr>'
+                        for dimension, label, code, _status, count in dimension_rows
+                    ),
+                    name=f"requirements-{dimension_slug.replace('_', '-')}-{slug}",
+                    empty=f"No {noun} results",
+                )
+            elif demand_total:
+                # The scope has postings but not this dimension's rows: the source publishes
+                # no field for it (condition b of the design spec's Flag 1 - requirement
+                # emptiness plus a positive posting total).
+                tables += _absence_plate(
+                    f"{heading} — structurally absent",
+                    f"This source publishes no structured {'-'.join(noun.split())} field for "
+                    f"this scope, so no {noun} distribution exists for any of its "
+                    f"{demand_total:,} postings: the table is empty by construction, not by "
+                    "a collection failure.",
+                )
+            else:
+                # No postings and no rows: the empty table with its fallback sentence still
+                # renders, because a dropped table would disable its release rule.
+                tables += f"<h4>{escape(heading)}</h4>" + _table(
+                    f"Latest postings by {noun}",
+                    (("Value", False), ("Source code", False), ("Postings", True)),
+                    "",
+                    name=f"requirements-{dimension_slug.replace('_', '-')}-{slug}",
+                    empty=f"No {noun} results",
+                )
+        blocks.append(
+            _scope_plate(
+                source,
+                scope_id,
+                countries.get(scope_id),
+                "requirements",
+                "".join(
+                    _insight_paragraph(insight.text)
+                    for insight in section_insights.get(scope_id, [])
+                )
+                + tables,
+            )
+        )
     return (
-        "".join(_insight_paragraph(insight.text) for insight in section_insights)
-        + '<p class="lede">What the postings in the latest sweep actually offer: permanent or '
+        '<p class="lede">What the postings in the latest sweep actually offer: permanent or '
         "fixed-term, full or part time, and for how long.</p>"
         + _definition(
             "Read from three structured JobTech Taxonomy v30 fields on each posting — employment "
             "type, working-hours type, and duration — never from free text. The values are the "
             "source's own closed vocabularies; the labels shown are our English translations of "
             "the Swedish taxonomy labels, and the source concept id is printed beside each one so "
-            "a label can be traced back. Every posting in the sweep appears in exactly one row of "
-            "each table, so each Postings column sums to that sweep's posting count. Not stated "
-            "means the source did not state a value for that field, and is counted rather than "
-            "dropped; Unrecognised code means the source used a value this reference does not "
-            "carry yet, and it is published with its code so a vocabulary change cannot pass "
-            "unseen. Counts are per posting, not per advertised vacancy, and are published in "
-            "full without small-count suppression, as the other latest-sweep counts are."
+            "a label can be traced back. Every posting in a scope's sweep appears in exactly one "
+            "row of each of that scope's tables, so each Postings column sums to that sweep's "
+            "posting count. Not stated means the source did not state a value for that field, "
+            "and is counted rather than dropped; Unrecognised code means the source used a value "
+            "this reference does not carry yet, and it is published with its code so a vocabulary "
+            "change cannot pass unseen. Counts are per posting, not per advertised vacancy, and "
+            "are published in full without small-count suppression, as the other latest-sweep "
+            "counts are."
         )
-        + tables
+        + "".join(blocks)
     )
+
+
+def _requirement_label_cell(label: str) -> str:
+    """A requirement value cell carrying its epistemic mark (spec §3.11).
+
+    `Not stated` rows get a hollow-dot marker; `Unrecognised code` rows a hatched
+    swatch: form carries the state, the label carries the word.
+    """
+    if label == "Not stated":
+        return f'<td><span class="mk hollow mk-dot" aria-hidden="true"></span> {escape(label)}</td>'
+    if label == "Unrecognised code":
+        return (
+            f'<td><span class="mk hatched mk-dot" aria-hidden="true"></span> {escape(label)}</td>'
+        )
+    return f"<td>{escape(label)}</td>"
 
 
 def _render_survival(
     survival: Sequence[SurvivalRow],
     flows: Sequence[FlowRow],
     countries: dict[str, str],
-    section_insights: Sequence[insights.Insight],
+    insights_html: str,
 ) -> str:
     survival_body = "".join(
         f"<tr{_attrs(source=source, country=countries.get(scope_id))}>"
@@ -1304,19 +2082,22 @@ def _render_survival(
         f"{' <small>(right-censored)</small>' if censored else ''}"
         f"{' <small>(suppressed group)</small>' if postings is None else ''}</td>"
         f"<td>{escape(scope_id)}</td>"
-        f'<td class="count">{_count(postings)}</td><td class="count">{_count(vacancies)}</td>'
-        f'<td class="count">{_stat(median)}</td>'
-        f'<td class="count">{"—" if p25 is None and p75 is None else f"{_stat(p25)}–{_stat(p75)}"}</td>'
-        f'<td class="count">{_stat(max_days)}</td></tr>'
+        f'<td class="count{_suppressed_class(postings)}">{_count(postings)}</td>'
+        f'<td class="count{_suppressed_class(postings)}">{_count(vacancies)}</td>'
+        f'<td class="count{_suppressed_class(postings)}">{_stat(median)}</td>'
+        f'<td class="count{_suppressed_class(postings)}">'
+        f"{'—' if p25 is None and p75 is None else f'{_stat(p25)}–{_stat(p75)}'}</td>"
+        f'<td class="count{_suppressed_class(postings)}">{_stat(max_days)}</td></tr>'
         for scope_id, status, censored, postings, vacancies, median, p25, p75, max_days, source in survival
     )
     flows_body = "".join(
         f"<tr{_attrs(bucket=f'{bucket_start:%Y-%m-%d}', source=source, country=countries.get(scope_id))}>"
         f"<td>{escape(scope_id)}</td><td>{escape(GRAIN_LABELS.get(grain, grain))}</td>"
         f"<td>{bucket_start:%Y-%m-%d}</td>"
-        f'<td class="count">{_count(openings)}</td><td class="count">{_count(closures)}</td>'
-        f'<td class="count">{_count(active_postings)}</td>'
-        f'<td class="count">{_count(active_vacancies)}</td></tr>'
+        f'<td class="count{_suppressed_class(openings)}">{_count(openings)}</td>'
+        f'<td class="count{_suppressed_class(closures)}">{_count(closures)}</td>'
+        f'<td class="count{_suppressed_class(active_postings)}">{_count(active_postings)}</td>'
+        f'<td class="count{_suppressed_class(active_vacancies)}">{_count(active_vacancies)}</td></tr>'
         for scope_id, grain, bucket_start, openings, closures, active_postings, active_vacancies, source in flows
     )
     charts = "".join(
@@ -1330,7 +2111,7 @@ def _render_survival(
         if series
     )
     return (
-        "".join(_insight_paragraph(insight.text) for insight in section_insights)
+        insights_html
         + _definition(
             "A posting leaving the source is reported as posting duration or inferred removal, "
             "never as time to hire: the observatory cannot see hiring outcomes. Active postings are "
@@ -1383,8 +2164,9 @@ def _render_survival(
 def _render_quality(
     coverage: Sequence[CoverageRow],
     frequency: Sequence[FrequencyRow],
-    mapping: Sequence[MappingRow],
+    mapping_by_scope: Mapping[ScopeKey, Sequence[MappingRow]],
     countries: dict[str, str],
+    scopes: Sequence[ScopeKey],
 ) -> str:
     coverage_body = "".join(
         f"<tr{_attrs(country=country, source=source)}>"
@@ -1417,12 +2199,24 @@ def _render_quality(
         f'<td class="wrap">{escape(limitations or "—")}</td></tr>'
         for scope_id, sweeps, first, last, interval, threshold, limitations, source in frequency
     )
-    missing_body = "".join(
-        f"<tr{_attrs()}><td>{escape(dimension)}</td><td>{escape(status)}</td>"
-        f'<td class="count">{count:,}</td></tr>'
-        for dimension, status, count in mapping
-        if status != "mapped"
-    )
+    missing_blocks: list[str] = []
+    for source, scope_id in scopes:
+        missing_body = "".join(
+            f"<tr{_attrs()}><td>{escape(dimension)}</td><td>{escape(status)}</td>"
+            f'<td class="count">{count:,}</td></tr>'
+            for dimension, status, count in mapping_by_scope.get((source, scope_id), [])
+            if status != "mapped"
+        )
+        missing_blocks.append(
+            f"<h4>{escape(_scope_label(source, scope_id))}</h4>"
+            + _table(
+                "Mapping outcomes that are not mapped",
+                (("Dimension", False), ("Status", False), ("Outcomes", True)),
+                missing_body,
+                name=f"quality-missing-{_scope_slug(source, scope_id)}",
+                empty="No missing mapping results",
+            )
+        )
     return (
         _definition(
             "Coverage is deterministic: expected rows come from the sweep manifest and observed rows "
@@ -1469,15 +2263,10 @@ def _render_quality(
         + "<h3>Missing and uncertain mappings</h3>"
         + _definition(
             "Outcomes that are not mapped are published so that missing reference data is visible. "
-            "These postings are excluded from mapped demand and are not redistributed."
+            "These postings are excluded from mapped demand and are not redistributed. Each table "
+            "belongs to one collecting scope; scopes are never summed."
         )
-        + _table(
-            "Mapping outcomes that are not mapped",
-            (("Dimension", False), ("Status", False), ("Outcomes", True)),
-            missing_body,
-            name="quality-missing",
-            empty="No missing mapping results",
-        )
+        + "".join(missing_blocks)
     )
 
 
@@ -1637,6 +2426,17 @@ def _render_governance(provenance: Sequence[ProvenanceRow]) -> str:
         )
         + "<h3>Methodology version</h3>"
         + _definition(
+            "How each scope's data was drawn: the `ba / de-nuts3-panel` scope is a stratified "
+            "region-bounded sample with a capped within-stratum draw over a frozen 400-region "
+            "NUTS-3 panel - not a census and not a partial crawl - so its counts describe the "
+            "sample, and the caveat printed beside them is the panel's own limitation string "
+            "from the sweep manifest. The `jobtech` keyword scope is a keyword-scoped query over "
+            "all current Swedish postings matching a fixed query, not a sample. One published "
+            "scope (the German panel) carries no structured occupation field, which is why its "
+            "occupation and skill rankings are empty by construction rather than through a "
+            "mapping failure; no job title or free text is ever classified to fill them."
+        )
+        + _definition(
             f"Methodology version {METHODOLOGY_VERSION}, covering the definitions, mapping rules, "
             "and suppression rule described on this page. The version and build time are printed in "
             "the footer, and every CSV downloaded from this page carries the version in its "
@@ -1650,6 +2450,7 @@ def build_site(database: Path, target: Path) -> int:
     try:
         demand = _query_demand(connection)
         coverage = _query_coverage(connection)
+        region_breadth = _query_region_breadth(connection)
         regions = _query_dimension(connection, region=True)
         occupations = _query_dimension(connection, region=False)
         skills = _query_skills(connection)
@@ -1662,11 +2463,22 @@ def build_site(database: Path, target: Path) -> int:
         provenance = _query_provenance(connection)
     finally:
         connection.close()
-    _verify_single_scope(mapping_coverage)
+    # One subsection per (source, scope_id), largest first: no ranking, denominator or table is
+    # ever shared between scopes, so nothing on the page pools them.
+    scopes = _scope_keys(demand)
+    regions_by_scope = _group_dimensions(regions)
+    occupations_by_scope = _group_dimensions(occupations)
+    skills_by_scope = _group_dimensions(skills)
+    mapping_by_scope = _group_mapping(mapping)
+    requirements_by_scope = _group_requirements(requirements)
     # Scope-keyed views carry no country column, so the filter bar needs this crosswalk to make
     # the country selector apply to the survival, flow, and frequency rows too.
     countries = {row[1]: row[2] for row in demand if row[2]}
     countries.update({row[1]: row[2] for row in coverage if row[2]})
+    # The breadth line's caveat is the manifest's own string, rendered verbatim, so the page and
+    # the manifest cannot drift. Coverage index 9 is coverage_limitations.
+    limitations: dict[ScopeKey, str | None] = {(row[0], row[1]): row[9] for row in coverage}
+    breadth_by_scope = {(row[0], row[1]): row for row in region_breadth}
     insights_by_section = insights.build(
         demand,
         coverage,
@@ -1677,29 +2489,75 @@ def build_site(database: Path, target: Path) -> int:
         survival,
         flows,
         frequency,
+        regions,
     )
-    digest = [
-        insight for slug, _heading in SECTIONS for insight in insights_by_section.get(slug, [])
-    ]
+    scope_labels = {row[1]: _scope_label(row[0], row[1]) for row in demand}
+    digest = _insight_groups(
+        _insights_by_scope(
+            [
+                insight
+                for slug, _heading in SECTIONS
+                for insight in insights_by_section.get(slug, [])
+            ]
+        ),
+        scope_labels,
+    )
     built = datetime.now(UTC)
     rendered = {
-        "overview": _render_overview(demand, coverage, flows, digest),
-        "status": _render_status(coverage, frequency, built, insights_by_section.get("status", [])),
-        "countries": _render_countries(demand, regions),
-        "occupations": _render_occupations(
-            occupations,
-            skills,
-            mapping,
+        "overview": _render_overview(
+            demand,
+            coverage,
+            flows,
+            frequency,
+            breadth_by_scope,
+            regions_by_scope,
             mapping_coverage,
-            insights_by_section.get("occupations", []),
+            digest,
+        ),
+        "status": _render_status(
+            coverage,
+            frequency,
+            built,
+            _insight_groups(
+                _insights_by_scope(insights_by_section.get("status", [])), scope_labels
+            ),
+        ),
+        "countries": _render_countries(
+            demand,
+            regions_by_scope,
+            mapping_coverage,
+            scopes,
+            countries,
+            breadth_by_scope,
+            limitations,
+            _insights_by_scope(insights_by_section.get("countries", [])),
+            coverage,
+        ),
+        "occupations": _render_occupations(
+            occupations_by_scope,
+            skills_by_scope,
+            mapping_by_scope,
+            mapping_coverage,
+            scopes,
+            _insights_by_scope(insights_by_section.get("occupations", [])),
+            countries,
         ),
         "requirements": _render_requirements(
-            requirements, insights_by_section.get("requirements", [])
+            requirements_by_scope,
+            scopes,
+            _insights_by_scope(insights_by_section.get("requirements", [])),
+            countries,
+            demand,
         ),
         "survival": _render_survival(
-            survival, flows, countries, insights_by_section.get("survival", [])
+            survival,
+            flows,
+            countries,
+            _insight_groups(
+                _insights_by_scope(insights_by_section.get("survival", [])), scope_labels
+            ),
         ),
-        "quality": _render_quality(coverage, frequency, mapping, countries),
+        "quality": _render_quality(coverage, frequency, mapping_by_scope, countries, scopes),
         "methodology": _render_methodology(provenance),
         "governance": _render_governance(provenance),
     }
@@ -1709,7 +2567,11 @@ def build_site(database: Path, target: Path) -> int:
         links.append(f'<a href="#{slug}" data-tab="{slug}"{current}>{escape(heading)}</a>')
     nav = "".join(links)
     sections = "".join(_panel(slug, heading, rendered[slug]) for slug, heading in SECTIONS)
-    filters = _render_filters(demand, occupations, skills)
+    filters = _render_filters(
+        demand,
+        [row for rows in occupations_by_scope.values() for row in rows],
+        [row for rows in skills_by_scope.values() for row in rows],
+    )
     updated = max((row[3] for row in demand), default=None)
     stamp = (
         f"Last successful update {_time(updated)}. " if updated else "No successful update yet. "
@@ -1725,6 +2587,7 @@ def build_site(database: Path, target: Path) -> int:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f6f5">
   <meta name="description" content="Aggregate European technology job-posting demand, posting duration, source coverage, and provenance.">
   <link rel="icon" href="data:,">
   <title>EU Tech Labour Observatory</title>

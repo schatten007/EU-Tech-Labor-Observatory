@@ -15,7 +15,9 @@ select
     try_cast(postings.last_modified as timestamp) as last_modified,
     try_cast(postings.removed_at as timestamp) as removed_at,
     cast(postings.nuts_code as varchar) as nuts_code,
-    cast(postings.nuts_label as varchar) as nuts_label,
+    -- The collected label wins: it is evidence from the sweep; the reference label is a
+    -- backfill for rows the collector left null, never a correction of a stored value.
+    coalesce(cast(postings.nuts_label as varchar), labels.nuts_label) as nuts_label,
     cast(postings.region_mapping_status as varchar) as region_mapping_status,
     cast(postings.region_mapping_method as varchar) as region_mapping_method,
     cast(postings.nuts_version as varchar) as nuts_version,
@@ -80,3 +82,5 @@ inner join {{ ref('stg_collection_manifests') }} as sweeps
     and sweeps.scope_id = postings.scope_id
     and sweeps.sweep_id = postings.sweep_id
     and sweeps.observed_at = cast(postings.observed_at as timestamp)
+left join {{ ref('stg_nuts_labels') }} as labels
+    on labels.nuts_code = cast(postings.nuts_code as varchar)

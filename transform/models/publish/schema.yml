@@ -94,6 +94,22 @@ models:
       - {name: taxonomy_version, data_type: varchar, data_tests: [not_null]}
       - {name: posting_count, data_type: bigint, data_tests: [not_null]}
 
+  - name: region_breadth_latest
+    description: >
+      Latest count of NUTS-3 regions with at least one mapped posting per source and scope,
+      against the pinned NUTS-3 reference frame for that country. A count, never a share; the
+      frame is null when no NUTS-3 reference is pinned for the scope's country.
+    config: {contract: {enforced: true}}
+    columns:
+      - {name: source, data_type: varchar, data_tests: [not_null]}
+      - {name: scope_id, data_type: varchar, data_tests: [not_null]}
+      - {name: country, data_type: varchar, data_tests: [not_null]}
+      - {name: regions_with_postings, data_type: bigint, data_tests: [not_null]}
+      # Nullable on purpose: a country with no pinned NUTS-3 frame must surface as a null
+      # denominator, which the publisher renders as the degraded no-frame sentence, not as a
+      # wrong number.
+      - {name: regions_in_frame, data_type: bigint}
+
   - name: skill_demand_latest
     description: Latest mapped posting counts by ESCO skill.
     config: {contract: {enforced: true}}
@@ -149,8 +165,15 @@ models:
       - {name: dimension, data_type: varchar, data_tests: [not_null]}
       - {name: mapping_status, data_type: varchar, data_tests: [not_null]}
       # Pinned because the point of a distinct method is auditability, and an unpinned vocabulary
-      # cannot be audited: a typo in scripts/enrich.py would otherwise publish silently.
-      - {name: mapping_method, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [municipality_crosswalk, municipality_prefix_crosswalk, region_crosswalk, crosswalk, manual_review, exact_match_tiebreak, no_match, source_absent]}}]}
+      # cannot be audited: a typo in scripts/enrich.py or scrapers/ would otherwise publish silently.
+      # The list grew in Increment 20b for the BA lane: six values observed in the ba/de-nuts3-panel
+      # partition (not_available_ba_html, ba_city_municipality_nuts3, ba_city_qualifier_nuts3,
+      # ba_segment_provenance_nuts3, ba_city_municipality_ambiguous, ba_segment_disambiguated) plus
+      # four pre-registered from a scrapers/ba_jobsuche.py source audit, not from observed rows
+      # (ba_segment_radius_nuts3, ba_plz_nuts3, ba_plz_ambiguous, not_available), because a future
+      # BA sweep taking the PLZ or radius path would otherwise fail the build. Values from the other
+      # collectors are deliberately absent: no partition exists for them, so none may be collected.
+      - {name: mapping_method, data_type: varchar, data_tests: [not_null, accepted_values: {arguments: {values: [municipality_crosswalk, municipality_prefix_crosswalk, region_crosswalk, crosswalk, manual_review, exact_match_tiebreak, no_match, source_absent, ba_city_municipality_nuts3, ba_city_qualifier_nuts3, ba_city_municipality_ambiguous, ba_segment_disambiguated, ba_segment_provenance_nuts3, ba_segment_radius_nuts3, ba_plz_nuts3, ba_plz_ambiguous, not_available, not_available_ba_html]}}]}
       - {name: mapping_confidence, data_type: varchar}
       - {name: taxonomy_version, data_type: varchar, data_tests: [not_null]}
       - {name: outcome_count, data_type: bigint, data_tests: [not_null]}

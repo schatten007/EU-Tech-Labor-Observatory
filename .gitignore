@@ -5,6 +5,12 @@ data/*
 !data/sample/**
 !data/reference/
 !data/reference/**
+# Exception (2026-09-03, scrapers lab handover): the German BA partitions are
+# carried to the main project as compressed archives, because this worktree is
+# removed after the merge and data/raw is otherwise untracked. Archives only —
+# never un-ignore data/raw itself. See PANEL_HANDOVER.md section 8.
+!data/handover/
+!data/handover/**
 
 # ── Warehouses / local state ─────────────────────────────────────────────────
 *.duckdb
@@ -52,6 +58,12 @@ site/.evidence/template/
 site/.evidence-queries/
 site/build/
 
+# ── The Plan A v2 app: source and data.json are committed, build output is not ─
+app/dist/
+
+# ── Local verification artefacts (screenshots taken while checking the app) ───
+.playwright-mcp/
+
 # ── Models / caches too large for git ────────────────────────────────────────
 .cache/
 models_cache/
@@ -72,3 +84,5 @@ desktop.ini
 FUNCTIONALITY_ROADMAP.md
 USER_MANUAL.md
 AGENTS.md
+SESSION_RUNBOOK.md
+MEMORY.md

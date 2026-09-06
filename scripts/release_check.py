@@ -16,7 +16,13 @@ from pathlib import Path
 from scripts.publish import METHODOLOGY_VERSION, ROOT, SECTIONS, SUPPRESSION_THRESHOLD, TARGET
 
 # Documented source and licence hosts. Checked as strings; nothing here is requested.
-ALLOWED_URL_PREFIXES = ("https://data.jobtechdev.se/", "http://data.europa.eu/esco/")
+# The BA host is the licence surface the German panel's manifests cite (portal terms), not a
+# data endpoint; the collector never reads from it during a page build.
+ALLOWED_URL_PREFIXES = (
+    "https://data.jobtechdev.se/",
+    "http://data.europa.eu/esco/",
+    "https://www.arbeitsagentur.de/",
+)
 # The only elements the inline script is allowed to reveal, so `hidden` on anything else
 # would mean server-rendered content that a reader without JavaScript never sees.
 ENHANCEMENT_ATTRS = (
@@ -38,9 +44,16 @@ COUNT_HEADERS = frozenset(
 )
 # Only these two views mask small counts; see transform/macros/suppress_small_counts.sql.
 MASKED_TABLES = frozenset({"table-survival-basis", "table-survival-flows"})
-# Ranked top-N tables. Each publishes a subset of the sweep, so each must be preceded by the
-# denominator sentence from mapping_coverage_latest; a ranking without one reads as the whole sweep.
-RANKED_TABLES = frozenset({"table-occupations-ranked", "table-occupations-skills"})
+# Ranked top-N tables, matched by id prefix because every collecting scope renders its own set
+# (table-occupations-ranked-<scope-slug>). Each publishes a subset of its scope's sweep, so each
+# must be preceded by its own denominator sentence from mapping_coverage_latest; a ranking
+# without one reads as the whole sweep. At least one table per prefix must exist, so a renamed
+# or dropped ranked table cannot silently disable the rule.
+RANKED_TABLE_PREFIXES = (
+    "table-countries-regions",
+    "table-occupations-ranked",
+    "table-occupations-skills",
+)
 # Columns those views mask on another column's count, so publishing one while its keying count
 # reads suppressed would republish the suppressed group.
 DEPENDENT_COLUMNS = {
@@ -326,14 +339,15 @@ def check_page(html: str) -> list[str]:
     # A ranked table publishes a top-N subset, so it is only honest beside its denominator. A
     # renamed or dropped ranked table would disable the rule, so its absence is a problem too.
     problems.extend(
-        f"ranked view {identifier} is missing from the page, so its denominator rule never ran"
-        for identifier in sorted(RANKED_TABLES - published)
+        f"ranked view {prefix} is missing from the page, so its denominator rule never ran"
+        for prefix in RANKED_TABLE_PREFIXES
+        if not any(identifier.startswith(prefix) for identifier in published)
     )
     problems.extend(
         f"table {table.identifier} has no denominator sentence before it, so a ranked subset "
         "can be read as the whole sweep"
         for table in page.tables
-        if table.identifier in RANKED_TABLES and not table.denominator
+        if table.identifier.startswith(RANKED_TABLE_PREFIXES) and not table.denominator
     )
     if SECRET.search(scanned):
         problems.append("a pseudonym or key-like token is rendered in the page text or attributes")

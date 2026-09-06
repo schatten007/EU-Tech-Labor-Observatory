@@ -14,7 +14,7 @@ was built from.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 
 # Row shapes mirror scripts/publish.py: this module never queries, so the two
@@ -26,6 +26,11 @@ CoverageRow = tuple[
 DimensionRow = tuple[str, str, str, int]
 RequirementRow = tuple[str, str, str | None, str, int]
 MappingCoverageRow = tuple[str, str, str, int, int, int]
+# The scope-keyed rows build() partitions on before any rule runs: (source, scope_id)
+# prefixed onto the published row, so a two-scope page never pools into one rule call.
+# The rules keep their existing signatures and receive one scope's rows, unscoped.
+ScopedDimensionRow = tuple[str, str, str, str, str, int]
+ScopedRequirementRow = tuple[str, str, str, str, str | None, str, int]
 FlowRow = tuple[str, str, datetime, int | None, int | None, int | None, int | None, str]
 SurvivalRow = tuple[
     str,
@@ -68,16 +73,32 @@ class Insight:
     scope: str
     text: str
     evidence: Evidence
+    # The rule's own name, attached in build() where the dispatch knows it, so a
+    # consumer (the app export) can cite which rule produced a sentence.
+    rule: str = ""
 
 
 def _present(items: Sequence[Insight | None]) -> list[Insight]:
     return [item for item in items if item is not None]
 
 
-def _sole_scope(demand: Sequence[DemandRow]) -> str | None:
-    """The one scope the page describes, or None when a sentence would pool scopes."""
-    scopes = {row[1] for row in demand if row[4] > 0}
-    return next(iter(scopes)) if len(scopes) == 1 else None
+def _named(rule: str, produced: Insight | None) -> Insight | None:
+    """Tag one rule's output with the rule's name; silence passes through."""
+    return None if produced is None else replace(produced, rule=rule)
+
+
+def _collecting_scopes(demand: Sequence[DemandRow]) -> list[str]:
+    """Every scope with active postings, in demand order, so the largest scope leads.
+
+    A zero-posting scope collects nothing, so no sentence may be drawn from it; a scope
+    absent from demand has no sweep to name. Deduplicated because a scope_id names a
+    (source, scope_id) pair in every row this module reads.
+    """
+    scopes: list[str] = []
+    for row in demand:
+        if row[4] > 0 and row[1] not in scopes:
+            scopes.append(row[1])
+    return scopes
 
 
 def _coverage_row(
@@ -118,37 +139,74 @@ def _most_requested(
 def build(
     demand: Sequence[DemandRow],
     coverage: Sequence[CoverageRow],
-    occupations: Sequence[DimensionRow],
-    skills: Sequence[DimensionRow],
+    occupations: Sequence[ScopedDimensionRow],
+    skills: Sequence[ScopedDimensionRow],
     mapping_coverage: Sequence[MappingCoverageRow],
-    requirements: Sequence[RequirementRow],
+    requirements: Sequence[ScopedRequirementRow],
     survival: Sequence[SurvivalRow],
     flows: Sequence[FlowRow],
     frequency: Sequence[FrequencyRow],
+    regions: Sequence[ScopedDimensionRow] = (),
 ) -> dict[str, list[Insight]]:
-    """Run every rule over the rows publish.py renders, keyed by section slug."""
-    scope = _sole_scope(demand)
-    if scope is None:
-        return {}
-    return {
-        "overview": _present([rule_latest_count(demand, scope)]),
-        "status": _present([rule_freshness_warning(coverage, scope)]),
-        "occupations": _present(
-            [
-                rule_most_requested_occupation(occupations, mapping_coverage, scope),
-                rule_most_requested_skill(skills, mapping_coverage, scope),
-            ]
-        ),
-        "requirements": _present(
-            [
-                rule_employment_shares(requirements, scope),
-                rule_working_hours_shares(requirements, scope),
-            ]
-        ),
-        "survival": _present(
-            [rule_median_duration(survival, scope), rule_trend(flows, frequency, scope)]
-        ),
-    }
+    """Run every rule over the rows publish.py renders, keyed by section slug.
+
+    One pass per collecting scope: the scope-keyed rows are partitioned here, so every
+    rule receives only its own scope's rows under its existing signature. That partition
+    is what keeps `_requirement_count` and the requirement-share totals reading one
+    scope instead of the first code match across all of them.
+    """
+    results: dict[str, list[Insight]] = {}
+    for scope in _collecting_scopes(demand):
+        scope_occupations = [row[2:] for row in occupations if row[1] == scope]
+        scope_skills = [row[2:] for row in skills if row[1] == scope]
+        scope_requirements = [row[2:] for row in requirements if row[1] == scope]
+        scope_regions = [row[2:] for row in regions if row[1] == scope]
+        for slug, produced in (
+            ("overview", [_named("latest_count", rule_latest_count(demand, scope))]),
+            ("status", [_named("freshness_warning", rule_freshness_warning(coverage, scope))]),
+            (
+                "occupations",
+                [
+                    _named(
+                        "most_requested_occupation",
+                        rule_most_requested_occupation(scope_occupations, mapping_coverage, scope),
+                    ),
+                    _named(
+                        "most_requested_skill",
+                        rule_most_requested_skill(scope_skills, mapping_coverage, scope),
+                    ),
+                ],
+            ),
+            (
+                "requirements",
+                [
+                    _named("employment_shares", rule_employment_shares(scope_requirements, scope)),
+                    _named(
+                        "working_hours_shares",
+                        rule_working_hours_shares(scope_requirements, scope),
+                    ),
+                ],
+            ),
+            (
+                "survival",
+                [
+                    _named("median_duration", rule_median_duration(survival, scope)),
+                    _named("trend", rule_trend(flows, frequency, scope)),
+                    _named("sweep_churn", rule_sweep_churn(flows, scope)),
+                ],
+            ),
+            (
+                "countries",
+                [
+                    _named(
+                        "region_concentration",
+                        rule_region_concentration(scope_regions, mapping_coverage, scope),
+                    )
+                ],
+            ),
+        ):
+            results.setdefault(slug, []).extend(_present(produced))
+    return results
 
 
 def rule_latest_count(demand: Sequence[DemandRow], scope: str) -> Insight | None:
@@ -327,6 +385,84 @@ def rule_freshness_warning(coverage: Sequence[CoverageRow], scope: str) -> Insig
         scope=scope,
         text="Read the figures with care: " + "; ".join(clauses) + ".",
         evidence=evidence,
+    )
+
+
+def rule_region_concentration(
+    regions: Sequence[DimensionRow],
+    mapping_coverage: Sequence[MappingCoverageRow],
+    scope: str,
+) -> Insight | None:
+    """The leading region's share of mapped postings, as counts against the mapped total.
+
+    Concentration stated as "N of M mapped posting(s)" in the leading region. The
+    mapped total comes from mapping_coverage, never from summing the rendered region
+    rows: the ranking is truncated at the publisher's DIMENSION_LIMIT, so its column
+    sums to the listed top-N, not to the sweep. A unique leader is required: two
+    regions tied at the top publish no superlative. Fires for any scope that maps
+    regions, so both published scopes are described uniformly.
+    """
+    coverage = _coverage_row(mapping_coverage, scope, "region")
+    if coverage is None or coverage[5] <= 0:
+        return None
+    mapped = coverage[5]
+    rows = [row for row in regions if row[0] == "region" and row[3] > 0]
+    if len(rows) < 2:
+        return None
+    leader, runner = rows[0], rows[1]
+    label, count = leader[1], leader[3]
+    if not label or count <= 0 or count > mapped:
+        return None
+    if runner[3] == count:
+        return None
+    return Insight(
+        scope=scope,
+        text=(
+            f"The leading region is {label}, with {count:,} of {mapped:,} mapped posting(s) "
+            "in this sweep."
+        ),
+        evidence={
+            "region_label": label,
+            "leader_postings": count,
+            "mapped_postings": mapped,
+        },
+    )
+
+
+def rule_sweep_churn(flows: Sequence[FlowRow], scope: str) -> Insight | None:
+    """Openings and closures between the two most recent buckets, as counts.
+
+    Churn is stated for the two most recent observed buckets of the finest
+    published grain, whatever their spacing: unlike rule_trend this claims no
+    direction, so no cadence gate applies. The openings and closures are the
+    flow rows' own numbers, and the active stock names the newer bucket. A gap
+    between the buckets is stated plainly rather than read as zero.
+    """
+    daily = sorted(
+        (row for row in flows if row[0] == scope and row[1] == "day"),
+        key=lambda row: row[2],
+    )
+    if len(daily) < 2:
+        return None
+    older, newer = daily[-2], daily[-1]
+    openings, closures, active = newer[3], newer[4], newer[5]
+    if openings is None or closures is None or active is None:
+        return None
+    days_apart = (newer[2] - older[2]).days
+    span = f"{days_apart} days apart" if days_apart > 1 else "one day apart"
+    return Insight(
+        scope=scope,
+        text=(
+            f"Between the two most recent daily buckets ({span}), {openings:,} posting(s) "
+            f"opened and {closures:,} closed, leaving {active:,} active."
+        ),
+        evidence={
+            "openings": openings,
+            "closures": closures,
+            "active_postings": active,
+            "newer_bucket": newer[2].strftime("%Y-%m-%d"),
+            "days_apart": days_apart,
+        },
     )
 
 

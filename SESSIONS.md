@@ -24,7 +24,28 @@ than expanding the active increment.
 | 14 | 2026-08-22 | Complete; three dimensions published, one taxonomy code still unobserved | Publish employment type, working-hours type, and contract duration from three structured fields that are 100% present, mapped through a new hand-written reference to English labels. Every posting lands in exactly one row per dimension, so each published column sums to the sweep's 628 postings and `Not stated` is a visible row rather than a caveat; a new untagged assertion pins that on live partitions. Methodology version bumped to 1.2. | `make check && make sweep && make live-site && make release-check && make sample` passed |
 | 13b | 2026-08-23 | Complete; the tiebreak is scored, refusals counted, both readings published | Extend the review sample from 3 rows to 32 so it covers every concept the exact-match tiebreak decides in the published sweep - 13 occupation and 16 skill - each row recording whether its verdict was transcribed from 13a or re-judged here. `scripts/evaluate.py` scores a correct refusal as a true negative, keeps `precision`/`recall` textbook, and publishes strict and lenient figures for the five `narrower-or-broader` concepts side by side under a rule written down before the numbers. The collision census is reported and enforced nowhere. No sweep, no network, and no published figure moved. | `make check && make live-site && make release-check` passed |
 | 16 | 2026-08-24 | Complete; findings published, trend gate silent | State the findings instead of making the reader derive them: a pure stdlib inference layer (`scripts/insights.py`) renders a digest on Overview and one line at the top of the Occupations, Requirements, Survival, and Status sections, every sentence built from the tables beneath it with its denominator stated and every numeric token proven - by test - to appear in the source rows. Methodology bumped to 1.3 before the first insight rendered. The trend gate was pre-registered at N=14 sweeps / M=7 days and stays silent on 8 sweeps and 3 daily buckets with a gap at 08-21, exactly as pre-registered. Three 13b review carry-overs closed. | `make check && make live-site && make release-check` passed |
+| 20-25 | 2026-08-31 | Planning only; scope decision recorded, Increment 18 cancelled | Record the sister scraper lab's descope of German collection from a full census to a stratified region-bounded sample, and replan the observatory's publishing work as Increments 20-25: widen the live globs, per-scope/country sections, a German breadth line, German occupation mapping, methodology 1.3 to 1.4, and an optional live service. Four earlier planning assumptions corrected against the checkout (no map, no mapped-share ratio, suppression not regional, no exhaustiveness test). No code, no sweep, no data. | Not run — markdown planning documents only |
+| 20 | 2026-09-01 | Complete; every stored source can now reach the page, and the next failure is the intended one | Widen the source segment of all three live globs at unchanged depth, so `make live-site` reads `data/raw/collections/*/*/*/` instead of `jobtech/*/*/`: the sweep count (`Makefile:29`) and the exported `OBSERVATIONS_PATH`/`MANIFESTS_PATH` (`Makefile:101-102`). Partition shape confirmed as `source/scope_id/sweep_id` before editing, so the segment count after `data/raw/collections/` is unchanged and the count is a depth check: 8 stored sweeps before, 8 after. `LIVE_READY` (`Makefile:30`) left byte-identical, so zero sweeps still fails the build instead of publishing an empty page. Makefile only — no collector, dbt, publisher, test or data change. | `make check && make live-site && make release-check` passed |
+| 20 (re-applied) | 2026-09-03 | Complete as code this time; the widened glob is committed, and the intended next failure turned out to be two earlier ones | Re-apply Increment 20, whose 2026-09-01 record survived a merge but whose Makefile edit did not: `git log -- Makefile` stopped at `c9ade31` and the commit claiming increment 20 (`1a2b6be`) touched only `.gitignore` and `SESSIONS.md`, so all three globs were still `jobtech/*/*/`. Widened the source segment only, at unchanged depth: `LIVE_SWEEPS` (`Makefile:30`) and the exported `OBSERVATIONS_PATH`/`MANIFESTS_PATH` (`Makefile:103-104`); `LIVE_READY` (`Makefile:31`) left byte-identical. Depth verified by count rather than by reading: the depth-3 glob resolves 9, which equals 8 `jobtech` + 1 `ba`, and the depth-4 glob resolves 0. `make` itself confirms it, printing `publishing from 9 stored sweeps`. Also resolved six committed merge-conflict markers in this file (two blocks, at the table and before the 2026-08-31 scope note); both kept HEAD and the `scrapers` side was empty, so only the marker lines were removed and no recorded line was lost. Makefile and SESSIONS.md only - no collector, dbt, publisher, test or data change. | `make check` green (ruff, mypy 62 files, **459 passed**, dbt PASS=190 WARN=0 ERROR=0). `make live-site` **red by design, but earlier than predicted**: it fails in `dbt build` (PASS=183 ERROR=2) before `scripts/publish.py` runs, so `_verify_single_scope` was never reached. `make release-check` not run - it builds on `site`, not `live-site`, and would only have re-tested the sample |
+| 20b | 2026-09-03 | Complete; dbt build is green on live partitions, and the failure has moved to the per-scope guard as planned | Admit the BA mapping vocabulary into the pinned `accepted_values` list and backfill 12 NUTS-3 labels via a new `stg_nuts_labels` model coalesced in `stg_postings`, so `make live-site` gets past `dbt build` and dies in `_verify_single_scope` (Increment 21's job). Ten BA method values registered - six observed in the `ba/de-nuts3-panel` partition plus four (`ba_segment_radius_nuts3`, `ba_plz_nuts3`, `ba_plz_ambiguous`, `not_available`) pre-registered from a source audit of `scrapers/ba_jobsuche.py` so a future PLZ/radius sweep cannot redden the build; other collectors' ~35 literals deliberately absent. `stg_nuts_labels` reads the nine reference CSVs explicitly (no glob - it would miss the two Slovak `mpsv` files), one row per code by `group by`, pinned by contract + not_null + unique; `assert_nuts_label_unambiguous` (untagged, runs under live-site) surfaces cross-file label conflicts. Coalesce is source-wins in `stg_postings` (`:18`), left-joined so `not_present` rows keep their denominator. Prevention fix applied too: `GermanCrosswalk.label_for_nuts` now feeds both Tier-3 resolutions in `ba_jobsuche.py:1186-1204`, so a re-sweep stops reproducing the null. | `make check` green (ruff, mypy 62 files, **459 passed**, dbt **PASS=195** WARN=0 ERROR=0; new model + 3 tests + 1 singular test). Live rebuild PASS=190 ERROR=0; fan-out guard: `stg_postings` 33,836 rows unchanged, BA region outcomes sum to 28,900, BA region rows still 393, all 12 codes labelled (`DE937` Rotenburg (Wümme), `DEB11` Koblenz, Kreisfreie Stadt), zero null-label rows. `make live-site` red exactly as planned: dbt green, then `ValueError: 2 scopes have postings` in `_verify_single_scope` (`publish.py:768`) |
+| 21 | 2026-09-04 | Complete; the two-scope page publishes, each scope in its own sections with its own denominators | Governance first, own commit: `SOURCE_FEASIBILITY.md` gains a dated amendment (owner-relaxed ToS/robots gate 2026-08-23, BA Jobsuche an active lane via `scrapers/ba_jobsuche.py`, German data a stratified region-bounded sample over a frozen 400-region NUTS-3 panel), the BA row's `Rejected` verdict superseded not rewritten, the German scope added to Fixed Release Scope, and the Approval Gate recorded as **unmet** - the relaxation is the owner's decision, not a BA approval. Publisher second: all five pooled surfaces scoped by `(source, scope_id)` - `_query_dimension`/`_query_skills` take `DIMENSION_LIMIT` **per scope** via `qualify row_number() over (partition by source, scope_id, dimension ...)`, `_query_mapping` groups within scope dropping the cross-scope sum, `_query_requirements` carries the scope key, and `_denominator` (`publish.py`) names its own sweep or says it has none. Countries/Occupations/Requirements render one subsection per scope (`h3` scope, `h4` topic blocks, table ids suffixed `-{source}-{scope}`), the quality missing-mappings table is per scope too, and the region ranking gains its denominator plus the unlisted-tail sentence - material now that truncation is 25 of 393. `insights.build` partitions per collecting scope (`_collecting_scopes`, demand order, `active_postings > 0`) so `_requirement_count` and the share totals read one scope; the scope label is markup beside the sentences (`<p class="label">`), never inside `Insight.text`, so the traceability test still passes unmodified. `release_check` matches ranked tables by **id prefix** (`table-countries-regions`, `table-occupations-ranked`, `table-occupations-skills`), at least one per prefix, each with its own consumed denominator; `https://www.arbeitsagentur.de/` registered as the BA licence host the manifests cite. The false "Sweden only: no German posting source has passed the approval gate" clause dropped; `data/sample/` deliberately not regenerated (the hand-built DuckDB test covers the two-scope shape); no METHODOLOGY_VERSION bump (Increment 24). The two refusal tests replaced by behaviour tests keeping their intent; the one cross-scope figure left standing is the Status section's pre-existing operational "row(s) stored by the latest sweep of each scope" storage stat, which was already cross-scope in the single-source fixture (20 = 11 + 9) and is not a demand count. | `make check` green (ruff, mypy 62 files, **459 passed** - two tests replaced one-for-one, dbt **PASS=195** WARN=0 ERROR=0 unchanged). **`make live-site` completes for the first time on two scopes**: `publishing from 9 stored sweeps`, dbt PASS=190 ERROR=0, `wrote site\build\index.html (2 rows)`. Live-page release check **0 problems** (`uv run --offline python -m scripts.release_check site/build/index.html`, run directly - `make release-check` would rebuild the synthetic page over it; run separately, green). Spot-check: DE region subsection lists 25 regions with the tail sentence ("Ranked from 28,603 mapped posting(s) of 28,900 ... accounting for 2,729 ... unlisted tail"), DE occupation/skill rankings empty with honest denominators ("Ranked from 0 mapped posting(s) of 28,900 ... 0 carry a structured occupation" - Increment 23's job), SE denominators name their own 628-posting sweep, digest labels each scope group, no pooled demand figure |
+| 22 | 2026-09-04 | Complete; the German breadth count is published from a pinned frame, as a count and never a share | New dbt view `region_breadth_latest`: `count(distinct value_uri)` over `dimension_demand_latest` region rows per `(source, scope_id)`, joined to the NUTS-3 frame in `stg_nuts_labels` (`length(nuts_code) = 5`, grouped by `left(nuts_code, 2)`), so the denominator is the pinned reference frame and **not** the Sweden-only `geography_nuts_2024.csv` and the count is **not** the number of rendered region rows (those truncate at `DIMENSION_LIMIT = 25`). `assert_nuts_frame_counts` (untagged, runs under live-site) pins the frame at exactly 400 DE / 21 SE. The publisher's `_query_region_breadth` feeds each scope's region block with the breadth line and the manifest's own `coverage_limitations` string rendered verbatim above the denominator, `class="definition"` so `release_check` still consumes the real denominator. A null frame degrades to an explicit no-frame sentence, never "N of 0", and no percentage is rendered anywhere. | `make check` green (ruff, mypy 62 files, **459 passed**, dbt **PASS=201** WARN=0 ERROR=0; +1 model, +5 tests). Live cross-check: `regions_with_postings = 393` for `ba/de-nuts3-panel` against the 400-region frame, matching the 20b measurement; SE 21 of 21. Live-page release check 0 problems |
+| 23 | 2026-09-04 | **Cancelled** - unimplementable from this source, evidence recorded; the gap is published as data instead of a ranking | Three confirmations in the sister lab's checkout: `scrapers/ba_jobsuche.py:51-52` (search page carries only a free-text title, no occupation code), `scrapers/ba_jobsuche.py:1222-1246` (`NormalizedRecord` built with `esco_occupation_uri=None`, `occupation_mapping_status="not_present"`, method `not_available_ba_html` - no occupation input exists in the stored partition to map), `scripts/sanitize.py:31-35` (allowlist carries only mapping outputs; no title field, and the published methodology commits to never classifying titles or free text). Acceptance criterion 5 was written when Germany was expected via HR-BA-XML, which would have carried occupation codes; it is **unachievable from this source**. In place of the ranking, `_empty_by_construction` renders one sentence in any scope whose `mapping_coverage_latest` row reports `postings_with_source_value = 0` with `postings_total > 0` - for occupation and skill alike - derived from the data alone, no source names, no German special case. `SOURCE_FEASIBILITY.md` appends the occupation-field gap to the German fixed-release-scope entry; the roadmap marks the increment Cancelled with the citations and the two revival conditions (a structured-field source, or an evaluated title-classification method the project has ruled out). | `make check` green (459 passed, dbt PASS=201); live-page release check 0 problems; the DE occupation and skill blocks carry the empty-by-construction sentence beside "Ranked from 0 mapped posting(s)" |
+| 24 | 2026-09-04 | Complete; the published methodology describes a sampled design and an occupation gap | `METHODOLOGY_VERSION` 1.3 -> 1.4 (`scripts/publish.py`, the test pin moved in the same commit). The on-page methodology text now states that `ba/de-nuts3-panel` is a stratified region-bounded sample with a capped within-stratum draw over a frozen 400-region NUTS-3 panel - not a census and not a partial crawl, with the panel's own manifest caveat beside its figures - while the Swedish keyword scope is a keyword-scoped query, not a sample; and that one published scope carries no structured occupation field, so its occupation and skill rankings are empty by construction. Together with 22's breadth count this is a definition change, not a wording tweak. `collect.py`'s limitation constants deliberately untouched: Task 0 verified nothing pins the committed sample to them (only `tests/test_probe.py:884`/`:1047` pin runtime manifests to the `collect.*` symbols) and their text is not false, so no `make sample` regeneration was forced. `README.md` corrected 1.2 -> 1.4 with the two scopes, the sampling design, the occupation gap and the `docs/index.html` artefact; `USER_MANUAL.md`'s CSV example now reads `...-methodology-1-4.csv`. Interpolations at footer, `data-methodology-version` and CSV filenames move with the constant; `release_check.py`'s version rule untouched and confirmed to follow it. | `make check` green (459 passed, dbt PASS=201); methodology 1.4 verified in the footer, the `data-methodology-version` attribute and a CSV filename on the live page |
+| 22/23/24 wrap-up | 2026-09-04 | Complete; the finish line is reached and visible | The one-increment-per-session rule (`SESSION_RUNBOOK.md:40-52`) **suspended for this session by owner decision** - it exists to stop two agents colliding in `publish.py`/`SESSIONS.md`, which is not the situation, and it was costing three more plan-and-record cycles for ~3 h of work; scope was not widened. Four commits in task order (`ef3f65a`, `12412d0`, `8db030a`, `2a4e537`), each verified with `git show --stat HEAD`. `docs/index.html` committed as the portfolio artefact: a copy of the live two-scope page (footer "built from stored collection partitions", German 28,900 headline, 393-of-400 breadth line with the manifest caveat, empty-by-construction sentences, methodology 1.4), release-checked at 0 problems; `site/build/` stays ignored and ephemeral. `SESSION_RUNBOOK.md` section 3 gains the ordering rule: finish with `make live-site`, never `make release-check`, because release-check rebuilds the synthetic page over the live one. | Gates as run: `make check` (459 pytest, mypy 62 files, dbt PASS=201 WARN=0 ERROR=0); `make release-check` on the synthetic page (0 problems); `make live-site` (9 stored sweeps, dbt PASS=196 ERROR=0, 2 demand rows); direct release check on the live page and on `docs/index.html`: 0 problems each |
+| Sweeps restart (Plan 1 Task 1) | 2026-09-04 | Complete; the first post-pause Swedish sweep is stored, published and committed, and the cadence is re-established | Restarted the Swedish collection cadence after 11 idle days, exactly as pre-flighted. One sweep (`20260904T183925Z-f5cf1d409aa5`, 623 rows, 7 pages) from the main checkout: 9 `jobtech` partitions now on disk, `ba` still 1, nothing existing rewritten (git clean after). Gates in the runbook's order. `docs/index.html` refreshed from the live build and committed (`541e47c`). Cadence rule for the coming days: never slower than every two days, design target twice daily. | `make check` green (459 pytest, dbt PASS=201); `make release-check` green on synthetic (0 problems); `make live-site` green (10 stored sweeps, dbt PASS=196, 2 rows); direct release check live page + `docs/index.html`: 0 problems each |
+| German panel sweeps 2 and 3 (Plan 1 Task 2) | 2026-09-04 | Complete; `complete_sweeps = 3` for `ba/de-nuts3-panel`, criterion 4 met, both scopes Fresh on the published page | The "sister lab" turned out to be in-repo after the `merge/scrapers-lab` merge: `main.py --source ba --panel` drives the frozen-panel sweep (`scrapers/ba_jobsuche.py` `_fetch_panel`), `PANEL_HANDOVER.md` §3 is its runbook, `scripts/check_ba_panel_readiness.py` is the DoD gate, and `data/reference/ba_panel_nuts3.json` is the committed pinned panel. Sweep 2 (`20260904T201534Z`, observed 2026-09-04): 400 region queries, 398 with rows, 1321/1321 pages, 0 failed (29 absorbed 403s), 29,068 rows. Sweep 3 (`20260904T210722Z`, observed 2026-09-05): identical shape, 29,068 rows. Both verified against the plan's §3.2 cross-checks and the panel DoD (all six PASS across all 3 partitions); both committed to `docs/index.html` (`e25a94d`, `9bd4563`). | Panel DoD: 3/3 partitions reconcile, membership hash `545b162ec6e5fbdc...` identical across all 3 sweeps, 0 failed requests (77 absorbed throttles total), PII clean, cap-as-scope declared. `make live-site` green (12 stored sweeps, dbt PASS=196 ERROR=0); direct release checks on live page + `docs/index.html`: 0 problems each |
+| Cadence guard (Plan 1 Task 3) | 2026-09-04 | Complete; abandonment is now a red dbt gate, ordinary staleness stays a page badge | One new untagged singular test `transform/tests/assert_cadence_not_abandoned.sql` (commit `f8a8425`): fires when a scope's latest complete sweep is older than 4x its own `freshness_threshold_hours`, reading reference time through the same `OBSERVATORY_REFERENCE_TIME` mechanism as `source_coverage` so it is deterministic offline. Green on the committed sample by measurement (largest sample multiple 171/48 = 3.6x) and green under `live-site`; the red side is proven on the measured 2026-09-04 morning state (jobtech 308.5 h at 48 h = 6.4x would have failed, ba 64.7 h at 24 h = 2.7x would not - exactly the abandonment-vs-staleness split the test exists for). No Makefile, gate or constant edits; scope one test only, no scheduler, no notification channel. | `make check` green (459 pytest, dbt **PASS=202** WARN=0 ERROR=0, +1 test); `make live-site` green (dbt PASS=197 including the new test untagged); release checks 0 problems |
+| Trend rule check (Plan 1 Task 4) | 2026-09-04 | Complete; `rule_trend` stays **silent** on both scopes, each unmet precondition named with its measured value | Measured after all sweeps: jobtech `complete_sweeps = 9` (< 14) and its newest daily buckets are 08-22 -> 09-04, a 13-day gap adjacent to the newest (the no-gap precondition fails); de-nuts3-panel has adjacent newest buckets (09-04 -> 09-05) but `complete_sweeps = 3` (< 14) and span 3 d (< 7). No constant, threshold or precondition touched; the silence is the pre-registered behaviour. The rule will become evaluable once the Swedish cadence holds. | Direct measurement of `collection_frequency` and `posting_flows` (day grain) per scope; `rule_trend` re-run from `scripts.insights` against the live rows: SILENT for both scopes, as expected |
+| Uniform inferences + UI redesign (owner direction: presentation and simple inferences) | 2026-09-05 | Complete; methodology **1.5**, two uniform statistical rules firing on both scopes, and the guideline-reviewed instrument-board redesign implemented from `design/UI_REDESIGN_SPEC.md` | **Owner decisions recorded:** (1) the no-new-dependency rule is **lifted** - presentation libraries and premade assets are allowed, `make check` stays offline as the API-quota firewall, vendored inline assets are the pattern (Increment 15's uPlot spec already wrote the policy). (2) Occupation-type inferences stay **out entirely** - Germany's source carries no occupation field, and the app stays uniform across scopes: no per-country special casing. Inferences added, both computed per scope from rows the page already publishes: `rule_region_concentration` (leading region's count against the **mapping_coverage** mapped total - never the truncated ranking column, which sums to the top-25 listed) and `rule_sweep_churn` (openings/closures/active between the two most recent daily buckets, spacing stated; no direction claim so no cadence gate). Redesign ported from the spec/prototype: housing-plate header, mode selector, **observation board** (one card per scope: lamps, count, frame strip, trend line - replaces the cross-scope-inviting "Largest single observation" stat), **scope plates** in Countries/Occupations/Requirements, **annunciator lamps** with age/threshold numbers in every table, **frame strips** (per-tick SVG ≤60 regions, pattern-runs otherwise, unique ids via context suffix), **mark key** (filled/hollow/hatched/dashed), **absence plates** replacing the five empty German tables (occupation, skill, employment, hours, duration - requirement condition = empty dimensions + positive posting total, spec Flag 1 option b), **mapping chips** (three-segment mapped/carries/total), hatched suppressed cells, `Not stated`/`Unrecognised code` row markers, `theme-color`, amber+ink focus ring, Data Register monospace numerals, `translate="no"` on scope ids. Commits: `3bbf640` (rules + redesign + tests), `f126600` (design spec/prototype/screenshots tracked), `69bdf1e` (artefact). | `make check` green (ruff, mypy 62 files, **459 pytest**, dbt **PASS=202**); `make release-check` green on synthetic; `make live-site` green (12 sweeps, dbt PASS=197, 2 rows); direct release checks live + `docs/index.html`: **0 problems**; live page verified: 2 board cards, 6 scope plates, 5 absence plates, 4 frame strips, 2 chips, 24 lamps; concentration "Rendsburg-Eckernförde, 187 of 28,779 mapped" (correct sweep denominator), churn "13 opened and 13 closed" (DE, one day apart) |
+| Context reset + Plans A/B + Plan A Task A1 (owner direction: dry/bland/technical is the big issue; sweeps automation undelivered; context hygiene) | 2026-09-05 | Complete; two plans written for multi-session execution, MEMORY.md rewritten as the de-poisoned handoff, and A1 (plain-language board) implemented | **Owner direction, recorded verbatim-intent:** (1) "The application looks dry, bland and technical for an average user. That is the big issue" - the quiet-instrument aesthetic is **superseded** (banner added to `design/UI_REDESIGN_SPEC.md`; its a11y chapters stay binding). (2) Local sweep automation was asked for and not delivered - Plan B exists now. (3) Fear of context poisoning / outdated guardrails - **MEMORY.md rewritten fresh** with an ACTIVE-vs-RETIRED guardrail list (§4): no-new-deps and the quiet-instrument aesthetic are RETIRED; data honesty (per-scope separation, traceable numbers, denominators, suppression, offline check, no-JS readability, methodology bumps on new figures) is ACTIVE. Plans: **A** `.kilo/plans/1788618000000-dynamic-user-friendly-presentation-plan.md` (A1 plain-language board, A2 vendored-uPlot charts, A3 `<details>` decluttering, A4 five-section IA optional), **B** `.kilo/plans/1788618000000-local-sweep-automation-plan.md` (B1 `make auto` orchestrator that never commits a red gate, B2 Windows scheduled tasks + BA-daily-vs-weekly cadence decision). **A1 implemented this session:** board cards gain friendly fact lines rendered from insight-rule **evidence** (numbers identical to the formal sentences by construction): "Most postings sit in Rendsburg-Eckernförde — 187 of 28,779 mapped." / "Since the previous sweep (1 day earlier): 13 postings opened, 13 closed." (spacing always stated - a 13-day-old previous sweep must never read as yesterday; `days_apart` added to churn evidence). Friendly copy: heading "At a glance", "open technology postings", "Last checked". No new statistics → **no methodology bump** (rendering change only). Runbook Block 0 gains the constraint-hygiene rule (check MEMORY §4 before refusing anything as "against the rules"). Commit `0650963`. | `make check` green (ruff, mypy, **459 pytest**, dbt PASS=202); `make release-check` green; `make live-site` green (12 sweeps, PASS=197); direct release checks live + `docs/index.html`: **0 problems**; friendly lines verified on the live page for both scopes with correct denominators |
+| Usability protocol (Plan 1 Task 5) | 2026-09-04 | Complete; Iteration 11's study is prepared, pre-registered and **unrun** | `docs/usability-study-protocol.md` (commit `ef2f512`, tracked): five tasks against `docs/index.html` - German breadth line, the empty occupation ranking's meaning, per-country freshness, cross-country comparability (the real test: if participants compare the absolute counts anyway, that is a design finding routed to Plan 2, not a code patch), and what a closed posting means. Tasks written before any participant exists so they cannot be reshaped around what the page answers well; recruiting, running and write-up explicitly out of scope. | No gate applies (a document, no page output change); `git show --stat` verified the file is committed |
+| Plan A Task A2 (JSON export contract) | 2026-09-05 | Complete; `app/data.json` is the fresh app's entire world, exported from the same views and the same `insights.build` rules the page reads, schema-pinned by test and committed as the seed | `scripts/export_app_data.py` (stdlib + duckdb): reads exactly what `publish.build_site` reads by calling publish's own `_query_*` functions (no duplicated SQL to drift) and runs `insights.build` with the identical argument list, so the app's numbers and the page's numbers cannot diverge. `Insight` gained an additive `rule` field (tagged in `insights.build` via `dataclasses.replace`; page rendering unchanged) because the contract requires naming the rule that produced each sentence. `make export-app` mirrors `live-site`'s live paths, glob depth and reference time. Tests in a NEW file `tests/test_export_app.py` (the old page's tests untouched): export-vs-page equality on the two-scope fixture (demand counts parsed back out of the rendered rows, region/requirement rows as exact cell fragments, the suppressed bucket vs the page's hatched cells, every insight sentence present, evidence dicts equal to the fixture numbers) and a schema pin asserting the exact key set at every payload level, so a silent field rename fails loudly. Live export committed as the seed: 2 scopes, methodology 1.5, spot-checked against the known live figures (Rendsburg-Eckernförde 187 of 28,779; churn 13/13 one day apart; SE 623). No methodology bump: the export introduces no new figure - every number already publishes on the page. **Open items:** (1) an uncommitted `make auto` draft (`scripts/auto_sweep.py` + the Makefile `auto` target) from a parallel B1 session stopped mid-flight by the owner appeared in the tree during this session; it is deliberately left out of this commit (the Makefile was partially staged) for the real B1 session to re-apply and review. (2) The contract carries occupation/skill only through insight evidence, not as ranking keys (the plan's payload shape omits them) - A3 must confirm that suffices for the app's design. | `make check` green before (459 pytest) and after (**462 pytest**, mypy 65 files, dbt PASS=202 WARN=0 ERROR=0); `make export-app` green from live data (12 stored sweeps, dbt PASS=197, wrote `app/data.json`, 2 scopes); `make live-site` green (12 sweeps, dbt PASS=197, 2 rows); direct release check on the live page: 0 problems |
 
+| Plan A Task A3 (fresh app: stack preflight + skeleton, hero, charts) | 2026-09-05 | Complete; Vite + React + TS + Chart.js app in `app/`, rendering the A2 export only | **Preflight (before any code, per the task):** `node --version` → **v24.14.0**, so the stack is Vite + React + TypeScript with Chart.js (via `react-chartjs-2`); npm deps installed (`app/package.json`, `app/package-lock.json` committed). The app lives in `app/`, imports **nothing but `data.json`** (grep-verified), computes no statistic, and honours the export's suppression flags and absence states. Detail in the dated note below. | `make check` green before **and** after, unchanged either side (ruff clean, ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**) — the app touches no Python. `npm run build` green (tsc -b + vite, 335 modules). Screenshots verified at 1280 px and 390 px; contrast audit computed in-browser (lowest pair 4.92:1, most ≥7:1); 6/6 interactive elements are native `button`/`a`. No `live-site`/`release-check` run: no page output changed (see the note) |
+| Plan A Task A4 (polish and illustration pass) | 2026-09-05 | Complete (`01c7a1b`); motion/states/branding/cross-link polish of the A3 app — no new data, statistic or chart type; audit-page link verified under the recommended publish layout; deploy recommendation recorded (nothing deployed) | Motion (entrance rise-in, card hover lift, region-bar grow, lamp breathe, Chart.js draw-in) all switch off under `prefers-reduced-motion` — one CSS media block plus the `usePrefersReducedMotion()` hook the charts read. Loading state is real (app+export lazy chunk + Suspense) with a plain-language error boundary; absence cards regrouped under one "Not available from this source" heading (A3 open item 4). Branding: "Job Market Pulse", inline SVG favicon/logo, one consistent icon set, decorative overview illustration. `AUDIT_PAGE_URL = '../index.html'` in `src/links.ts`, vite `base: './'`. Detail in the dated note below. | `make check` green before and after, identical (ruff clean, ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). `npm run build` green (340 modules; App chunk split out, 196 kB entry + 251 kB lazy app/export chunk); `npm run lint` 2 advisory warnings recorded in the note. Screenshots in `.playwright-mcp/`: desktop 1280 (overview + Germany story), 390 px (overview + Sweden story), reduced-motion emulation (page-confirmed `matchMedia` true), loading state (chunk delayed 2.5 s) and error state (chunk aborted). 390 px: zero horizontal overflow; contrast recomputed — audit CTA 5.47:1, absence group title 8.77:1, everything else ≥7:1. Dev server and `vite preview` both run against the committed live export; audit link clicked end-to-end under a simulated `docs/app/` layout. No `live-site`/`release-check`: no page output changed |
+| Plan B Task B1 (`make auto` orchestrator) | 2026-09-05 | Complete (`da9c929`); `scripts/auto_sweep.py` + `make auto`: spacing guard → sweep(s) → gates in the runbook's order → both published surfaces → one pathspec-scoped artefact commit; any failing step stops before the commit and exits 1. Proven green twice (auto commits `5deb7b9` skip-sweep, `cfeed53` real jobtech run) and safe twice (a deliberate mid-loop lint failure and a blocked spacing guard, both exit 1, nothing committed) | **Session-start incident first**: the expected uncommitted B1 draft was gone and A2's committed files (`Makefile`, `scripts/insights.py`, `scripts/export_app_data.py`) had been mechanically reverted to their pre-`b223707` content at 22:15:56 local, two seconds before the prompt; restored to HEAD with owner approval, the unrecoverable draft discarded, B1 written fresh from the plan — detail in the dated note. Stdlib-only orchestrator that subprocesses the existing entry points (`make sweep`, `main.py --source ba --panel`, `make check`, `make live-site`, `make export-app`, `release_check`, `check_ba_panel_readiness`); flags `--sources jobtech,ba`, `--skip-sweep`, `--push`, `--dry-run`, `--status`; logs to `logs/auto/<id>.log` | `make check` green before (on the restored clean tree: ruff, ruff-format, mypy 64 files, **462 pytest**, dbt **PASS=202**) and after (ruff, ruff-format, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). Page gates ran inside the auto loops: `make live-site` green, `make export-app` green (dbt PASS=197, 2 scopes), direct release check on the built page **0 problems**, copy + artefact commits `5deb7b9` (12 sweeps) and `cfeed53` (13 sweeps, jobtech sweep #10 = 599 rows) |
+| Plan B Task B2 (Windows scheduled tasks + cadence decision) | 2026-09-05 | Complete (`94f3267`); two user-level scheduled tasks registered and verified firing from the scheduler, both left **ENABLED** per owner choice, BA slot moved to **13:00** (PC off at midnight); the BA fire ran the full loop green (partition #4, auto commit `75e4e22`), the SE fires hit a JobTech source outage and proved the failure path (each stopped before commit). **Cadence decision recorded: BA daily** (keeps the 24 h freshness threshold honest; weekly rejected — it would need `freshness_threshold_hours` → 168, a scope-definition change needing a methodology note, deliberately NOT made); SE twice daily 07:30/19:30 per the pre-registered cadence. Also fixed a DoD-blocking bug: `--status` crashed on the BA run's cp1252 log bytes (UnicodeDecodeError) — log tails now read with `errors="replace"` (`94f3267`) | `scripts/install_scheduled_tasks.ps1`: registers "Observatory SE sweep" (07:30/19:30, `make auto SOURCES=jobtech`) and "Observatory BA sweep" (13:00, `make auto SOURCES=ba`), no elevation, repo as working directory, start-when-available + wake-to-run, 4 h limit, ignore-new on overlap, battery settings off; registers DISABLED by default (`-Enable` to register enabled), `-Remove` to uninstall. S4U principal refused unelevated → Interactive fallback (runs when logged on, including locked); elevated S4U re-registration is the one-command upgrade — detail in the dated note | `make check` green before and after (ruff, ruff-format, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). The BA task's own loop ran all page gates green inside `logs/auto/20260905T213703Z.log` (live-site, export-app, direct release check 0 problems) and auto-committed `75e4e22` (14 sweeps, 2 scopes); SE failure runs left HEAD at `75e4e22` throughout; `--status` verified reflecting both tasks' outcomes |
 
 ## Session Notes
 
@@ -910,3 +931,1199 @@ figures fall.
   including the two new rules: no empty insight paragraph, and the Overview digest present
   whenever the page renders any insight.
 
+### 2026-08-31 - Scope decision: Germany is a sample, not a census
+
+Planning session. No code, no partitions, no data, no gate: only `FUNCTIONALITY_ROADMAP.md`,
+`USER_MANUAL.md` and this file changed.
+
+- **The decision.** The sister scraper lab is descoped from a full German census to a **stratified
+  region-bounded sample with a capped within-stratum draw over a frozen panel**. The observatory's
+  job is to be ready to publish that, which is a publishing problem rather than a modelling one. The
+  design is neither a census nor a partial crawl, and the wording matters: a partial crawl is a
+  census that failed, while this is a sample that was drawn on purpose and can be described.
+- **Four earlier planning assumptions were wrong, and each was checked against this checkout before
+  being written down.** (1) *There is no map.* The regional surface is a top-25 table:
+  `_query_dimension(region=True)` (`scripts/publish.py:689-701`, called at
+  `scripts/publish.py:1653`) truncates at `DIMENSION_LIMIT = 25` (`scripts/publish.py:24`), so
+  regions below 25th are collected, stored and mapped but never rendered. (2) *There is no 85%
+  mapped-share ratio anywhere in code.* `_denominator` (`scripts/publish.py:1132-1170`) publishes
+  three counts and deliberately no percentage — its own docstring gives the reason, that a ratio
+  invites a coverage trend one sweep cannot support — so no mapped-share threshold exists to be
+  quoted as a gate. (3) *The suppression floor of 5 is not a regional rule.*
+  `transform/macros/suppress_small_counts.sql` masks non-zero groups under 5 in `posting_flows` and
+  `posting_survival` only, and neither view has a region column
+  (`scripts/publish.py:775-798`); a thinly sampled region is therefore absent from the top 25 rather
+  than `suppressed`. (4) *No test enforces country-level exhaustiveness.* Completeness is judged
+  inside the declared scope — `status = 'complete'`, pages matching, `expected_rows = row_count`
+  (`transform/models/staging/stg_collection_manifests.sql:50-53`) — and coverage turns `invalid`
+  only on a manifest/row disagreement or a wrong-country row
+  (`transform/models/publish/source_coverage.sql:68`). **Sampling needs no transform change at all**,
+  which is why this session is documentation and not a migration.
+- **The plan is Increments 20-25**, recorded in the roadmap with the brief's budgets: widen the
+  `jobtech`-only live globs (`Makefile:25-26`, `Makefile:94-96`); replace `_verify_single_scope`
+  (`scripts/publish.py:756-772`) with per-scope and per-country sections and scope
+  `_query_dimension`/`_query_skills`/`_query_mapping` (`scripts/publish.py:689-701`, `704-714`,
+  `716`) with it; add the breadth line "N of 400 DE NUTS-3 regions with mapped postings" to the NUTS
+  block of `_render_countries` (`scripts/publish.py:1117-1128`, function at
+  `scripts/publish.py:1056`) with the sampling caveat sourced from `coverage_limitations`; map German
+  occupations over stored partitions through the `scripts/enrich.py` path; bump the methodology
+  version with the sampling text; then, optionally, the live service.
+- **The order is deliberate: 20 before 21, and the build stays red in between.** Widening the globs
+  makes German partitions visible, at which point a second scope carrying postings trips
+  `_verify_single_scope` and fails the build **by design** — that guard is the only thing stopping
+  two scopes being summed into one ranking under a denominator naming a single sweep. It is removed
+  when the per-scope sections that make pooling unnecessary exist, not before.
+- **One correction to the brief itself: the methodology bump is 1.3 to 1.4, not 1.2 to 1.3.**
+  `METHODOLOGY_VERSION` is already `"1.3"` (`scripts/publish.py:74`), bumped by Increment 16 on
+  2026-08-24 and pinned by a test. The brief's "1.2 → 1.3" predates that bump, and the checkout wins.
+  The `coverage_limitations` text changes with it: the strings are constants
+  (`scripts/collect.py:55-63`) pinned by equality at `tests/test_probe.py:884` and
+  `tests/test_probe.py:1047`, so constants and pins move in one commit.
+- **Increment 18 (German access request) is cancelled, with the text kept.** It was premised on
+  census-level coverage — a BA data agreement as "the only real unlock", asking for complete
+  traversal or snapshot semantics. A sampled panel needs no agreement to publish, and the census it
+  would have authorised is now explicitly out of scope. The roadmap's stale "Do not shortcut Germany"
+  recommendation and its equally stale "next step is Increment 12" were replaced by Increment 20,
+  with the superseded wording quoted in place rather than deleted. Increments 15, 17 and 19 stay
+  recorded but unscheduled: they are outside the finish line, not wrong.
+- **Acceptance criteria recorded:** `make check` and `make release-check` green; the page rendering
+  all countries in per-country sections; German breadth at ≥390 of 400 NUTS-3 regions with mapped
+  postings; `collection_frequency.complete_sweeps` ≥ 3 for the German panel
+  (`transform/models/publish/collection_frequency.sql:28`); and the occupation section populated for
+  Germany.
+- **Stop rule, recorded verbatim in the roadmap:** "items 1-5 are the finish line. No StepStone, no
+  Kimeta, no Indeed, no census completion, no other-country re-sweeps unless the live-service budget
+  allows." Items 1-5 are Increments 20-24; item 6 is Increment 25 and optional.
+- **Two files were reviewed and deliberately left unchanged.** `README.md` states no census claim to
+  correct: it already frames itself as an aggregate record with a denominator beside every ranking,
+  and its suppression paragraph already scopes the rule to the flow and survival views. Its stale
+  "Methodology version 1.2" (`README.md:20-21`) is a version error, not a census claim, and Increment
+  24 owns it. `SOURCE_FEASIBILITY.md` states no census-level coverage target: every completeness
+  claim in its rows is scope-bounded, and its Fixed Release Scope already says a sweep means "all
+  pages for one fixed query scope, not all Swedish vacancies".
+- **One open conflict left for the operator, not resolved here.** `SOURCE_FEASIBILITY.md` still reads
+  "the project must not collect or publish German posting observations yet", which collides with
+  publishing the sister lab's German panel. Editing that governance decision was outside this
+  session's brief, and the German source's own feasibility record lives in the sister lab's
+  documents. It needs a decision recorded there and mirrored here before German rows reach a
+  published page.
+- **Carry-overs for Increment 24, both cosmetic and both version-related:** `README.md:20-21` claims
+  methodology 1.2, and the manual's CSV example (`USER_MANUAL.md:127`) still shows
+  `...-methodology-1-2.csv`. Both are wrong today at 1.3 and must land on 1.4 with the sampling text.
+
+### 2026-09-01 - Increment 20: widen the live globs
+
+Makefile-only session. Three globs changed, nothing else: no collector, no dbt model, no publisher,
+no test, no partition moved. Both gate runs bracket the edit.
+
+- **The defect.** `make live-site` resolved exactly one source directory. The sweep count globbed
+  `data/raw/collections/jobtech/*/*/manifest.json` (`Makefile:25-26` before the edit) and the recipe
+  exported `OBSERVATIONS_PATH` and `MANIFESTS_PATH` under the same `jobtech/` prefix
+  (`Makefile:94-96` before the edit), so a partition from any other collector could sit on disk,
+  pass every gate and still be invisible to dbt and to the page.
+- **Depth confirmed before editing, not assumed.** One precise glob
+  (`data/raw/collections/*/*/*/manifest.json`) resolved 8 manifests, the same 8 as
+  `data/raw/collections/jobtech/*/*/manifest.json`, and the two inner segments read as a scope id
+  (`jobtech-f5cf1d409aa51fad`) and a sweep id, so the stored shape is `source/scope_id/sweep_id` and
+  the segment count after `data/raw/collections/` is three. Only `jobtech` exists under
+  `data/raw/collections/` today. No recursive listing of `data/` was taken.
+- **The change is a widened source segment at fixed depth.** `LIVE_SWEEPS` (`Makefile:29`) and both
+  exported paths (`Makefile:101-102`) now read `data/raw/collections/*/*/*/`. Depth is the whole
+  correctness argument: one segment more or fewer would resolve a different set of manifests while
+  still looking plausible, which is why the comment at `Makefile:24-28` now says to widen the source
+  segment and never the depth.
+- **Fail-closed behaviour untouched.** `LIVE_READY` (`Makefile:30`) is byte-identical: it still
+  expands to `$(error no stored sweeps found; ...)` when the wildcard is empty, so an empty page is
+  still unpublishable. Widening the glob widens what can be found, not what counts as enough.
+- **Measured, and the count is the test.** `make live-site` printed **8 stored sweeps before the
+  change and 8 after** — identical, as required, since only `jobtech/` is on disk. A different
+  number would have meant a wrong glob depth rather than a discovery, and would have been fixed
+  rather than accepted. dbt on the live partitions ran PASS=185 WARN=0 ERROR=0 both times with
+  `tag:sample_fixture` excluded, and the page wrote `site/build/index.html` unchanged in shape.
+- **Gates.** `make check` green before and after (70 pytest, dbt PASS=190 WARN=0 ERROR=0, ruff and
+  mypy clean, fully offline); `make release-check` green with `0 problem(s)` on the built page. No
+  test and no `check` target was edited, and nothing under `data/` was written.
+- **What this deliberately does not do.** No German data is published, because none is on disk: the
+  increment makes the path reachable, not populated. No collector was added or touched, no dbt model
+  changed (staging reads whatever the globs resolve to, and completeness is judged inside the
+  declared scope), and no source-specific special case was introduced — the widened glob is
+  collector-agnostic by construction.
+- **Stated plainly, because it is the next thing an operator will hit:** widening the glob alone will
+  trip `_verify_single_scope` (`scripts/publish.py:756-772`) the moment a second scope carries
+  postings. That failure is **by design** — it is what stops two scopes being summed into one ranking
+  under a denominator naming a single sweep, since `_query_dimension`, `_query_skills` and
+  `_query_mapping` read their views with no scope filter — and removing it is Increment 21's job,
+  not this one's. Today the build is green only because `jobtech`'s second scope carries no postings.
+- **Comments kept truthful.** `Makefile:24-28` and the `live-site` block at `Makefile:90-93` both
+  described jobtech-only behaviour by implication; they now state that every collector's partitions
+  are read, why the depth is fixed, and that the per-scope guard is the next barrier.
+
+### 2026-09-03 - Increment 20, re-applied (corrective)
+
+- **Why this note exists.** The 2026-09-01 entry above is accurate about intent and was left
+  untouched, but the repository never carried its code. Verified before editing anything:
+  `git log -- Makefile` stopped at `c9ade31`, an old collector commit, and `1a2b6be` - whose message
+  says "record ... and increment 20" - touched only `.gitignore` and `SESSIONS.md`. The Makefile
+  still globbed `data/raw/collections/jobtech/*/*/` in all three places. The edit was lost to a
+  checkout or reset around the scraper-lab merge, and nothing was cherry-pickable. The record
+  preceded the surviving edit; this note is the correction, not a rewrite.
+- **What was re-applied.** Exactly the three globs, source segment only, depth unchanged:
+  `LIVE_SWEEPS` (`Makefile:30`), and the two exported paths `OBSERVATIONS_PATH` and `MANIFESTS_PATH`
+  (`Makefile:103-104`). `LIVE_READY` (`Makefile:31`) is byte-identical, so an empty wildcard still
+  raises `no stored sweeps found` instead of publishing an empty page. The comment above
+  `LIVE_SWEEPS` (`Makefile:24-29`) and the `live-site` block (`Makefile:91-102`) now say that every
+  collector is read, why the depth is pinned at three segments, and that a second scope is expected
+  to fail loudly rather than be summed.
+- **Depth verified by counting, not by reading.** The depth-3 glob
+  `data/raw/collections/*/*/*/manifest.json` resolves **9**; per source that is **8** `jobtech` plus
+  **1** `ba`, which sums to 9, so the segment count after `data/raw/collections/` is unchanged. The
+  depth-4 equivalent resolves **0**, so nothing nested can be double-counted. `make -n live-site`
+  prints `publishing from 9 stored sweeps`, so make's own expansion agrees with the shell's. The
+  2026-09-01 expectation of "8 before, 8 after" is stale - it was written when only `jobtech/` was on
+  disk, and `ba/de-nuts3-panel/20260902T080422Z` has landed since.
+- **Merge damage repaired in this file.** `SESSIONS.md` carried six committed conflict markers in two
+  blocks - at the increment table and immediately before the 2026-08-31 scope note. In both blocks
+  the `scrapers` side was empty and HEAD held all the content, so the six marker lines were deleted
+  and nothing else. No recorded line was removed. It was the only tracked file with markers:
+  `git grep -c -E "^(<<<<<<<|=======|>>>>>>>)" HEAD` reported `SESSIONS.md:6` and nothing else.
+- **Gates, stated as run.** `make check` green before and after (ruff clean, mypy clean over 62
+  source files, **459 pytest passed**, dbt `PASS=190 WARN=0 ERROR=0`), fully offline. No test and no
+  `check` target was edited. `make release-check` was deliberately **not** run: it depends on `site`,
+  not `live-site`, so it would have re-tested the synthetic sample and told us nothing about the
+  widened glob.
+- **The predicted failure was wrong, and the measured one matters more.** `make live-site` is red, as
+  the 2026-09-01 note said it would be, but not where it said: it dies inside
+  `dbt build --exclude tag:sample_fixture` with `PASS=183 ERROR=2`, so `scripts/publish.py` never
+  starts and `_verify_single_scope` (`scripts/publish.py:756-772`) is never reached.
+  **Increment 21 is therefore blocked behind two dbt failures, both of them the German panel meeting
+  a pinned vocabulary for the first time.** Diagnosed against `data/dev.duckdb`, not guessed:
+  - `accepted_values_mapping_quality_latest_mapping_method`: the `de-nuts3-panel` scope emits **six**
+    methods absent from the list pinned at `transform/models/publish/schema.yml:153` -
+    `not_available_ba_html` (occupation / `not_present`, 28,900 outcomes),
+    `ba_city_municipality_nuts3` (22,575), `ba_city_qualifier_nuts3` (5,013),
+    `ba_segment_provenance_nuts3` (839), `ba_city_municipality_ambiguous` (region / `ambiguous`, 297)
+    and `ba_segment_disambiguated` (176). The pin behaved exactly as its comment
+    (`schema.yml:151-152`) says it should: an unaudited vocabulary cannot be published silently. The
+    fix is to extend the list deliberately, **never** to unpin it or lower its severity.
+  - `not_null_dimension_demand_latest_value_label`: **12** German NUTS-3 codes reach the page with a
+    null label, covering **839** postings - which is exactly the `ba_segment_provenance_nuts3` total,
+    so the two are the same defect seen twice. When the region is attributed from the panel segment's
+    own provenance rather than from the posting's city text, the collector wrote `nuts_code` and left
+    `nuts_label` null, and `dimension_demand_latest.sql:38` publishes that null straight through from
+    `stg_postings`. The codes are `DE937 DE403 DEB11 DE233 DE927 DEB35 DE273 DE943 DEE05 DEB3D DE938
+    DEE0C`.
+  - **The labels are recoverable in-repo, so this needs no re-sweep and no partition rewrite.**
+    `data/reference/germany_plz_nuts_2024.csv` carries `nuts_code` and `nuts_label` over **all 400**
+    distinct NUTS-3 codes from the destatis Anschriften source, and it resolves every one of the 12
+    (e.g. `DE937` -> `Rotenburg (Wuemme)`, `DEB11` -> `Koblenz, Kreisfreie Stadt`). The published
+    label is the Kreis name, not the panel's query seed - `DEF0B` publishes
+    `Rendsburg-Eckernfoerde` where the panel seeded the town `Eckernfoerde`, and `DE408` publishes
+    `Havelland` where the panel seeded `Brieselang` - so the backfill must join the reference, not
+    `data/reference/ba_panel_nuts3.json`. Since `data/raw/` is immutable, the coalesce belongs in the
+    transform or enrich layer.
+- **Measured while diagnosing, for Increment 22.** The panel's postings map to **393** distinct
+  NUTS-3 codes (381 labelled + 12 unlabelled) out of the 400-region frame. That is the count the
+  German breadth line should state - a count, never a share - once the 12 labels are filled.
+- **What this deliberately does not do.** No attempt to fix either dbt failure: extending a
+  deliberately pinned vocabulary and backfilling a label join are data-model decisions with their own
+  pinned tests, and folding them into a Makefile increment is how the 2026-09-01 edit got lost. No
+  collector, model, publisher, test or data file was touched, and nothing under `data/` was written.
+
+### 2026-09-03 - Increment 20b
+
+- **What was measured before editing.** Both failures from the re-applied Increment 20 record,
+  reproduced against `data/dev.duckdb` under the live `OBSERVATIONS_PATH`/`MANIFESTS_PATH` exports:
+  `accepted_values_mapping_quality_latest_mapping_method` with **6** unlisted methods, and
+  `not_null_dimension_demand_latest_value_label` with **12** null-label codes over **839** postings -
+  exactly the `ba_segment_provenance_nuts3` total, so both failures were one defect seen twice.
+  `stg_postings` carried 33,836 rows (28,900 BA + 4,936 jobtech) and the BA panel mapped **393**
+  distinct NUTS-3 codes (381 labelled + 12 not), out of the 400-region frame.
+- **The vocabulary admission, deliberate and cross-collector.** Ten BA values added to the
+  `accepted_values` pin at `transform/models/publish/schema.yml` (now `:160`), the existing eight
+  kept: six observed in the partition plus four **pre-registered from a source audit**, not from
+  observed rows - `ba_segment_radius_nuts3` (`ba_jobsuche.py:1218`), `ba_plz_nuts3` (`:576`),
+  `ba_plz_ambiguous` (`:581`) and `not_available` (the `RegionResolution` default, also `:396`,
+  `:451`, `:506`, `:509`). Adding only the six observed would redden the build on any BA re-sweep
+  that takes the PLZ or radius path. The other seven collectors' ~35 method literals are
+  deliberately absent: no partition exists for them, so none may be collected. The pin's comment
+  now records why the list grew, the observed-vs-audited split, and widens "a typo in
+  `scripts/enrich.py`" to cover `scrapers/`. The pin itself was never lifted and its severity never
+  lowered.
+- **The label backfill, at the only layer that can change a stored partition's meaning.**
+  `data/raw/` is immutable, so the fix is a new `transform/models/staging/stg_nuts_labels.sql`:
+  one row per `nuts_code`, read from the **nine** reference CSVs that expose `nuts_code` +
+  `nuts_label` (enumerated explicitly - a `*_nuts_2024.csv` glob silently misses
+  `mpsv_obce_kraj_2024.csv` and `mpsv_okresy_kraj_2024.csv`; `union_by_name` because the German file
+  carries two extra columns). `group by nuts_code` + `min(nuts_label)`, **not** `select distinct`:
+  distinct over the pair would emit two rows for a code with two label spellings and fan out every
+  posting count on join. Pinned by `contract: enforced: true`, `not_null` + `unique` on `nuts_code`
+  and `not_null` on `nuts_label` in `transform/models/staging/schema.yml`. `stg_postings.sql:18`
+  becomes `coalesce(cast(postings.nuts_label as varchar), labels.nuts_label)` on a **left** join -
+  source row wins because the collected label is evidence and the reference is a backfill; left,
+  never inner, so postings whose region is `not_present` (null `nuts_code`) keep their place in the
+  denominator. The inner join to `stg_collection_manifests` is untouched. No dbt seed, no var, no
+  snapshot - `read_csv` in a model, matching the project's constraints and `stg_postings`'s own
+  inline `read_json`.
+- **Conflicts surfaced, not hidden.** `min(nuts_label)` resolves a cross-file label conflict
+  silently, which is exactly what the vocabulary pin exists to prevent, so
+  `transform/tests/assert_nuts_label_unambiguous.sql` selects any code with two distinct non-null
+  labels across the same nine files. Untagged on purpose: it runs under `make live-site` too. It
+  passed on first run - no reference file pair currently disagrees.
+- **Prevention at source (step 5, done rather than deferred).** `ba_jobsuche.py`'s two Tier-3
+  `RegionResolution`s (`:1203-1220`) now take `nuts_label` from a new
+  `GermanCrosswalk.label_for_nuts()` lookup over the same `germany_plz_nuts_2024.csv` the other
+  tiers resolve from, so a future sweep stops producing code-without-label rows. The stored
+  partition cannot change, which is why the staging backfill is required regardless. The pinned
+  scraper tests took the change without a fight: all 51 BA tests and the full 459 passed unchanged,
+  ruff and mypy clean.
+- **Fan-out guard, checked explicitly as the highest-risk regression.** After the coalesce:
+  `stg_postings` still **33,836** rows, BA region outcomes still sum to **28,900** (22,575 + 5,013 +
+  839 + 297 + 176), BA region rows still **393** (the label completed existing `group by all` grains
+  rather than splitting them), and `dimension_demand_latest` has **zero** rows with
+  `dimension = 'region' and value_label is null`. All 12 spot-checked: `DE937` -> `Rotenburg
+  (Wümme)`, `DEB11` -> `Koblenz, Kreisfreie Stadt`, `DE233` -> `Weiden i. d. Opf, Kreisfreie Stadt`,
+  `DEE0C` -> `Salzlandkreis`. The published label is the reference Kreis name, not the panel's query
+  seed, matching the 2026-09-03 Increment 20 finding.
+- **Gates, stated as run.** `make check` fully offline and green: ruff clean, mypy clean over 62
+  source files, **459 pytest passed**, dbt **PASS=195 WARN=0 ERROR=0** - PASS rose by exactly the
+  five new resources (model + three contract tests + the singular test) and no test stopped being
+  selected. The sample fixtures are unaffected: `accepted_values` rejects unexpected values, it does
+  not require every listed value to appear, and the SE sample's labels are present so the coalesce
+  is a no-op there. `make live-site` is red **exactly as planned**: dbt build completes
+  (PASS=190 ERROR=0 excluding `tag:sample_fixture`), then `scripts/publish.py` raises
+  `ValueError: 2 scopes have postings (ba/de-nuts3-panel, jobtech/jobtech-f5cf1d409aa51fad)` in
+  `_verify_single_scope` (`publish.py:768`) - the failure Increment 20 originally predicted and
+  Increment 21's actual job. `make release-check` deliberately not cited: it depends on `site`, not
+  `live-site`, and re-tests only the synthetic sample.
+- **No METHODOLOGY_VERSION bump.** The code-to-region assignment is unchanged; only presentation
+  labels were completed and a vocabulary admitted. Increment 24's 1.3 -> 1.4 bump should mention
+  this backfill. Nothing under `data/` was written, and the reference CSVs stay tracked in git
+  (`git ls-files data/reference/`), so a fresh clone still builds.
+
+### 2026-09-04 - Increment 21
+
+- Implemented per `.kilo/plans/1788465051865-increment-21-per-scope-per-country-sections.md`,
+  which supersedes Prompt 2's fixture-regeneration instruction: `data/sample/` was **not**
+  regenerated (a second collecting scope in the committed sample would perturb the
+  `tag:sample_fixture` dbt assertions and the exact-count pytest assertions for no gain), and the
+  two-scope shape is covered instead by a hand-built DuckDB twin of
+  `test_publish_builds_aggregate_page` (`tests/test_probe.py`, scopes `jobtech/jobtech-scope` SE
+  and `ba/de-panel` DE) that runs inside `make check`, including `release_check.check_page == []`.
+- **Governance before publisher, two commits.** `3f6f27d` amends `SOURCE_FEASIBILITY.md` by
+  append: dated amendment (owner-relaxed ToS/robots gate for private research/educational use,
+  2026-08-23), BA Jobsuche an active lane via `scrapers/ba_jobsuche.py`, the German data a
+  **stratified region-bounded sample with a capped within-stratum draw over a frozen 400-region
+  NUTS-3 panel - not a census, not a partial crawl**, the `Rejected` verdict superseded with its
+  evidence intact, the German scope in Fixed Release Scope (source `ba`, scope `de-nuts3-panel`,
+  country `DE`, sweep = one pass over the frozen panel, limitation = the manifest's own
+  `coverage_limitations` string), and the Approval Gate For Germany left standing and recorded as
+  **unmet** - no claim anywhere that BA approved anything.
+- **Five scoped query paths, not three.** The old guard's docstring named
+  `_query_dimension`/`_query_skills`/`_query_mapping`; the requirements query and the
+  `_denominator` were pooling too (silent duplicate rows under a false "each Postings column sums
+  to that sweep's posting count" claim). All now carry `(source, scope_id)`:
+  `DIMENSION_LIMIT` applies **per scope** via `qualify row_number() over (partition by source,
+  scope_id, dimension order by posting_count desc, value_label)`; `_query_mapping` groups by
+  scope and keeps only the within-scope sum; `_query_requirements` keeps its `value_code`-last
+  tiebreak; `_denominator` takes the scope key, keeps the `postings_total > 0` guard, and emits
+  the "no coverage row" sentence for a scope without one. Published row shapes (`DimensionRow`,
+  `MappingRow`, `RequirementRow`) are unchanged, preserving the renderers' index maths.
+- **Per-scope subsections.** `_scope_keys` orders unique `(source, scope_id)` by demand (largest
+  scope leads - on the live page that is `ba/de-nuts3-panel` at 28,900, then
+  `jobtech/jobtech-f5cf1d409aa51fad` at 628), with one fallback subsection when demand is empty
+  so the ranked tables and their denominators always exist (`release_check` fails a ranked table
+  that disappears). `_scope_slug` makes stable unique table ids (`table-occupations-ranked-ba-de-
+  nuts3-panel`). Countries: `h4` per scope under `h3 NUTS regions`, each with its own region
+  denominator - the truncation went from harmless (25 of ~21 Swedish regions, no tail) to
+  material (25 of 393 German regions), so the unlisted-tail sentence now matters. Occupations and
+  Requirements: `h3` per scope, `h4` blocks per topic. The quality section's missing-mappings
+  table is per scope as well - leaving it pooled would have summed across sources. New rows carry
+  `data-source`/`data-country` so the existing filter script works unmodified; **no SCRIPT
+  change**.
+- **Insights per scope.** `insights.build` loops `_collecting_scopes` (demand order,
+  `active_postings > 0`) and partitions the scoped rows before each rule call, so every rule
+  keeps its signature and receives one scope's rows - which is what stops `_requirement_count`
+  returning the first code match across scopes and the share totals summing both. The scope
+  label renders as `<p class="label">source / scope_id</p>` beside each group in the Overview
+  digest, Status and Survival - markup, never sentence text, because a scope id like
+  `jobtech-f5cf1d409aa51fad` would read as an unsourced number to
+  `test_insight_traceability_every_number_appears_in_the_source_rows`, which passes unmodified
+  along with `test_insight_sentences_never_mention_a_second_scope`.
+- **Release check by prefix.** `RANKED_TABLES` (exact ids) replaced by
+  `RANKED_TABLE_PREFIXES` over `table-countries-regions`, `table-occupations-ranked`,
+  `table-occupations-skills`: at least one table per prefix must exist, and every match needs its
+  own consumed denominator sentence. `MASKED_TABLES` untouched - flows and survival are per-scope
+  rows in one table with no region dimension. One addition the plan did not name:
+  `https://www.arbeitsagentur.de/` joined `ALLOWED_URL_PREFIXES` (`release_check.py:20`), because
+  the BA manifests cite it as `licence_reference` and the live page rendered it three times
+  (countries, provenance, governance); registering the documented licence host is the same act
+  that put `data.jobtechdev.se` there, and the page build still never requests it.
+- **Guard removed last.** `_verify_single_scope` and its call deleted only after the sections,
+  tests and release rules existed. The two refusal tests were replaced one-for-one:
+  `test_publish_renders_each_scope_in_its_own_sections` (two subsections per panel, no pooled
+  figure, per-scope denominators, per-scope `DIMENSION_LIMIT` with the unlisted tail, requirement
+  columns summing to their own scope, labelled digest, unique ids, `check_page == []`) and
+  `test_insight_build_states_each_scope_separately` (one sentence per scope per rule, correct
+  `Insight.scope`, no scope id in text, zero-posting scope silent). Test count stays **459**.
+- **Deliberately not done.** No METHODOLOGY_VERSION bump (Increment 24), no breadth line or
+  coverage percentage (Increment 22 - the denominator must come from
+  `data/reference/geography_nuts_2024.csv`, not a hardcoded 400), no German occupation mapping
+  (Increment 23), no `data/sample/` regeneration, nothing written under `data/raw/`, no new
+  dependency and no network at build time. The Status section's cross-scope "row(s) stored by
+  the latest sweep of each scope" storage stat was left standing on purpose: it was already
+  cross-scope in the single-source fixture (20 = 11 + 9), it counts stored rows rather than
+  postings, and its sentence says what it is; changing it was not in this increment's scope.
+- **Gates, stated as run.** `make check` fully offline and green: ruff clean, mypy clean over 62
+  source files, **459 pytest passed**, dbt **PASS=195 WARN=0 ERROR=0** (no dbt resource added or
+  removed). `make live-site` **green for the first time on two scopes**: `publishing from 9
+  stored sweeps`, dbt PASS=190 ERROR=0, `wrote site\build\index.html (2 rows)`. Live-page release
+  check run directly as `uv run --offline python -m scripts.release_check site/build/index.html`
+  (not `make release-check`, which rebuilds the synthetic page over the live one): **0
+  problems**. `make release-check` then run separately, green on the synthetic page (0 problems).
+  Spot-check of the live page: DE region subsection lists 25 regions with "Ranked from 28,603
+  mapped posting(s) of 28,900 in the latest sweep; 28,900 carry a structured region. Only the 25
+  most frequent regions are listed below, accounting for 2,729 of those mapped postings; the
+  rest sit in an unlisted tail."; DE occupation and skill rankings empty with "Ranked from 0
+  mapped posting(s) of 28,900 ... 0 carry a structured occupation/skill" (Increment 23's job,
+  not a defect); SE rankings and denominators name their own 628-posting sweep; the Overview
+  digest labels each scope's group; no demand figure on the page is the sum of both scopes.
+- **Acceptance criterion 2 is now met**: the page renders all countries, each in its own
+  per-country/per-scope section. Remaining against the finish line: criterion 3 (breadth line,
+  Increment 22), criterion 4 (two more sister-lab sweeps for `ba/de-nuts3-panel` - data
+  collection, not code), criterion 5 (German occupation mapping, Increment 23).
+
+### 2026-09-04 - Increments 22, 24 and the cancellation of 23
+
+- **Rule suspension, recorded not broken.** The one-increment-per-session rule in
+  `SESSION_RUNBOOK.md:40-52` was suspended for this session by the project owner's decision: the
+  rule exists to stop two agents colliding in `publish.py` and `SESSIONS.md`, which is not the
+  situation, and finishing 22/23/24 one per session was costing three more plan-and-record
+  cycles for roughly three hours of work. It is not licence to widen scope: nothing outside the
+  three increments and the artefact was touched. Four commits, in task order, each verified with
+  `git show --stat HEAD`: `ef3f65a` (22), `12412d0` (23), `8db030a` (24), `2a4e537` (artefact).
+- **Increment 22 - the breadth view's design.** Breadth comes from a dbt publish view, not a CSV
+  read in the publisher (decision 1: every `_query_*` is a DuckDB query against the publish
+  layer; 20b set the precedent of joining pinned references inside dbt via `stg_nuts_labels`).
+  `region_breadth_latest` takes `count(distinct value_uri)` from `dimension_demand_latest`
+  region rows - the same rows `_query_dimension` truncates at 25 - and left-joins the frame
+  (five-character NUTS codes in `stg_nuts_labels`, grouped by country prefix), so the frame is
+  the union of all nine reference CSVs, never the Sweden-only `geography_nuts_2024.csv`. The
+  publisher renders the breadth line, then the manifest's own `coverage_limitations` string
+  verbatim (decision 3: page and manifest cannot drift), then the existing `_denominator`
+  paragraph and the table. All three paragraphs before the table use `class="definition"`:
+  `release_check.py:155-156` captures a `class="denominator"` paragraph for the next table, so
+  anything with that class between the denominator and its table would be consumed instead.
+  A null frame renders "No NUTS-3 frame is pinned ... so no breadth count is published.",
+  never "N of 0", and no percentage exists in the line or the fixtures (decision 2).
+  **Cross-check on live data: `regions_with_postings = 393` for `ba/de-nuts3-panel`, the figure
+  20b measured; the view is right and the note is right.** SE is 21 of 21.
+- **Increment 23 - cancelled, not deferred, on three citations.** `scrapers/ba_jobsuche.py:51-52`
+  (the BA search page carries only a free-text title, no occupation code, so the collector sets
+  `occupation_mapping_status=not_present` by design), `scrapers/ba_jobsuche.py:1222-1246`
+  (`NormalizedRecord` is built with `esco_occupation_uri=None`,
+  `occupation_mapping_method="not_available_ba_html"` - no occupation input is carried at all, so
+  there is nothing in the stored partition to map), `scripts/sanitize.py:31-35` (the allowlist
+  carries only the occupation mapping outputs; no title field, and the published methodology
+  states "job titles and free text are never classified", a public commitment). No title
+  classification, no detail-page re-sweep, no synthetic German occupations. The replacement is
+  `_empty_by_construction`: one sentence in any scope whose `mapping_coverage_latest` row reports
+  `postings_with_source_value = 0` with `postings_total > 0`, for occupation and skill alike,
+  derived from the data alone so any future source with the same gap is described correctly.
+  Acceptance criterion 5 is unachievable from this source - it was written when Germany was
+  expected through HR-BA-XML, which would have carried occupation codes. Revival conditions
+  recorded in the roadmap: a source that publishes a structured occupation field, or an
+  evaluated title-classification method (ruled out).
+- **Increment 24 - what was deliberately not touched.** `scripts/collect.py:55-63` limitation
+  constants: Task 0's scoped grep over `tests/` and `transform/` found the only pins
+  (`tests/test_probe.py:884`, `:1047`) compare runtime collector manifests to the `collect.*`
+  symbols, not the committed sample, and the constants' text describes the Swedish keyword and
+  field scopes, which is not false - so the constants stay, no `make sample` regeneration, no
+  re-run of the whole gate (decision 5, and increment 21's avoidance preserved). No edits at the
+  interpolation sites (`publish.py:1087`, `:1911`, `:1932` now shifted by the new text,
+  `release_check.py:369-372`): they interpolate the constant; the CSV-filename test and the
+  release version rule were confirmed to move with it. `METHODOLOGY_VERSION` and its test pin
+  moved in the same commit, as the roadmap demands.
+- **The artefact fix.** `site/build/` is gitignored (`.gitignore:59`) and `make release-check`
+  depends on `site` (`Makefile:63`), which rebuilds from the synthetic sample and so destroyed
+  the live page every session - the reason the project felt stalled with nothing to show. Fixed
+  by committing `docs/index.html` (not gitignored) as a copy of the live page: footer reads
+  "built from stored collection partitions", headline carries the German 28,900, breadth line
+  reads "393 of 400 DE NUTS-3 regions have at least one mapped posting." with the panel
+  manifest's caveat under it, the DE occupation and skill blocks carry the
+  empty-by-construction sentence, and methodology 1.4 is stamped in the footer, the
+  `data-methodology-version` attribute and every CSV filename. `uv run --offline python -m
+  scripts.release_check docs/index.html`: 0 problems. `SESSION_RUNBOOK.md` section 3 now carries
+  the ordering rule with its one-line reason: finish with `make live-site`, never `make
+  release-check`.
+- **Gates, as run and with their actual numbers.** Baseline before editing: `make check` green
+  (ruff, mypy 62 files, 459 pytest, dbt PASS=195 WARN=0 ERROR=0). After: `make check` green
+  (ruff, mypy 62 files, **459 pytest** - the new assertions extend existing tests rather than
+  adding files - dbt **PASS=201** WARN=0 ERROR=0, +1 view model and +6 tests over the 195).
+  `make release-check` green on the synthetic page (0 problems), run **before** the live build
+  so it could not destroy the live page. `make live-site` green: `publishing from 9 stored
+  sweeps`, dbt PASS=196 ERROR=0 (190 + the new model and its untagged tests), `wrote
+  site\build\index.html (2 rows)`. Direct release check on the live page: 0 problems; on the
+  `docs/index.html` copy: 0 problems. No `%` anywhere new; no figure on the page equals the sum
+  of the two scopes; the Status section's pre-existing cross-scope stored-rows stat left
+  standing as recorded on 2026-09-04.
+- **Acceptance after this session:** #1 green, #2 met (Increment 21), #3 met and published
+  (393 of 400), #4 still 1 of 3 sweeps - sister-lab data collection, not code, #5 unachievable
+  from this source (recorded, with the page stating the gap). Recommended next step: none -
+  finish line reached; Increment 25 only if the live-service budget is approved.
+
+### 2026-09-04 - Sweeps restart (Plan 1 Task 1)
+
+- **What was true before this session, measured.** The Swedish scope had been idle for 11 days
+  after eight sweeps (latest 2026-08-22T20:12Z, 308.5 h against a 48 h threshold), so both
+  published scopes carried stale badges; `ba/de-nuts3-panel` was 64.7 h against 24 h. The daily
+  flow buckets were 08-19, 08-20, 08-22 - the 08-21 bucket is missing and nothing existed after
+  08-22. Source: `posting_flows` at day grain, `source_coverage` freshness on the latest sweep
+  per scope.
+- **Preflight, no writes.** Working tree clean at `563f434` on `merge/scrapers-lab`.
+  `.env` present and carries `OBSERVATORY_HMAC_KEY` (presence checked, value never read or
+  printed) - a missing key would not fail loudly, because `Makefile:12` conditions the flag on
+  the file's existence and would run the collector keyless. The key was **not** rotated, so
+  `assert_key_rotation_does_not_close.sql` stays silent and posting pseudonyms are continuous.
+  Baseline `make check` green: 459 pytest, dbt PASS=201 WARN=0 ERROR=0.
+- **The sweep.** `make sweep` from the main checkout (never a worktree, `Makefile:66`): sweep
+  complete at `jobtech/jobtech-f5cf1d409aa51fad/20260904T183925Z-f5cf1d409aa5`, 623 rows over 7
+  pages. Verified exactly one new partition (8 -> 9 under the scope, `ba` still 1, total 10 with
+  the German panel), directory name in `YYYYMMDDTHHMMSSZ` form, and nothing existing changed -
+  `git status --porcelain` empty after, `data/raw/` append-only honoured.
+- **The 2026-08-21 hole is permanent, on the record.** Posting observations are collected only
+  in the present and `data/raw/` is immutable, so 08-21 can never be filled. The gap keeps
+  `rule_trend` silent until the rule's reading window has moved entirely past it
+  (`scripts/insights.py` gates on `TREND_MIN_SWEEPS = 14`, `TREND_MIN_SPAN_DAYS = 7`, and
+  refuses a gap adjacent to the newest bucket - so 14 sweeps is necessary, not sufficient). No
+  synthetic bucket, no widened rule: the hole is a true statement about the data. Grow past it.
+- **Gates, in the runbook's order.** `make release-check` green on the synthetic page first
+  (0 problems, dbt PASS=201); `make live-site` last: `publishing from 10 stored sweeps`, dbt
+  PASS=196 ERROR=0, `wrote site\build\index.html (2 rows)`; direct release check on the live
+  page (`uv run --offline python -m scripts.release_check site/build/index.html`): 0 problems.
+- **What the page now says.** The Swedish scope is **Fresh** again: SE jobtech observed
+  2026-09-04 18:39 UTC, 623 postings, status Fresh/Covered; the digest line reads
+  "1 fresh" of 2 source scopes. The German panel stays honestly **Stale** (67 h against its
+  24 h threshold) pending the sister lab's sweeps - that is Task 2, not this repo's to fix.
+  `docs/index.html` refreshed from the live build, re-checked directly (0 problems), committed
+  as `541e47c` (5 lines: the two scope rows' observed-at/status, the digest count, the build
+  stamp, the footer). `site/build/` stays ignored and ephemeral.
+- **Cadence, pre-registered and not relaxed.** Never slower than every two days; the design
+  target is twice daily (14 sweeps over 7 days, the trend rule's shape; the observed median
+  interval on the existing sweeps is 4.0 h). This session contributed sweep 9; future sessions
+  in the plan's cadence add the rest. Task 1's stop condition - `fresh` plus four consecutive
+  daily buckets with no gap adjacent to the newest - is not yet met after one sweep: the newest
+  buckets are 08-22 then 09-04, an 11-day hole, which only continued sweeping can grow past.
+- **Task 2, asked for and not started.** Two further complete sister-lab sweeps over the same
+  frozen 400-region NUTS-3 panel (`ba/de-nuts3-panel`), same partition shape
+  (`observations.ndjson` + `manifest.json`), unchanged HMAC key version, `YYYYMMDDTHHMMSSZ`
+  directory names, with each sweep's own `coverage_limitations` string recorded before it
+  lands. This repo only asks, verifies and publishes; it does not collect German data.
+- **Deliberately not done.** No threshold, gate constant or test edited; nothing under
+  `data/raw/` written besides the one new partition; no `make sample` regeneration; no trend
+  sentence forced (the rule stays silent, correctly); Increment 25 untouched; no German
+  survival figure stated from one sweep. `make check` was not re-run after the sweep: the sweep
+  added data only, no code changed, and `live-site`'s dbt run (PASS=196) is the gate that
+  exercises the live partitions.
+
+### 2026-09-04 - German panel sweeps 2 and 3 (Plan 1 Task 2)
+
+- **The co-ordination premise dissolved.** The plan asked for "two further complete passes from
+  the sister lab". After the `merge/scrapers-lab` merge the sister lab's collector, pinned panel
+  and DoD gate all live in this checkout: `main.py --source ba --panel --date <ISO>` drives
+  `BAJobsucheCollector` in panel mode (`scrapers/ba_jobsuche.py` `_fetch_panel`, which walks the
+  pinned `data/reference/ba_panel_nuts3.json`), `PANEL_HANDOVER.md` §3 is the sweep runbook
+  (gate first, sweep to a log, tail only, then the acceptance check), and
+  `scripts/check_ba_panel_readiness.py` asserts the step-2b DoD across every stored partition.
+  The request became a run, with the runbook's discipline kept: sweeps logged to
+  `logs/ba-panel-sweep*.log` (gitignored output, read as tail only), never streamed into the
+  session. The first background attempt was orphaned by a background-process lifetime bug
+  (24 lines of log, no partition, process gone - recorded here because a silent re-run could
+  have double-counted); the retry completed cleanly. No partition was written by the dead run:
+  `data/raw/collections/ba/de-nuts3-panel/` held exactly one directory before the retry
+  finished.
+- **Sweep 2, as measured.** `20260904T201534Z` (observed_at 2026-09-04): 400 region queries,
+  398 with >=1 row, 2 empty (`DE231` - its `wo=92211` anchor returns `UNGUELTIG` mode, as in
+  sweep 1; and `DEB24` - Beinhausen advertised 1 posting in sweep 1, 0 now: a genuine closure),
+  273 regions at the declared 4-page cap, 1321/1321 planned pages, 0 failed pages, 29 absorbed
+  403 throttles, 2028 HMAC duplicates dropped, **29,068 rows**. Manifest identity holds:
+  `status=complete`, `expected_rows == row_count == NDJSON lines`, `scope_hash` and
+  `hmac_key_version v1` unchanged, directory name in `YYYYMMDDTHHMMSSZ` form, partition shape
+  `ba/de-nuts3-panel/<sweep_id>/` with the third file `panel_regions.json` beside
+  `observations.ndjson` + `manifest.json`.
+- **Sweep 3, as measured.** `20260904T210722Z` (observed_at 2026-09-05, so the panel now spans
+  three distinct days): byte-for-byte the same shape - 400/398/1321/0-failed, 29,068 rows,
+  273 capped, 48 throttles. Run ~50 min after sweep 2 under the same key; the two sweeps are
+  deliberately close in wall-clock, which matters for how their closure signal reads (below).
+- **The plan's §3.2 cross-checks, all four, measured.**
+  1. Partition shape: three segments after `data/raw/collections/`, `manifest.json` present -
+     `make live-site`'s depth-pinned glob counts them (10 -> 11 -> 12 stored sweeps).
+  2. `make live-site` dbt green with no fifth unpinned BA method value (PASS=196 ERROR=0 both
+     times): sweeps 2 and 3 carry the same `ba_segment_provenance_nuts3` mapped /
+     Tier-1-ambiguous vocabulary as sweep 1, so the 20b pin held and nothing was added to
+     `schema.yml`.
+  3. Breadth: `region_breadth_latest` reads **392 of 400** for the latest sweep (sweep 1 was
+     393; `DEB24` lost its single posting - a real closure, not a panel change: the membership
+     hash and all 400 queries are unchanged). The plan's guard band was "stays in the same
+     region as 393 of 400"; 392 is one closure away, not a collapse, and the panel DoD's
+     >= 390 bar passes. Recorded as a change in the published number, not an anomaly.
+     `assert_nuts_frame_counts` green at 400 DE / 21 SE (frame unmoved, denominator safe).
+  4. Region outcomes sum to each sweep's posting count: sweep 1 28,603 mapped + 297 ambiguous
+     = 28,900; sweeps 2 and 3 28,779 + 289 = 29,068 each. `complete_sweeps` incremented by
+     exactly one per delivered sweep: 1 -> 2 -> 3 for `ba/de-nuts3-panel`
+     (`collection_frequency`), median interval 36 h over the three.
+- **The panel DoD gate, as run.** `uv run --offline python scripts/check_ba_panel_readiness.py`
+  after each sweep: all six PASS lines across ALL partitions - manifest reconciliation (3/3),
+  breadth (>= 390 of 400 per sweep, union 393), frozen-panel integrity (one membership hash
+  `545b162ec6e5fbdc...` across all 3 sweeps, equal to the pinned definition), zero failed
+  requests (77 absorbed 403 throttle events total - throttle events, not failures), PII scan
+  clean across 87,036 rows, cap-as-scope honesty (page cap 4 in `scope_json` and
+  `coverage_limitations` for every sweep).
+- **What the page now says.** Both scopes **Fresh** and covered: DE ba 29,068 postings observed
+  2026-09-05, SE jobtech 623 observed 2026-09-04; the Status digest reads "2 of 2 source
+  scope(s) covered · 2 fresh". `collection_frequency.complete_sweeps = 3` - acceptance
+  criterion 4 **met**, marked in `FUNCTIONALITY_ROADMAP.md`. `docs/index.html` refreshed from
+  live builds and committed per sweep (`e25a94d` after sweep 2, `9bd4563` after sweep 3);
+  direct release checks 0 problems each time.
+- **German survival, stated honestly per §3.3.** The page's DE survival sentence now exists
+  (median observed duration 2.0 days across 12,068 closed postings) because three sweeps
+  technically exist - but sweeps 2 and 3 are ~50 minutes apart, not spaced, so the closure
+  signal is one real epoch (09-02 -> 09-04) plus one near-instantaneous re-observation that
+  contributed 13 closures. **Do not read 2.0 days as a German posting lifetime**: with a 48 h
+  first interval and a ~1 h second, closures are inferred at wildly different resolutions and
+  the median is resolution-dominated. The plan's own warning ("closure is inferred from
+  absence at the next complete sweep") is restated here: the survival series becomes readable
+  only under a spaced cadence (weekly per `PANEL_HANDOVER.md` §3 cadence, daily at most). No
+  duration figure was fabricated, no threshold moved.
+- **What arriving sweeps did not change.** Increment 23 stays cancelled: sweeps 2 and 3 confirm
+  the occupation gap empirically - 0 postings carry a structured occupation value in any of the
+  three German sweeps, and the empty-by-construction sentences still render. No German trend
+  or duration claim beyond the caveated survival sentence; no new scope; no census.
+- **Deliberately not done.** No `data/raw/` rewrite (append-only: 3 German partitions now,
+  nothing touched from sweep 1); no `make sample` regeneration; no threshold, gate constant,
+  test or Makefile edit; `make check` not re-run between the sweeps (no code changed;
+  `live-site`'s dbt PASS=196 exercised the live partitions both times); Increment 25
+  untouched. `logs/` is gitignored run output, not committed.
+
+### 2026-09-04 - Tasks 3, 4 and 5 (Plan 1 close-out)
+
+- **Session rule, recorded not broken.** The owner's instruction "carry out the remaining
+  tasks in order, one at a time" overrides the one-increment-per-session rule for this
+  session, as the 2026-09-04 wrap-up did: the tasks are operations and one small test, none
+  of them collides in `publish.py`/`SESSIONS.md` the way two code increments would, and each
+  was still done, verified and recorded as its own unit with its own commit.
+- **Task 3 - the cadence guard, one honest test.** `transform/tests/assert_cadence_not_abandoned.sql`
+  (untagged, so it runs under `make check` AND `live-site`): a scope fails when its latest
+  complete sweep is older than **4x** its own `freshness_threshold_hours`, measured against
+  the same `OBSERVATORY_REFERENCE_TIME` the rest of the project reads (`source_coverage`'s
+  env_var with the sample's pinned 2026-08-15T12:00:00Z default), so it is deterministic
+  offline. Why 4x: on the committed sample the largest threshold multiple is the deliberately
+  stale keyword scope at 171/48 = **3.6x**, so 4x is green on the sample by measurement, not
+  by luck; on the measured 2026-09-04 pre-restart state, the abandoned Swedish scope sat at
+  308.5/48 = **6.4x** (the test would have fired - eleven days of silence would have been a
+  red gate instead of a badge only a human reader notices) while the German panel's 64.7/24 =
+  **2.7x** ordinary staleness would not have fired. That split is the whole design:
+  abandonment is a gate, staleness is a badge. Verified: `make check` dbt PASS=202 (+1),
+  `live-site` dbt PASS=197 (the untagged test runs there too), release checks 0 problems.
+  Deliberately absent: scheduler, notification channel, new dependency, any Makefile edit. If
+  the test ever reddens `make check` on the sample, the sample changed - investigate the
+  sample, never the multiple.
+- **Task 4 - the trend rule, verified not forced.** All four preconditions of `rule_trend`
+  (`scripts/insights.py:359-412`), measured per scope after all of this session's sweeps:
+  - `jobtech-f5cf1d409aa51fad`: `complete_sweeps = 9` (**< 14**, unmet); span 16 d (>= 7, met);
+    newest daily buckets 08-22 -> 09-04 (**13-day gap adjacent to the newest**, unmet - the
+    pre-registered no-gap precondition fails, and the permanent 08-21 hole is still inside the
+    rule's reading window besides); two comparable buckets exist (met).
+  - `ba/de-nuts3-panel`: `complete_sweeps = 3` (**< 14**, unmet); span 3 d (**< 7**, unmet);
+    newest buckets 09-04 -> 09-05 are adjacent (met); buckets exist (met).
+  `rule_trend` re-run directly from `scripts.insights` against the live `posting_flows` /
+  `collection_frequency` rows: **SILENT for both scopes** - the pre-registered behaviour,
+  not a bug. `TREND_MIN_SWEEPS`, `TREND_MIN_SPAN_DAYS` and the no-gap precondition untouched.
+  The rule becomes evaluable for Sweden once the restarted cadence holds (9 of 14 sweeps,
+  and the window must grow past both the 08-21 hole and the 08-22->09-04 gap). Note the
+  page's separate "Trend direction Daily rising within the source (28,900 to 29,068)" stat is
+  `publish.py`'s own scope-internal direction arrow from the flow series - not `rule_trend`,
+  which is the pre-registered N=14/M=7-day gated sentence and stays silent.
+- **Task 5 - the usability protocol, prepared only.** `docs/usability-study-protocol.md`
+  (new, git-tracked): five think-aloud tasks against `docs/index.html` for >= 5 students or
+  recent graduates - find the German breadth line (392 of 400); explain the empty occupation
+  ranking (empty by construction, not "no jobs"); find each country's data time; the
+  comparability question (the real test: comparing 623 with 29,068 anyway is a **design
+  finding routed to Plan 2**, never patched into the page now); and what a closed posting
+  means (inferred from absence). Tasks pre-registered before any participant exists; per-task
+  failure modes named so findings have somewhere to land; recruiting, running and write-up
+  explicitly out of scope; no page change from imagined findings.
+- **Gates for the session, as run.** `make check` green (ruff, mypy 62 files, 459 pytest,
+  dbt **PASS=202** WARN=0 ERROR=0, +1 test for the cadence guard); `make live-site` green
+  (12 stored sweeps, dbt PASS=197 ERROR=0, 2 rows); direct release checks on the live page
+  and on `docs/index.html`: 0 problems each. `scripts.check_ba_panel_readiness` green across
+  all 3 German partitions (six PASS lines).
+- **Commits this session, in task order:** `e25a94d` (artefact, sweep 2), `9bd4563`
+  (artefact, sweep 3), `61e816f` (SESSIONS record for Task 2), `f8a8425` (cadence guard),
+  `7db0381` (artefact re-sync), `ef2f512` (usability protocol).
+- **Deliberately not done.** No threshold, gate constant, test or Makefile edited to turn
+  anything green; no backfill of the 08-21 bucket or the 08-22->09-04 gap; no forced trend
+  sentence; no German survival figure stated as a lifetime (the 2.0-day median is
+  resolution-dominated by the unspaced second interval, recorded in the Task 2 note); no
+  recruiting; Increment 25 and any new source untouched.
+
+### 2026-09-05 - Uniform inferences and the instrument-board redesign
+
+- **Owner decisions, recorded before work started.**
+  1. **The no-new-dependency rule is lifted** (MEMORY.md §5, SESSION_RUNBOOK Block 0,
+     amended this session): presentation libraries and premade assets are allowed for speed
+     and beauty. What stays: `make check` fully offline (that is the API-quota firewall,
+     not a dependency rule) and the release check's no-external-asset scan - the sanctioned
+     path for a JS chart library is Increment 15's existing spec: vendor it **inline**,
+     pinned, licence-attributed, with the server-rendered SVG staying as the accessible
+     representation. Nothing was vendored in this session because the redesign needed none:
+     every new figure is server-rendered inline SVG from Python string templates.
+  2. **No occupation-type inferences at all.** The owner asked whether roles/skills/education
+     guidance could be inferred; answer: SE yes, DE never (no occupation field), education
+     never (no field, and title classification is the cancelled increment). The owner chose
+     uniformity over a Swedish-only feature: "we don't have the types of roles for germany?
+     then i don't want to add that for sweden either, app should stay uniform. Just stick to
+     what is being done currently."
+- **The two uniform rules, both statistical and both per-scope.** Added to
+  `scripts/insights.py` under the existing traceability law (every numeric token must appear
+  in the source rows; silence beats hedging; no cross-scope sentence):
+  - `rule_region_concentration(regions, mapping_coverage, scope)` - "The leading region is
+    X, with N of M mapped posting(s) in this sweep." M comes from `mapping_coverage_latest`
+    (region dimension), **never** from summing the rendered ranking: the ranking truncates at
+    DIMENSION_LIMIT=25, so its column sums to the listed top-N (2,729 for DE), not the sweep
+    (28,779). The first implementation made exactly that mistake and was caught by reading
+    the built page: "187 of 2,729" -> corrected to "187 of 28,779". Preconditions: a region
+    coverage row with mapped > 0, >= 2 mapped region rows, a unique leader (no tie).
+  - `rule_sweep_churn(flows, scope)` - "Between the two most recent daily buckets (N days
+    apart), X posting(s) opened and Y closed, leaving Z active." Reads `posting_flows`' own
+    numbers; the bucket spacing is stated because the DE buckets are 09-04 -> 09-05 (one
+    day) while SE's newest pair spans a 13-day hole - churn claims no direction, so no
+    cadence gate applies (unlike `rule_trend`, which stays silent and untouched). Masked
+    buckets (null counts) silence the rule.
+  - Both wired through `insights.build(..., regions=())` (new optional parameter,
+    backward-compatible) into the `countries` and `survival` sections and the Overview
+    digest; `_render_countries` gained section-insight rendering for the concentration
+    sentence beside its scope's plate.
+- **Methodology 1.5.** Both new sentences are definitions in the 1.3 sense (rules deciding
+  when a number is stated and against which denominator), so the version bumped with the
+  change, the test pin moved in the same commit (`tests/test_probe.py`
+  `test_methodology_version_covers_the_requirement_dimensions`), README 1.4 -> 1.5,
+  USER_MANUAL's CSV example `...-methodology-1-5.csv`. The 1.5 comment block in
+  `scripts/publish.py` states what changed and why it cannot share a version with 1.4 pages.
+- **The redesign, implemented from the reviewed spec.** `design/UI_REDESIGN_SPEC.md` (811
+  lines, guideline-reviewed 2026-09-04 with findings resolved) + `design/prototype/index.html`
+  were already in the checkout untracked; this session ported them into `scripts/publish.py`
+  and committed both (spec `f126600`, implementation `3bbf640`):
+  - **STYLE replaced wholesale**: spec §1.2 palette (housing/signal/caution/ink/ground + state
+    tones + hatch + unknown), §1.3 type voices (Data Register monospace for all numerals and
+    the h1, Panel Label for headers/eyebrows, body at 16/1.5), plate borders 1.5px, amber
+    focus with ink ring, `theme-color` meta, `touch-action: manipulation`, mobile ladder.
+  - **Observation board** (§3.3): one card per scope - h3 scope name with `translate="no"`,
+    country chip, both lamps, mono count readout ("active postings · this scope only"),
+    observed time, frame strip, trend line (per-scope `_finest_series` + `_direction` +
+    complete-sweep count, replacing the single leading-scope pick). The **"Largest single
+    observation" stat is removed** (spec §1.8 item 1: it invited the forbidden cross-scope
+    comparison); stats are now Last update + Source coverage.
+  - **Annunciator lamps** (§3.2): `_lamp`/`_lamp_freshness`/`_lamp_coverage` - bulb + Panel
+    Label text + both numbers ("Fresh · 13 h old · threshold 24 h", "Covered · 29,068 of
+    29,068 rows"); `_badge` now emits the same lamps in every status cell (24 on the live
+    page). Unknown states render the unknown pair rather than crashing on a missing row.
+  - **Frame strips** (§1.5/§3.4): `_frame_strip` - <= 60 regions: one `<rect>` per tick; the
+    DE 400-frame: two pattern-filled runs at 4px/region with graduations every 100;
+    `aria-label` + `<title>` + `<desc>` carry the breadth sentence. Pattern ids carry a
+    context suffix (`-card`/`-regions`) because the live release check caught duplicate ids
+    when one scope's strip rendered in two places - fixed and re-gated, not suppressed.
+  - **Scope plates** (§3.1): `_scope_plate` wraps Countries' region blocks, Occupations'
+    rankings, and Requirements' distributions - name as a real h3 (heading ladder intact),
+    country chip, lamps. Countries' old h4 subsection headers are gone.
+  - **Absence plates** (§3.9): the five empty German surfaces (occupation ranking, skill
+    ranking, employment type, working hours, contract duration) now render dashed plates with
+    a typed eyebrow + sentence + the drawn-from denominator line (rankings) instead of empty
+    tables. Occupation/skill condition stays `mapping_coverage_latest`
+    (`postings_with_source_value = 0`, `postings_total > 0`); the three requirement
+    dimensions use spec Flag 1 option (b): no rows for the dimension + a positive sweep
+    total. The release check's ranked-prefix rule still holds because the Swedish scope
+    renders every prefix (and its absence is the point: a scope that cannot feed a ranking
+    shows a typed state, not a dead table).
+  - **Mapping chips** (§3.7): `_mapping_chip` beside each Swedish ranking - three segments
+    (mapped filled / carries-but-unmapped hatched / no-field hollow) scaled within
+    `postings_total`, printed counts, aria-label repeating the denominator's numbers.
+  - **Mark key** (§3.5) in Overview: filled/hollow/hatched/dashed with one sentence each.
+  - **Suppressed cells** (§3.10): `td.suppressed` hatched ground on the word; survival and
+    flow cells carry `_suppressed_class`. **Requirement markers** (§3.11): hollow dot before
+    `Not stated`, hatched swatch before `Unrecognised code`.
+- **Tests.** `_rich_rows` gained region rows + a region coverage row + two daily flow rows;
+  the main publish test now pins the churn sentence (7 insight paragraphs: the digest
+  double-renders latest + both rankings + churn), concentration silence with one mapped
+  region, and the new absence-plate/markup assertions; the two-scope test pins the plate h3s,
+  `translate="no"`, the two occupation/skill absence plates with their ranked tables absent
+  for the German scope, and the requirement-table sums unchanged; unmet-precondition cases
+  cover solo/tied/no-coverage-region and churn's one-bucket/masked cases. One corruption
+  during editing (`reqs` fixture) was caught by the suite and fixed. Full gate: ruff clean,
+  mypy clean 62 files, **459 pytest**, dbt **PASS=202**; `make release-check` green on the
+  synthetic page; `make live-site` green (12 sweeps, PASS=197); direct release checks on the
+  live page and `docs/index.html`: **0 problems**. Live verification: 2 board cards, 6
+  scope plates, 5 absence plates, 4 frame strips, 2 mapping chips, 24 lamps; both new
+  sentences firing with correct denominators.
+- **What was deliberately NOT inferred.** No occupation or skill ranking was added for
+  Germany (impossible) or kept for Sweden as a special case (owner chose uniformity); no
+  education statement (no field anywhere); no trend claim (the pre-registered 14-sweep gate
+  stands, 9 of 14); no German lifetime reading (the 2.0-day median stays caveated); no DE-vs-SE
+  comparison; no new ratio or percentage anywhere (counts only, as ever).
+- **Commits:** `3bbf640` (rules + redesign + tests, one atomic change because the tests pin
+  both), `f126600` (design spec/prototype/screenshots), `69bdf1e` (published artefact).
+- **Open follow-ups from this session:** tile-grid map and vendored-uPlot interactivity
+  (Increment 15's spec, now unblocked by the lifted rule) are NOT done - the board's strips
+  and sparklines are the charts so far; the IA consolidation to five sections (proposed in
+  the 2026-09-05 chat summary) is NOT done - all nine sections and slugs stand.
+
+
+### 2026-09-05 (evening) - Decision: a fresh app instead of a retrofit; plans updated
+
+- **Owner decision, recorded:** the next presentation work is a **different, fresh,
+  user-centric application** - modern, illustrative, charts-and-figures instead of raw
+  data, "dumbed down but beautiful" - and the **existing HTML page is left unchanged**,
+  frozen as the analytical/audit artefact with its gates armed. Retiring it later would be
+  a deliberate recorded decision, never a drift.
+- **Architecture fixed by the decision:** a gated JSON **export** (Plan A v2 Task A2:
+  `scripts/export_app_data.py` -> `app/data.json`) generated from the same DuckDB views
+  and the same `insights.build` rules the publisher reads, carrying methodology version,
+  denominators, suppression flags and absence states. The app **never computes a
+  statistic** - if a number is not in the export, it is not shown. This kills the
+  two-surfaces-two-truths risk by construction.
+- **Plan A rewritten to v2** (same file): v1's remaining tasks (uPlot-in-the-old-page,
+  `<details>` collapse, five-section IA) are retired; A1 (plain-language board, done
+  `0650963`) was the old page's last change. New queue: A2 export contract -> A3 app
+  skeleton (preflight: Node.js available? Vite+React if yes, no-build vanilla app if no -
+  never install Node silently) -> A4 polish/illustration.
+- **Plan B amended:** the `make auto` orchestrator now also runs `make export-app` (skips
+  with a logged warning until A2 lands), so automation serves both surfaces;
+  never-commit-a-red-gate extends to both.
+- **MEMORY.md updated** (section 1 item 6, task queue, and the new app law in section 4's
+  active list). Runbook state block points at Plan A Task A2 as the next session.
+
+### 2026-09-05 (late evening) - Plan A Task A2: the JSON export contract
+
+- **What the export is.** `scripts/export_app_data.py` (stdlib + duckdb only) reads exactly
+  what `publish.build_site` reads - the same DuckDB publish views through publish's own
+  `_query_*` functions, so no SQL is duplicated and no drift is possible - and calls
+  `insights.build` with the identical argument list `build_site` uses. Every number in
+  `app/data.json` is therefore a number the page already renders; the app computes nothing.
+- **The contract, as pinned by test.** `meta` carries `methodology_version` (1.5), `built`
+  and `scope_count`. Each scope carries `demand`, `coverage`, `breadth`,
+  `frequency` (complete sweeps, first/last observed - what the status lamps state),
+  `regions_top` (already truncated at `DIMENSION_LIMIT` by the query, exactly as the page
+  renders it), `requirements` (`{dimension: [{label, code, count}]}`), `mappings`
+  (`{dimension: {status: count}}` - the German absence evidence), `denominators`
+  (`{dimension: {postings_total, postings_with_source_value, postings_mapped}}` - law 2's
+  denominators-beside-rankings and law 4's absence state when `with_source_value = 0`),
+  `flows_series` (`{grain: [{bucket, openings, closures, active, suppressed}]}` where
+  `suppressed` is true when the small-count floor nulled any measure, so a suppressed or
+  unobserved bucket can never chart as zero) and `insights` (`[{rule, text, evidence}]`).
+- **One shared-module change.** `insights.Insight` gained an additive `rule: str = ""`
+  field, tagged inside `insights.build` where the dispatch knows each rule's name
+  (`dataclasses.replace`, no constructor touched). The contract requires the rule name and
+  only `build()` knows it; page rendering is unchanged and every existing insight test
+  passed untouched. `scripts/publish.py` and `tests/test_probe.py` are untouched.
+- **Make target.** `export-app` mirrors `live-site`: the same live observation/manifest
+  globs (same three-segment depth), the same fail-closed sweep count, the same reference
+  time, dbt build excluding `tag:sample_fixture`, then the export script. The export and
+  the page can never describe different sweeps.
+- **Tests (new file `tests/test_export_app.py`, 3 tests).** The equality test builds the
+  two-scope fixture database, renders the page AND the export from it, and proves the
+  numbers equal: demand counts parsed back out of the countries table's rendered rows,
+  region and requirement rows as exact `<td>` cell fragments, the suppressed flow bucket
+  against the page's hatched "suppressed" cells, every exported insight sentence present
+  on the page, and evidence dicts equal to the fixture's own numbers. The schema test
+  asserts the exact key set at every level of the payload - any silent field rename fails
+  the gate loudly. The third test proves the written file is stamped
+  (`methodology_version`, ISO `built`, `scope_count`).
+- **Live run and seed.** `make export-app` green from 12 stored sweeps (dbt PASS=197);
+  `app/data.json` committed as the app's seed: 2 scopes, spot-checked against the known
+  live figures - DE 29,068 active, Rendsburg-Eckernförde 187 of 28,779 mapped, breadth
+  392 of 400, churn 13 opened / 13 closed one day apart; SE 623, Stockholm 247 of 584,
+  9 sweeps. **No methodology bump**: the export adds no new figure or definition, it
+  transports figures that already publish (reasoning recorded here per the version rule).
+- **Deliberately not done.** No app code (A3 next: stack preflight, skeleton, hero,
+  charts); `docs/index.html` not refreshed (page output unchanged); no occupation/skill
+  ranking keys added to the payload (the plan's shape omits them - the leading
+  occupation/skill reaches the app only through insight evidence; A3 must confirm that
+  suffices, recorded as an open item).
+- **Incident, recorded: a parallel session.** Mid-session, an uncommitted `make auto`
+  draft (`scripts/auto_sweep.py`, 10.8 KB, plus the Makefile `auto` target) appeared in
+  the working tree - a B1 session running out of queue order while this session ran A2,
+  exactly the collision the runbook's no-parallel-sessions rule exists for. The owner
+  stopped it on request. The draft is deliberately NOT in this commit: the Makefile was
+  partially staged so only the `export-app` hunks landed, and `scripts/auto_sweep.py`
+  stays untracked for the real B1 session to re-apply and review. Nothing of it was
+  reverted or deleted.
+- **Gates as run.** `make check` before (459 pytest) and after (**462 pytest**, ruff, mypy
+  65 files, dbt PASS=202 WARN=0 ERROR=0); `make export-app` (12 sweeps, dbt PASS=197,
+  2 scopes); `make live-site` last (12 sweeps, dbt PASS=197, 2 rows); direct release
+  check on the live page: 0 problems. `docs/index.html` untouched - the audit page is
+  frozen per the Plan A v2 decision.
+
+### 2026-09-05 (A3 session) - Plan A Task A3: the fresh app (skeleton, hero, charts)
+
+- **Preflight, recorded before any code was written (the task's first requirement).**
+  `node --version` → **v24.14.0**. Node is present, so the stack is the plan's Node branch:
+  **Vite + React + TypeScript** with **Chart.js** (`chart.js` + `react-chartjs-2`, plus
+  `chartjs-adapter-date-fns` for a real calendar axis). Nothing was installed to make this
+  true - Node was already on the machine, and the no-build vanilla fallback was therefore
+  not used. PowerShell blocks `npm.ps1` under its execution policy, so npm is invoked as
+  **`npm.cmd`** (recorded because every later app session hits it).
+- **What exists now.** `app/` is the app: `index.html`, `src/main.tsx`, `src/App.tsx`,
+  `src/styles.css`, `src/data.ts` (the typed loader - the single place any data enters) and
+  `src/components/` (`ScopeCard`, `Lamp`, `FactLine`, `TrendChart`, `RegionBars`,
+  `RequirementStack`, `AbsenceCard`). Two views: an **Overview hero** (one card per scope:
+  big number, freshness/coverage lamps, sweep count, four plain-language fact lines, a CTA
+  into the story) and a **per-scope story** (hero, all fact lines, trend, region bars,
+  requirement stacks or absence cards). `app/README.md` replaces the Vite boilerplate with
+  the app's contract and the grep commands that prove it; the scaffold's demo assets
+  (`public/vite.svg`, the template's social-icon sprite, `App.css`, `index.css`) are deleted.
+- **The export contract as A2 actually built it, not as the plan sketched it.** The app
+  reads the real payload: `demand`, `coverage`, `breadth`, `frequency`, `regions_top`,
+  `requirements`, `mappings`, **`denominators`**, `flows_series`, `insights` (each with
+  `rule` + `evidence`). The plan's sketch had no `denominators`/`mappings`/`frequency`; the
+  app uses `denominators.region.postings_mapped` for the ranking denominator and
+  `denominators.*.postings_with_source_value == 0` to detect German absence, which is
+  exactly why A2's additions matter. The A2 open item "does occupation-through-evidence
+  suffice?" is answered: **yes for the hero fact line** (SE's
+  `most_requested_occupation` sentence renders as-is from the export), and it is
+  irrelevant to Germany, which has no occupation field at all.
+- **Honesty laws, as implemented and verified in the browser.**
+  - *No pooling, no comparison.* Each card and every chart is one `(source, scope_id)`.
+    There is no combined total, no ratio between scopes, no shared axis; the Overview
+    intro and the footer say so in plain language.
+  - *Gaps stay gaps.* The trend uses a **time scale**, so a 13-day hole is 13 days wide,
+    and an explicit **null point is inserted inside every hole** (`spanGaps: false`), so
+    the line physically breaks. Verified on screen: SE draws a segment only across the
+    adjacent 08-19→08-20 pair, then two unconnected dots at 08-22 and 09-04; DE draws
+    09-02 isolated and 09-04→09-05 joined. The chart note and the aria label both name
+    every gap and its length. **Three rendering attempts were needed** and are recorded
+    because each failure was instructive: a category axis (evenly spaced the 13-day hole -
+    dishonest), then `parsing: false` (Chart.js drops null gap points, so points vanished),
+    then `ticks.source: 'data'` (labelled the invisible break points). The shipped version
+    is a plain day-unit time axis.
+  - *Churn spacing always stated.* The churn fact line renders `days_apart` from evidence
+    ("13 days apart" / "1 day apart"), and the trend intro repeats it.
+  - *Denominators beside rankings.* Region bars: "out of 28,779 mapped postings" (DE),
+    "out of 584" (SE), with "Top 5 ... (NUTS-2024)" naming the truncation and a link to
+    the audit page for the full ranking. Requirement stacks: "every one of 623 postings".
+  - *Suppression respected.* A `suppressed: true` bucket is plotted as **null, never zero**,
+    and gets a diamond marker plus a sentence; no live bucket is currently suppressed, so
+    that path is code-present and unexercised (open item).
+  - *Absence is a statement.* Germany renders three honest cards - employment/hours/
+    duration, occupation ("this source publishes no occupation field - every one of its
+    29,068 postings lacks it"), skill - instead of three empty charts.
+- **No client-side statistics (the DoD's grep-able check).**
+  `Select-String` over `app/src/**` for `\.json|fetch\(|duckdb|dbt|\.parquet|\.csv|\.sql`
+  returns **exactly one hit**: `data.ts:1: import data from '../data.json'`. The complete
+  import list is react / react-dom / react-chartjs-2 / chart.js / chartjs-adapter-date-fns
+  / `./styles.css` / relative app modules - no data source, no network call. The only
+  arithmetic in the app is presentational: `toLocaleString` grouping, bar width as a
+  percentage of the largest bar, and date positions on the calendar axis. **No displayed
+  number is derived** - every figure is a field of the export. Both commands are written
+  into `app/README.md` so the check is repeatable.
+- **Accessibility.** Every chart carries `role="img"` and an `aria-label` that reads out
+  the whole series with its denominator (the charts' text twin). All six interactive
+  elements are native `<button>`/`<a>` with no `tabindex`, so tab order is DOM order;
+  focus-visible rings are amber, 3 px, offset. Contrast was **computed in-page** rather
+  than eyeballed: 14 text pairs plus both CTAs, lowest ratio **4.92:1** (white on the
+  German gold CTA), everything else ≥5.47:1 and most ≥7:1 - AA passes throughout. A
+  `prefers-reduced-motion` guard disables smooth scrolling (full motion work is A4).
+- **Screenshots verified.** 1280 px (Overview, both stories) and **390 px** (Overview and
+  the Germany story): cards stack, the switcher scrolls, charts reflow, no clipping, no
+  horizontal overflow. One artefact worth knowing: a full-page screenshot taken
+  immediately after a viewport resize can capture a **stale canvas bitmap** before
+  Chart.js re-renders; element screenshots after the resize settles show the correct
+  chart. Both `.playwright-mcp/` (screenshots) and `app/dist/` are gitignored.
+- **Deliberately not done.** No motion/illustration/loading-state polish and no deploy
+  story (that is A4). `make export-app` was **not** re-run: it would rewrite
+  `app/data.json`'s `built` stamp for no new data and create a spurious diff - the
+  committed A2 seed *is* the live export the app was checked against. No
+  `make live-site`/`make release-check`: no page output changed, the audit page stays
+  frozen, and `docs/index.html` is untouched (the runbook conditions those gates on page
+  output changing, and never running `site`/`release-check` also means the live page could
+  not be clobbered). `scripts/publish.py`, `scripts/insights.py`, `tests/test_probe.py`,
+  the Makefile and every gate are untouched. No methodology bump: the app publishes no new
+  figure or definition - it re-renders the export's existing figures (version rule
+  reasoning recorded here).
+- **Open items (noticed, recorded, not done).** (1) The app has **no automated test** -
+  nothing pins the honesty laws (a future edit could add a cross-scope chart and no gate
+  would fail); a small vitest or a Python string check over `app/src` would fix it, and
+  belongs in A4 or its own task. (2) The suppression path is unexercised by live data. (3)
+  `flows_series.day` is sparse (DE 3, SE 4 buckets), so the trend is honest but thin; it
+  fills in as cadence holds, with no code change. (4) The three German absence cards are
+  wordy back-to-back - an A4 presentation question. (5) The old page and the app now render
+  the same figures from two codepaths; only the export's own tests tie them together. (6)
+  The leftover uncommitted B1 draft (`scripts/auto_sweep.py` + the Makefile `auto` hunk) is
+  still in the tree, still unreviewed, and was again deliberately excluded from this
+  commit.
+- **Gates as run.** `make check` **before** (ruff clean, mypy 65 files, 462 pytest, dbt
+  PASS=202 WARN=0 ERROR=0) and **after** (identical: ruff clean, ruff-format clean, mypy
+  65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**) - the app is outside the Python
+  gate's reach, which is the point of the frozen-page architecture. `npm run build` green
+  (tsc -b + vite, 335 modules, 439 kB JS / 7 kB CSS). Working tree after the commit
+  contains only the pre-existing B1 draft.
+
+### 2026-09-05 (A4 session) - Plan A Task A4: polish and illustration pass
+
+- **What this session was.** Polish of what A3 actually built (Vite + React + TS +
+  Chart.js, Overview hero + per-scope stories, calendar-axis trend, region bars,
+  requirement stacks, absence cards) - no new data, no new statistic, no new chart
+  type. The old page, its tests, `app/data.json` and its contract are untouched;
+  `make export-app` was again **not** re-run (the A2 seed *is* the live export; a re-run
+  would only churn the `built` stamp).
+- **Motion, all gated by `prefers-reduced-motion` (an active constraint, treated as
+  one).** Two halves: (1) CSS - entrance `rise-in` on cards/stories/absence cards/req
+  figures/hero art (staggered), card hover lift, region-bar `scaleX` grow-in
+  (staggered), a 3 s lamp "breathe", loading dots - all switched off by one
+  `@media (prefers-reduced-motion: reduce)` block that kills every animation and
+  transition (`styles.css`, end of file); entrance animations use fill `backwards`
+  so the finished state returns to the cascade and hover transforms still work.
+  (2) Charts - Chart.js cannot read a CSS media query, so a new
+  `usePrefersReducedMotion()` hook (`app/src/motion.ts`, standard matchMedia +
+  change-listener pattern) feeds `animation: reduced ? false : {duration, easing}`
+  in `TrendChart` and `RequirementStack`. Verified under emulation (below), not by
+  code inspection alone.
+- **States.** The app (and with it the export) now loads as one **lazy chunk**
+  (`React.lazy` in `main.tsx`), so the loading screen is a real state, not theatre:
+  a branded card ("Opening the observatory's latest published numbers...") with the
+  honest caveat "nothing is counted on the fly". A `LoadErrorBoundary`
+  (`components/States.tsx`) catches a failed chunk load with a plain-language
+  explanation and a reload button. Verified by routing: the app chunk delayed 2.5 s
+  (loading screen on screen, then the app renders) and aborted (boundary fires).
+  **Absence polish (A3 open item 4, the wordy back-to-back cards):** the three German
+  absence cards now sit in one `absence-group` under a single "Not available from
+  this source" heading with the "fact about the source, not missing work" footnote
+  stated once; each card is compact with a dashed-box icon. The honesty is unchanged
+  - same sentences, same numbers, still statements never empty charts. Standalone
+  absence uses (trend/regions) keep their own "not available" titles.
+- **Branding and illustration.** The app is named **Job Market Pulse** (a pulse is a
+  reading of current state - deliberately not "weather", which would imply forecast,
+  and `rule_trend` stays silent). Favicon is an inline SVG data-URI (vendored by
+  definition, no external asset; the masthead logo, `components/Brand.tsx`, is the
+  same mark). `FactLine`'s unicode glyphs are replaced by one consistent inline SVG
+  icon set (`components/Icon.tsx`, 24x24/2px stroke/currentColor, aria-hidden). A
+  decorative two-job-ad-cards illustration (`HeroArt`) sits beside the Overview
+  heading and scales to 210 px at 390 px. Voice: tagline and copy unchanged where
+  they were already right; footer keeps the observatory framing.
+- **Cross-linking to the audit page.** `AUDIT_PAGE_URL = '../index.html'`
+  (`app/src/links.ts`) is the single source for every link (masthead meta line,
+  region-bars note, footer CTA button "See the full data - the analytical audit
+  page"). **This fixes an inherited defect:** A3's links said `../docs/index.html`,
+  which only resolves under a serve-the-repo-root layout and breaks under the
+  recommended `docs/app/` layout. `vite.config.ts` gains `base: './'` so the build
+  is path-relocatable. Verified end-to-end: a temp directory laid out as
+  `{index.html = docs/index.html, app/ = dist/*}` served statically - the app boots
+  at `/app/index.html` and the footer CTA lands on the audit page.
+- **Mobile (390 px) and contrast, verified not assumed.** Playwright at 390x844:
+  `scrollWidth - clientWidth = 0`, no element wider than the viewport, hero scales,
+  cards stack. Contrast recomputed in-page for every new surface: footer audit CTA
+  (white on teal) **5.47:1**, absence-group title 8.77:1, absence-body 13.74:1,
+  foot texts >=7:1; the absence icon was darkened `#a16207 -> #92400c` after
+  measuring 4.61:1 (decorative, but why keep the low pair).
+- **Screenshots recorded (`.playwright-mcp/`, gitignored):** `a4-desktop-1280-overview.png`,
+  `a4-desktop-1280-germany-story.png` (absence group), `a4-mobile-390-overview.png`,
+  `a4-mobile-390-sweden-story.png`, `a4-desktop-1280-reduced-motion.png`
+  (Playwright `reducedMotion: 'reduce'`; the page itself reported
+  `matchMedia('(prefers-reduced-motion: reduce)').matches === true`), plus
+  `a4-loading-state.png`, `a4-after-delayed-load.png`, `a4-error-state.png`. The
+  reduced-motion and throttled-load captures needed a local playwright-core script
+  (system Edge, no browser download); the MCP browser cannot emulate media or
+  throttle chunks.
+- **Chart problems inherited from A3, recorded not redesigned** (the task's
+  instruction): (1) full-page screenshots taken right after a viewport resize can
+  capture a **stale canvas bitmap** - Chart.js re-renders async; element shots after
+  settling are correct. Still true in A4; the screenshot script waits out the
+  animations instead. (2) The trend is **honest but thin** (DE 3, SE 4 daily
+  buckets) - fills in as cadence holds, no code change. (3) The **suppression path
+  is code-present and unexercised** by live data. (4) The app still has **no
+  automated test** pinning its honesty laws - not done here (polish-only scope); it
+  remains the standing open item, now with a concrete place to put it (a vitest or
+  a Python string check over `app/src`, per `app/README.md`).
+- **Deploy story - RECOMMENDATION ONLY, nothing deployed (Increment 25 is
+  budget-gated).** Publish the app's build output at **`docs/app/`** beside the audit
+  page (`docs/index.html`), in the same commit that refreshes the audit page: one
+  GitHub Pages artifact, one base path, relative URLs throughout (`base: './'` and
+  `AUDIT_PAGE_URL = '../index.html'` are already built for exactly this layout), and
+  the analytical fallback stays one click away. Refresh order when that day comes:
+  `make live-site` -> copy `site/build/index.html` to `docs/index.html` -> `make
+  export-app` -> `npm run build` in `app/` -> copy `app/dist/*` to `docs/app/` ->
+  release-check on `docs/index.html` -> commit both together (so the two surfaces
+  never disagree about methodology). The alternative (serving the repo root) is what
+  A3's old `../docs/index.html` href assumed; it is rejected because GitHub Pages
+  serves the *published artifact*, not the repo root. The export-feels-limiting
+  question did not arise: nothing in this polish wanted a field the export lacks.
+- **Deliberately not done.** No new chart type, statistic or data (scope law); no
+  automated app test (recorded above); no methodology bump - the app re-renders the
+  export's existing figures, branding and motion change nothing published; no CI,
+  Pages, orchestrator or deployment touches; the B1 draft (`scripts/auto_sweep.py` +
+  Makefile `auto` hunk) remains uncommitted and unreviewed for the real B1 session.
+- **Lint note.** `npm run lint` (oxlint) reports two advisory warnings, both
+  standard patterns accepted deliberately: `main.tsx` `React.lazy` in the entry file
+  (fast-refresh hint only) and `motion.ts` synchronous `setState` in the matchMedia
+  effect (the canonical subscribe-to-media-query shape; dropping the sync read would
+  miss a change that happened between render and effect attach). No errors.
+- **Gates as run.** `make check` before (ruff clean, ruff-format clean, mypy 65
+  files, 462 pytest, dbt PASS=202 WARN=0 ERROR=0) and after (identical). `npm run
+  build` green (340 modules; entry 196 kB + lazy app/export chunk 251 kB). No
+  `live-site`/`release-check`: no page output changed, `docs/index.html` untouched,
+  same conditions as A3. Working tree after the commit contains only the
+  pre-existing B1 draft.
+
+### 2026-09-05 (B1 session) - Plan B Task B1: the `make auto` orchestrator
+
+- **Incident first, because it changed the starting point.** The runbook's B1 prompt
+  said to re-apply and review the leftover uncommitted draft
+  (`scripts/auto_sweep.py`, 10.8 KB, plus the Makefile `auto` hunk). The draft was
+  **gone**: at 22:15:56 local — two seconds before this session's prompt — `Makefile`
+  and `scripts/insights.py` were overwritten with exactly their pre-A2 (`b223707^`)
+  content and `scripts/export_app_data.py` was deleted, i.e. a mechanical revert of
+  committed, recorded-green A2 work (verified: `git diff b223707^ -- Makefile
+  scripts/insights.py` empty; no reflog entry, consistent with a path-scoped
+  checkout/restore that never moves HEAD). The draft itself was unrecoverable — not
+  on disk, not among `git fsck --unreachable` blobs, not in any session transcript —
+  though its four `logs/auto/` runs from 18:28–18:34Z survive (the last, a real
+  `--skip-sweep` run, failed at lint on the then-uncommitted `export_app_data.py:144`
+  and stopped before commit exactly as designed). The owner approved discarding the
+  revert; all three files were restored to HEAD (`git restore`), the tree verified
+  byte-clean against HEAD, and B1 was then **written fresh from the plan**, not
+  re-applied. Cause of the revert is unknown — open item below.
+- **What exists now.** `scripts/auto_sweep.py` (stdlib only; every step is a
+  subprocess of an existing entry point, nothing re-implemented) plus the Makefile
+  target `auto` (wraps `--sources $(SOURCES)`, default `jobtech`; an addition — no
+  existing gate edited). Steps, in the plan's order: **spacing guard** (jobtech ≥ 2 h,
+  ba ≥ 20 h, computed from partition manifests' `started_at`; a blocked guard refuses
+  to sweep, exits 1) → **pre-sweep `make check`** (the recorded check-before-sweep
+  constraint: a sweep with a broken mapping bakes the error into a permanent
+  partition; it is deliberately redundant with the loop's own check below — unattended
+  redundancy on the one command that protects permanent data) → **sweep(s)**
+  (`make sweep` for jobtech; `uv run --offline python main.py --source ba --panel
+  --date <UTC today>` for ba, followed by `scripts/check_ba_panel_readiness.py` as
+  the panel DoD gate) → `make check` → `make live-site` → `make export-app`
+  (existence probed with `make -n`; if absent: skip with a logged warning — Plan A
+  A2's not-yet-landed case, now moot since A2 landed) → **direct**
+  `python -m scripts.release_check site/build/index.html` (never `make
+  release-check`, which rebuilds the synthetic page over the live one) → copy to
+  `docs/index.html` → **commit of exactly `docs/index.html` + `app/data.json`**
+  (pathspec-scoped, so unrelated staged work can never ride along; message templated
+  from what ran; "no artefact changes" after a green run is success, not failure) →
+  optional `--push`. Flags: `--sources jobtech,ba`, `--skip-sweep` (gates + publish
+  only, no guard), `--push`, `--dry-run`, and `--status` (per-scope partition ages,
+  spacing verdicts against the 2 h/20 h thresholds, freshness verdicts against each
+  manifest's own `freshness_threshold_hours`, plus the tail of the newest auto log).
+  Logs land in `logs/auto/<YYYYMMDDTHHMMSSZ>.log` (gitignored); subprocess output
+  stays in the log, and on failure the last 15 lines print to stderr for diagnosis.
+- **Proofs, in `logs/auto/`, HEAD unchanged across the two failure proofs.**
+  (1) `--status` read-only: both scopes reported (jobtech 9 sweeps / 26.0 h old /
+  allowed / fresh; ba 3 / 23.5 h / allowed / fresh) with the then-newest log's tail.
+  (2) `--dry-run`: the whole loop logged, nothing executed, exit 0.
+  (3) **Deliberate mid-loop failure**: a temp unformatted `scripts/_fail_proof.py`
+  made `make check` fail at lint inside a real `--skip-sweep` run → "FAILED step make
+  check (exit 2); stopping before commit", exit 1, HEAD still `33e121f`; temp file
+  removed afterwards. (4) **Blocked guard**: a second jobtech run four minutes after
+  the new sweep → "spacing guard jobtech: newest partition ... 0.1 h old (minimum
+  2 h); refusing to sweep", exit 1, no sweep started, nothing committed.
+  (5) **Full green `--skip-sweep` run**: gates → live-site → export-app → direct
+  release check (0 problems) → copy → auto commit `5deb7b9` (12 sweeps, 2 scopes;
+  only the two artefacts, 6 lines each). (6) **Real unattended run** (`make auto`):
+  guard allowed at 26.1 h → pre-sweep check → live jobtech sweep #10 stored
+  (`20260905T204610Z-f5cf1d409aa5`, 599 rows, 7 pages) → gates → both surfaces →
+  direct release check 0 problems → copy → auto commit `cfeed53` (13 sweeps, 2
+  scopes). After it, `--status` honestly reports jobtech "sweep blocked, 1.9 h to
+  go".
+- **Deliberately not done / open items.** No unit tests for the orchestrator — the
+  plan's DoD is operational (one green unattended run + one deliberate failure) and
+  the six proofs above are that evidence. No app build/deploy step in the loop: the
+  plan slots one in after `export-app` "when it exists", the app now exists but A4's
+  deploy recommendation (`docs/app/` beside the audit page) is still
+  recommendation-only, so the loop regenerates `app/data.json` and stops there; the
+  build step joins the loop on the day deployment is decided. B2 (Windows scheduled
+  tasks + the BA-daily cadence decision) untouched — next session. The cause of the
+  22:15:56 revert is unknown (nothing in git reflog; file writes only); flagged so a
+  recurrence is recognised. The standing app-honesty-test gap is unchanged.
+- **Gates as run.** `make check` before (on the restored clean tree: ruff clean,
+  ruff-format clean, mypy 64 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**)
+  and after (ruff clean, ruff-format clean, mypy 65 files — the new script —,
+  **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**). The page gates ran inside the
+  auto loops (`make live-site` green; `make export-app` green, dbt PASS=197, 2
+  scopes; direct release check on the built page 0 problems; copy; artefact commits
+  `5deb7b9` and `cfeed53`), so the session's final page state is the live page —
+  nothing rebuilt the synthetic page over it afterwards.
+
+### 2026-09-05 (B2 session) - Plan B Task B2: Windows scheduled tasks + cadence decision
+
+- **Cadence decision, made and recorded first.** BA **daily** — it keeps the existing
+  24 h `freshness_threshold_hours` honest (the DE badge reads fresh every day). The
+  weekly alternative (PANEL_HANDOVER §3's minimum cadence) was rejected: it would leave
+  the DE badge stale most of the week and requires raising the threshold to 168 — a
+  scope-definition change needing a methodology note, **deliberately not made** in this
+  session. SE twice daily (07:30 / 19:30) per the pre-registered cadence. **Owner
+  override on the BA clock:** the plan's 02:00 slot would never fire (the PC is off at
+  midnight), so BA runs daily at **13:00** local — the daily cadence and the freshness
+  threshold are unchanged, only the wall clock moved.
+- **What was built.** `scripts/install_scheduled_tasks.ps1` (`94f3267`): registers two
+  user-level tasks, no elevation — "Observatory SE sweep" (daily 07:30 + 19:30,
+  `make auto SOURCES=jobtech`) and "Observatory BA sweep" (daily 13:00,
+  `make auto SOURCES=ba`), wired to B1's orchestrator exactly as built (the `auto`
+  Makefile target with `SOURCES=`, absolute `make.exe` path resolved at install time,
+  repo root as working directory). Settings: start-when-available, wake-to-run, 4 h
+  execution limit (the BA loop takes ~50 min), `IgnoreNew` on overlap, battery settings
+  off (desktop workload). The script registers tasks **disabled** by default (`-Enable`
+  to register enabled) and `-Remove` uninstalls both — the setup is reversible. make
+  and uv were verified persistent on the user PATH (registry), so the task environment
+  resolves them; the HMAC key needs no environment (`.env` on disk).
+- **Principal trade-off, recorded.** An S4U principal (runs when logged off) was
+  refused at registration from a non-elevated shell ("Access is denied") on both
+  tasks; the installer falls back to **Interactive** (runs when logged on, including
+  locked). An elevated `Register-ScheduledTask -LogonType S4U` is the one-command
+  upgrade if logoff-proof scheduling is ever needed. Missed slots self-heal anyway:
+  start-when-available fires at next logon and the orchestrator's spacing guard
+  prevents a catch-up over-sweep.
+- **Verification, by firing from the scheduler (not dry logic).** SE fire 1
+  (21:35Z): legitimate **spacing skip** — guard refused (jobtech 0.8 h < 2 h), exit
+  propagated to LastTaskResult, nothing committed; wiring proven end-to-end in the
+  task context. **BA fire** (21:37Z, guard agreed first via `--status`: 24.5 h ≥
+  20 h): the full loop ran green unattended — pre-sweep check → panel sweep
+  **1,320/1,320 pages, 28,904 rows**, partition #4 `20260905T213846Z` (log
+  `logs/auto/20260905T213703Z.log`) → panel DoD gate → `make check` → `live-site` →
+  `export-app` → direct release check 0 problems → copy → **auto commit `75e4e22`**
+  (14 sweeps, 2 scopes). SE fires 2-4 (22:53-23:11Z): the JobTech API is in an
+  outage (`IncompleteRead` once, "request exceeded retry deadline" twice); every run
+  stopped at the sweep step before the commit and HEAD stayed at `75e4e22` — the
+  never-commit-a-red-gate guarantee proven from the scheduler three times, no partial
+  partition left (jobtech still 10). **Final state per owner choice: both tasks
+  ENABLED**, BA at 13:00 (next runs: SE 07:30, BA 13:00 the following day); the
+  re-registration reset the tasks' LastRunTime display, the fire evidence lives in
+  `logs/auto/`.
+- **Bug found and fixed (DoD-driven, in `94f3267`).** After the BA run, `--status`
+  crashed with `UnicodeDecodeError` at `status_mode` (`auto_sweep.py:345`): BA
+  subprocess output writes cp1252 bytes (German umlauts, 0xfc) into the auto log that
+  the orchestrator opens as UTF-8, and the status tail read the file strictly. With BA
+  running daily, `--status` — the DoD's required view — would have crashed every day.
+  Fix: read log tails with `errors="replace"` in both `status_mode` and `RunLog.tail`
+  (diagnostics only; nothing downstream parses the tail). Verified: `--status` now
+  prints both scopes' verdicts plus the newest log tail, outage included.
+- **Docs.** README.md gains an "Automation" section (install/uninstall/enable,
+  `--status`, what to do when a run fails: read the log, never delete a partition,
+  the never-commit-a-red-gate guarantee); SESSION_RUNBOOK.md §7 records the same plus
+  the cadence decision and the Interactive/S4U trade-off.
+- **Deliberately not done / open items.** (1) The JobTech outage (22:53-23:11Z,
+  three consecutive collection failures) means no SE partition was produced from the
+  scheduler tonight; the enabled 07:30 trigger will produce it when the source
+  recovers — the full loop from the scheduler is proven by the BA task's green run
+  (identical wiring, different `SOURCES`). (2) README's Status section still carries
+  stale sweep counts ("9 stored sweeps"; reality: 14) — noticed, not fixed (scope).
+  (3) The auto logs' mixed encodings are now tolerated by the reader; forcing child
+  processes to UTF-8 (`PYTHONIOENCODING` in the subprocess env) is the cleaner
+  upstream fix, not made. (4) S4U registration needs elevation — see the principal
+  trade-off above. The standing app-honesty-test gap is unchanged.
+- **Gates as run.** `make check` green before and after, identical (ruff clean,
+  ruff-format clean, mypy 65 files, **462 pytest**, dbt **PASS=202 WARN=0 ERROR=0**).
+  One mid-session red, caused and fixed inside the session: the first `errors="replace"`
+  edit was not ruff-format-clean and the SE task's own pre-sweep check caught it
+  (exit 2 at lint, nothing committed) — the orchestrator gating its maintainer's
+  work-in-progress is the design working. Session commits: `94f3267` (installer +
+  status fix + README) and the BA auto run's `75e4e22`; page state at close is the
+  live page (nothing rebuilt the synthetic page over it).
