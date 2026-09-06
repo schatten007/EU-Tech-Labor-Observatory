@@ -86,3 +86,11 @@ USER_MANUAL.md
 AGENTS.md
 SESSION_RUNBOOK.md
 MEMORY.md
+
+# Agent working documents - local only (owner decision 2026-09-06)
+SESSIONS.md/
+SCRAPER_BRANCH_SESSIONS.md
+SCRAPER_FEASIBILITY.md
+SCRAPER_ROADMAP.md
+SCRAPER_SOURCE_LANDSCAPE.md
+design/
