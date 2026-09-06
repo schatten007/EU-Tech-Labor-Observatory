@@ -2127,3 +2127,26 @@ no test, no partition moved. Both gate runs bracket the edit.
   work-in-progress is the design working. Session commits: `94f3267` (installer +
   status fix + README) and the BA auto run's `75e4e22`; page state at close is the
   live page (nothing rebuilt the synthetic page over it).
+
+### 2026-09-06 - Plan C commissioned (final wrap-up: screenshots, README pass, cleanup, testing readiness)
+
+- **Owner direction:** "final touch ups, user testing, how to run, use cases" + "screenshots
+  for Github" + "cleanup of all the unneeded files/documents". One session, four tasks
+  C1-C4, written to `.kilo/plans/1788712800000-final-wrapup-plan.md`.
+- **Survey findings the plan is built on:** working tree clean; 205 tracked files; the app
+  fully tracked under `app/` (Vite/React/TS/Chart.js, `data.json` committed, 27 source
+  files); `.playwright-mcp/` gitignored and holding ~24 draft screenshots that predate the
+  final data (9 -> 15 sweeps); `.github/workflows/` exists but is EMPTY (no CI - a make
+  check action is a future owner-commissioned plan if the repo goes public); README Status
+  numbers stale (9 sweeps / 1 German sweep vs 15 / 4) and the app never mentioned;
+  `logs/ba-panel-sweep2.log`/`-3.log` superseded by `logs/auto/` (17 runs).
+- **Plan C shape:** C1 retake screenshots from the LIVE app into a committed
+  `docs/screenshots/` (don't copy the drafts) and embed 2-3 in the README; C2 README final
+  pass (two surfaces, use cases + limitations, current counts, app run rows, layout
+  additions); C3 cleanup - delete ONLY the listed stale drafts and the two superseded logs,
+  leave the audit trail (SESSIONS/SCRAPER_* sizes are not unneededness), GitHub hygiene
+  checks (no tracked .env, no oversized files, LICENSE present; no push); C4 user-testing
+  readiness - protocol names the app as the primary surface, recruitment one-liner ready,
+  nothing executed.
+- **Deliberately out of scope:** public deployment (Increment 25, budget-gated), CI, any
+  change to page content/export schema/gates, the usability study itself.
